@@ -1,17 +1,19 @@
-import { PERSONAL_DEBTS } from "@/lib/mock-transactions";
+import type { DebtView } from "@/lib/view/debts";
 
-export function PersonalDebts() {
+type Props = { debts: DebtView[]; metaLine: string };
+
+export function PersonalDebts({ debts, metaLine }: Props) {
   return (
     <div className="section fade-in" style={{ animationDelay: "240ms" }}>
       <div className="section-hd">
         <div className="ttl mono">
           <b>личные займы</b> <span className="dim">· активные</span>
         </div>
-        <div className="meta mono">3 активно · net +₽ 27 000 out</div>
+        <div className="meta mono">{metaLine}</div>
       </div>
       <div className="section-body flush">
         <div className="debt-grid">
-          {PERSONAL_DEBTS.map((d) => (
+          {debts.map((d) => (
             <div key={d.id} className="debt-card" tabIndex={0}>
               <div className="debt-top">
                 <span className={`debt-dir ${d.dir}`}>{d.dirLabel}</span>

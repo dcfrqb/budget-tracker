@@ -9,8 +9,11 @@ import {
   getTransactionsGroupedByDay,
   getTransactionsPeriodSummary,
 } from "@/lib/data/transactions";
+import { getPersonalDebtsWithProgress } from "@/lib/data/debts";
 import { getLatestRatesMap } from "@/lib/data/wallet";
 import { toPeriodSummaryView, toTxnDayView } from "@/lib/view/transactions";
+import { toDebtView } from "@/lib/view/debts";
+import { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +22,7 @@ export default async function TransactionsPage() {
   // 30-дневное окно для сводки и ленты.
   const from = new Date(today.getTime() - 30 * 86400_000);
 
-  const [rawDays, summary, rates] = await Promise.all([
+  const [rawDays, summary, rates, debts] = await Promise.all([
     getTransactionsGroupedByDay(DEFAULT_USER_ID, { from }),
     getTransactionsPeriodSummary(DEFAULT_USER_ID, {
       from,
@@ -27,10 +30,20 @@ export default async function TransactionsPage() {
       baseCcy: DEFAULT_CURRENCY,
     }),
     getLatestRatesMap(),
+    getPersonalDebtsWithProgress(DEFAULT_USER_ID, { status: "open" }),
   ]);
 
   const days = rawDays.map((r) => toTxnDayView(r, today, rates, DEFAULT_CURRENCY));
   const summaryView = toPeriodSummaryView(summary);
+  const debtViews = debts.map(toDebtView);
+
+  // net по долгам: Σ(remaining) для OUT минус Σ(remaining) для IN (в base).
+  let netDebt = new Prisma.Decimal(0);
+  for (const d of debts) {
+    const sign = d.direction === "LENT" ? 1 : -1;
+    netDebt = netDebt.plus(d.remainingAmount.times(sign));
+  }
+  const debtMeta = `${debts.length} активно · net ${netDebt.isZero() ? "0" : (netDebt.gt(0) ? "+" : "") + "₽ " + Math.floor(netDebt.toNumber()).toLocaleString("ru-RU").replace(/,/g, " ")} ${netDebt.gt(0) ? "out" : netDebt.lt(0) ? "in" : ""}`.trim();
 
   return (
     <>
@@ -38,7 +51,7 @@ export default async function TransactionsPage() {
       <TxnToolbar />
       <PeriodSummary summary={summaryView} />
       <TxnFeed days={days} totalCount={summary.totalCount} />
-      <PersonalDebts />
+      <PersonalDebts debts={debtViews} metaLine={debtMeta} />
       <ImportBar />
     </>
   );
