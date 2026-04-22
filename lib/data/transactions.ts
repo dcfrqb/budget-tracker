@@ -101,9 +101,12 @@ const OUTFLOW_KINDS: TransactionKind[] = [
   TransactionKind.DEBT_OUT,
 ];
 
-// Фактическая сумма по транзакции для подсчёта in/out:
-// PARTIAL → sum(facts), DONE → amount, остальное → 0 (не влияет).
-function actualAmount(t: TxnWithJoins): Prisma.Decimal {
+// Фактическая подтверждённая сумма транзакции:
+// DONE → amount, PARTIAL → Σ(TransactionFact.amount), иначе → 0.
+// Единая точка для day-totals, period-summary, debt-progress.
+export function confirmedAmount(
+  t: { status: TransactionStatus; amount: Prisma.Decimal | string; facts: { amount: Prisma.Decimal | string }[] },
+): Prisma.Decimal {
   if (t.status === TransactionStatus.DONE) {
     return new Prisma.Decimal(t.amount);
   }
@@ -115,6 +118,9 @@ function actualAmount(t: TxnWithJoins): Prisma.Decimal {
   }
   return new Prisma.Decimal(0);
 }
+
+// Alias для внутреннего использования (старое имя).
+const actualAmount = confirmedAmount;
 
 export type PeriodSummary = {
   inflow:    { value: Prisma.Decimal; count: number };

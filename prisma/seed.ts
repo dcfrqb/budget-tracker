@@ -602,6 +602,51 @@ async function seedTransactions() {
     amount: "25000", currencyCode: "RUB", occurredAt: d("2026-04-12T18:00:00Z"),
     name: "Выдача · Саша (залог за квартиру)", note: "вернёт до 30.05",
   } });
+  // Планируемый возврат от Саши 15.05 — ₽ 12 500 (прогресс 0% до наступления).
+  await db.transaction.create({ data: {
+    userId: DEFAULT_USER_ID, accountId: ACCOUNT_IDS.tinkCard, categoryId: CATEGORY_IDS.debt,
+    kind: TransactionKind.DEBT_IN, status: TransactionStatus.PLANNED, personalDebtId: DEBT_IDS.sasha,
+    amount: "12500", currencyCode: "RUB", occurredAt: d("2026-05-15T10:00:00Z"), plannedAt: d("2026-05-15T10:00:00Z"),
+    name: "Возврат · Саша",
+  } });
+
+  // Миша (LENT 12000): 2 DONE возврата по 4000 → returned=8000, 4000 остаток.
+  await db.transaction.create({ data: {
+    userId: DEFAULT_USER_ID, accountId: ACCOUNT_IDS.cashWallet, categoryId: CATEGORY_IDS.debt,
+    kind: TransactionKind.DEBT_OUT, status: TransactionStatus.DONE, personalDebtId: DEBT_IDS.misha,
+    amount: "12000", currencyCode: "RUB", occurredAt: d("2026-03-02T12:00:00Z"),
+    name: "Выдача · Миша (заём на ноут)",
+  } });
+  await db.transaction.createMany({ data: [
+    { userId: DEFAULT_USER_ID, accountId: ACCOUNT_IDS.tinkCard, categoryId: CATEGORY_IDS.debt, kind: TransactionKind.DEBT_IN, status: TransactionStatus.DONE, personalDebtId: DEBT_IDS.misha, amount: "4000", currencyCode: "RUB", occurredAt: d("2026-03-25T12:00:00Z"), name: "Возврат · Миша (транш 1)" },
+    { userId: DEFAULT_USER_ID, accountId: ACCOUNT_IDS.tinkCard, categoryId: CATEGORY_IDS.debt, kind: TransactionKind.DEBT_IN, status: TransactionStatus.DONE, personalDebtId: DEBT_IDS.misha, amount: "4000", currencyCode: "RUB", occurredAt: d("2026-04-08T12:00:00Z"), name: "Возврат · Миша (транш 2)" },
+  ] });
+
+  // Папа (BORROWED 7000): взял я; возвращать должен я.
+  // Initial: money пришли мне → DEBT_IN 7000.
+  await db.transaction.create({ data: {
+    userId: DEFAULT_USER_ID, accountId: ACCOUNT_IDS.tinkCard, categoryId: CATEGORY_IDS.debt,
+    kind: TransactionKind.DEBT_IN, status: TransactionStatus.DONE, personalDebtId: DEBT_IDS.papa,
+    amount: "7000", currencyCode: "RUB", occurredAt: d("2026-02-20T12:00:00Z"),
+    name: "Получение · Папа (срочный ветеринар)",
+  } });
+  // Возвраты: 1 DONE 3000 + 1 PARTIAL с фактом 2000 (returned=5000 из 7000 = 71%).
+  await db.transaction.create({ data: {
+    userId: DEFAULT_USER_ID, accountId: ACCOUNT_IDS.tinkCard, categoryId: CATEGORY_IDS.debt,
+    kind: TransactionKind.DEBT_OUT, status: TransactionStatus.DONE, personalDebtId: DEBT_IDS.papa,
+    amount: "3000", currencyCode: "RUB", occurredAt: d("2026-03-15T12:00:00Z"),
+    name: "Возврат · Папа (транш 1)",
+  } });
+  const papaPartial = await db.transaction.create({ data: {
+    userId: DEFAULT_USER_ID, accountId: ACCOUNT_IDS.tinkCard, categoryId: CATEGORY_IDS.debt,
+    kind: TransactionKind.DEBT_OUT, status: TransactionStatus.PARTIAL, personalDebtId: DEBT_IDS.papa,
+    amount: "4000", currencyCode: "RUB", occurredAt: d("2026-04-10T12:00:00Z"),
+    name: "Возврат · Папа (транш 2)",
+  } });
+  await db.transactionFact.create({ data: {
+    transactionId: papaPartial.id, amount: "2000",
+    occurredAt: d("2026-04-10T12:00:00Z"), note: "половина",
+  } });
   await db.transaction.create({ data: {
     userId: DEFAULT_USER_ID, accountId: ACCOUNT_IDS.tinkCard, categoryId: CATEGORY_IDS.cafe,
     kind: TransactionKind.EXPENSE, status: TransactionStatus.DONE,
