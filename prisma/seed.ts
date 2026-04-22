@@ -24,9 +24,10 @@ function d(iso: string): Date {
   return new Date(iso);
 }
 
-// Timestamp n минут назад от NOW.
+// Timestamp n минут назад от реального времени запуска seed'а.
+// Не от fixed NOW — чтобы "обн 4 мин" в UI отражало свежесть seed-прогона.
 function mAgo(minutes: number): Date {
-  return new Date(NOW.getTime() - minutes * 60 * 1000);
+  return new Date(Date.now() - minutes * 60 * 1000);
 }
 
 // ────────────────────────────────────────────────────────────────

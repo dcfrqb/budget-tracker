@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import type { AccountKind } from "@prisma/client";
 import { formatAmount, formatRate, formatRubPrefix } from "@/lib/format/money";
+import { formatRelativeRu } from "@/lib/format/relative-time";
 import { convertToBase } from "@/lib/data/wallet";
 import type {
   AccountWithCurrency,
@@ -46,9 +47,20 @@ function firstLetter(s: string): string {
   return s.trim().charAt(0).toUpperCase() || "?";
 }
 
-function cryptoKindLabel(name: string): string {
-  // Единственная дифференциация в модели — имя счёта.
-  return /ledger|холод/i.test(name) ? "Hardware" : "Биржа";
+// Для крипты first-pill label из subtype (cold-wallet → Hardware, exchange/остальное → Биржа).
+function cryptoKindLabelFromSubtype(subtype: string | null): string {
+  return subtype === "cold-wallet" ? "Hardware" : "Биржа";
+}
+
+function approxRubString(
+  amount: Prisma.Decimal | string | number,
+  fromCcy: string,
+  baseCcy: string,
+  rates: Map<string, Prisma.Decimal>,
+): string | null {
+  const inBase = convertToBase(amount, fromCcy, baseCcy, rates);
+  if (!inBase) return null;
+  return `≈ ${formatRubPrefix(new Prisma.Decimal(inBase.toFixed(0))).replace("₽ ", "")} ₽`;
 }
 
 export function toAccountView(
@@ -58,18 +70,23 @@ export function toAccountView(
 ): AccountView {
   const value = formatAmount(a.balance, a.currency);
 
-  let updated: string;
+  // Собираем updated из 2 частей: "≈ N ₽" (для инвалютных) + "обн N мин" (если трогали баланс).
+  const parts: string[] = [];
   if (a.currencyCode !== baseCcy) {
-    const inBase = convertToBase(a.balance, a.currencyCode, baseCcy, rates);
-    updated = inBase
-      ? `≈ ${formatRubPrefix(new Prisma.Decimal(inBase.toFixed(0))).replace("₽ ", "")} ₽`
-      : "обн";
-  } else {
-    updated = "обн";
+    const approx = approxRubString(a.balance, a.currencyCode, baseCcy, rates);
+    if (approx) parts.push(approx);
   }
+  if (a.balanceUpdatedAt) {
+    parts.push(`обн ${formatRelativeRu(a.balanceUpdatedAt)}`);
+  }
+  const updated = parts.length > 0 ? parts.join(" · ") : "обн";
 
   const kindLabel =
-    a.kind === "CRYPTO" ? cryptoKindLabel(a.name) : KIND_LABEL[a.kind];
+    a.kind === "CRYPTO"
+      ? cryptoKindLabelFromSubtype(a.subtype)
+      : KIND_LABEL[a.kind];
+
+  const colPill = a.customPillLabel ?? COL_PILL[a.kind];
 
   return {
     id: a.id,
@@ -79,7 +96,7 @@ export function toAccountView(
     sub: a.sub ?? "",
     kindLabel,
     ccy: a.currencyCode,
-    colPill: COL_PILL[a.kind],
+    colPill,
     value,
     updated,
   };

@@ -6,36 +6,34 @@ function toDecimal(v: Prisma.Decimal | string | number): Prisma.Decimal {
   return v instanceof Prisma.Decimal ? v : new Prisma.Decimal(v);
 }
 
-// Форматирует число с русской группировкой (узкий non-breaking space как thousand-sep).
-// Количество знаков после запятой определяется аргументом fractionDigits;
-// если undefined — убираются незначащие нули (обычно для BTC).
-function formatNumber(amount: Prisma.Decimal, fractionDigits?: number): string {
-  if (fractionDigits === undefined) {
-    const str = amount.toString();
-    const [intPart, decPart] = str.split(".");
-    const grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-    return decPart ? `${grouped}.${decPart}` : grouped;
-  }
+// Группировка целой части + склейка с дробью. stripTrailingZeros убирает
+// хвостовые нули из дробной части ("0.00097000" → "0.00097").
+function formatNumber(
+  amount: Prisma.Decimal,
+  fractionDigits: number,
+  stripTrailingZeros = false,
+): string {
   const fixed = amount.toFixed(fractionDigits);
-  const [intPart, decPart] = fixed.split(".");
+  let [intPart, decPart] = fixed.split(".");
+  if (decPart && stripTrailingZeros) {
+    decPart = decPart.replace(/0+$/, "");
+  }
   const grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
   return decPart ? `${grouped}.${decPart}` : grouped;
 }
 
 // Отображение суммы со знаком валюты ПОСЛЕ: "142 680 ₽", "2 145 $", "0.00097 ₿".
-// Для RUB/USD/EUR/GEL/USDT — без дробной части если .00; для BTC — как есть.
+// Если amount целый — без дробной части. Иначе — currency.decimals знаков,
+// с отсечкой хвостовых нулей для крипто-точности (decimals > 2).
 export function formatAmount(
   value: Prisma.Decimal | string | number,
   currency: CurrencyShape,
 ): string {
   const amount = toDecimal(value);
-  const fd =
-    currency.code === "BTC"
-      ? undefined                                         // "0.00097"
-      : amount.modulo(1).isZero()
-        ? 0                                               // целое → без .00
-        : Math.min(currency.decimals, 2);                 // "142 680.50"
-  const formatted = formatNumber(amount, fd);
+  const isInt = amount.modulo(1).isZero();
+  const fd = isInt ? 0 : currency.decimals;
+  const stripTrailing = currency.decimals > 2;
+  const formatted = formatNumber(amount, fd, stripTrailing);
   return `${formatted} ${currency.symbol}`;
 }
 
