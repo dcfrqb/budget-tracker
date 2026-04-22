@@ -11,11 +11,14 @@ import type {
 import { db } from "@/lib/db";
 import { convertToBase, getLatestRatesMap } from "./wallet";
 
+import type { ReimbursementFact } from "@prisma/client";
+
 export type TxnWithJoins = Transaction & {
   account: Account & { institution: Institution | null };
   category: Category | null;
   currency: Currency;
   facts: TransactionFact[];
+  reimbursements: ReimbursementFact[];
   transfer:
     | (Transfer & { fromAccount: Account; toAccount: Account })
     | null;
@@ -42,6 +45,7 @@ const TXN_INCLUDE = {
   category: true,
   currency: true,
   facts: { orderBy: { occurredAt: "desc" as const } },
+  reimbursements: { orderBy: { receivedAt: "desc" as const } },
   transfer: { include: { fromAccount: true, toAccount: true } },
 };
 

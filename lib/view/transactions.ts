@@ -184,10 +184,40 @@ function resolveNote(
   t: TxnWithJoins,
 ): { note?: string; noteTone?: "acc" | "info" | "warn" } {
   if (t.isReimbursable && t.reimbursementFromName) {
+    const received = t.reimbursements.reduce(
+      (acc, r) => acc.plus(r.amount),
+      new Prisma.Decimal(0),
+    );
     const expected = t.expectedReimbursement
-      ? formatAmount(t.expectedReimbursement, t.currency)
+      ? new Prisma.Decimal(t.expectedReimbursement)
       : null;
-    const expectedSuffix = expected ? ` · ожид. ${reverseSymbol(expected)}` : "";
+
+    // Полностью компенсировано → "pos" tone, "получ." без "из".
+    if (expected && !received.isZero() && received.gte(expected)) {
+      return {
+        note: `компенс. · ${t.reimbursementFromName} · получ. ${reverseSymbol(formatAmount(received, t.currency))}`,
+        noteTone: "acc",
+      };
+    }
+    // Частично компенсировано → "warn" tone, "получ. X из Y".
+    if (!received.isZero()) {
+      const recStr = reverseSymbol(formatAmount(received, t.currency));
+      if (expected) {
+        const expStr = reverseSymbol(formatAmount(expected, t.currency));
+        return {
+          note: `компенс. · ${t.reimbursementFromName} · получ. ${recStr} из ${expStr}`,
+          noteTone: "warn",
+        };
+      }
+      return {
+        note: `компенс. · ${t.reimbursementFromName} · получ. ${recStr}`,
+        noteTone: "warn",
+      };
+    }
+    // Ничего не получено — ожидаемая сумма.
+    const expectedSuffix = expected
+      ? ` · ожид. ${reverseSymbol(formatAmount(expected, t.currency))}`
+      : "";
     return {
       note: `компенс. · ${t.reimbursementFromName}${expectedSuffix}`,
       noteTone: "warn",

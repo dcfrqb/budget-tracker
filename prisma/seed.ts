@@ -485,7 +485,13 @@ async function seedTransactions() {
     name: "Яндекс Такси", note: "Сбер",
     isReimbursable: true, reimbursementFromName: "Acme", expectedReimbursement: "3000",
   } });
-  void taxiTx;
+  // Частичный возврат компенсации — 1500 из 3000 (UI покажет "получ. 1500 из 3000").
+  await db.reimbursementFact.create({ data: {
+    transactionId: taxiTx.id, amount: "1500",
+    receivedAt: d("2026-04-22T09:00:00Z"),
+    accountId: ACCOUNT_IDS.sberSalary,
+    note: "перевод от Acme",
+  } });
 
   // 20.04 (вс)
   await db.transaction.create({ data: {

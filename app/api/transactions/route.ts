@@ -50,7 +50,7 @@ export async function GET(req: Request) {
       const rows = await db.transaction.findMany({
         where,
         orderBy: [{ occurredAt: "desc" }, { id: "desc" }],
-        include: { account: true, category: true },
+        include: { account: true, category: true, reimbursements: true },
       });
       const byDay = new Map<string, typeof rows>();
       for (const t of rows) {
