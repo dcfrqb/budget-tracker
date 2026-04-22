@@ -1,0 +1,645 @@
+// Budget Tracker — Prisma schema.
+// Single-user на старте: DEFAULT_USER_ID жёстко захардкожен в lib/constants.ts.
+// URL подхватывается из DATABASE_URL в .env.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Prisma 7: url задаётся в prisma.config.ts через driver adapter, не в schema.
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────────────────────
+// USER
+// ─────────────────────────────────────────────────────────────
+
+enum Gender {
+  MALE
+  FEMALE
+  UNSPECIFIED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  gender    Gender   @default(UNSPECIFIED)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  institutions      Institution[]
+  accounts          Account[]
+  categories        Category[]
+  transactions      Transaction[]
+  transfers         Transfer[]
+  workSources       WorkSource[]
+  loans             Loan[]
+  subscriptions     Subscription[]
+  longProjects      LongProject[]
+  funds             Fund[]
+  plannedEvents     PlannedEvent[]
+  personalDebts     PersonalDebt[]
+  budgetSettings    BudgetSettings?
+  familyMemberships FamilyMember[]
+  ownedFamilies     Family[]        @relation("FamilyOwner")
+}
+
+// ─────────────────────────────────────────────────────────────
+// CURRENCY / FX
+// ─────────────────────────────────────────────────────────────
+
+model Currency {
+  code     String @id // ISO-like: "RUB", "USD", "EUR", "GEL", "USDT", "BTC"
+  name     String
+  symbol   String
+  decimals Int    @default(2)
+
+  accounts            Account[]
+  transactions        Transaction[]
+  funds               Fund[]
+  loans               Loan[]
+  workSources         WorkSource[]
+  subscriptions       Subscription[]
+  longProjects        LongProject[]
+  plannedEvents       PlannedEvent[]
+  personalDebts       PersonalDebt[]
+  ratesFrom           ExchangeRate[] @relation("RateFromCcy")
+  ratesTo             ExchangeRate[] @relation("RateToCcy")
+  transfersFrom       Transfer[]     @relation("TransferFromCcy")
+  transfersTo         Transfer[]     @relation("TransferToCcy")
+}
+
+model ExchangeRate {
+  id         String   @id @default(cuid())
+  fromCcy    String
+  toCcy      String
+  rate       Decimal  @db.Decimal(24, 10)
+  recordedAt DateTime @default(now())
+
+  from Currency @relation("RateFromCcy", fields: [fromCcy], references: [code])
+  to   Currency @relation("RateToCcy", fields: [toCcy], references: [code])
+
+  @@index([fromCcy, toCcy, recordedAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// INSTITUTIONS + ACCOUNTS
+// ─────────────────────────────────────────────────────────────
+
+enum InstitutionKind {
+  BANK
+  CRYPTO
+  CASH
+}
+
+model Institution {
+  id        String          @id @default(cuid())
+  userId    String
+  name      String
+  kind      InstitutionKind
+  logo      String?
+  sub       String?
+  sortOrder Int             @default(0)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accounts Account[]
+}
+
+enum AccountKind {
+  CARD
+  SAVINGS
+  CASH
+  CRYPTO
+  LOAN
+}
+
+model Account {
+  id            String      @id @default(cuid())
+  userId        String
+  institutionId String?
+  kind          AccountKind
+  name          String
+  currencyCode  String
+  balance       Decimal     @default(0) @db.Decimal(18, 2)
+  sub           String?
+  location      String?     // для CASH: "дома · сейф"
+  annualRatePct Decimal?    @db.Decimal(6, 3) // для SAVINGS
+  sortOrder     Int         @default(0)
+  isArchived    Boolean     @default(false)
+  archivedAt    DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  deletedAt     DateTime?
+
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institution   Institution?  @relation(fields: [institutionId], references: [id], onDelete: SetNull)
+  currency      Currency      @relation(fields: [currencyCode], references: [code])
+  transactions  Transaction[]
+  transfersFrom Transfer[]    @relation("TransferFromAccount")
+  transfersTo   Transfer[]    @relation("TransferToAccount")
+
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// CATEGORIES + BUDGET SETTINGS
+// ─────────────────────────────────────────────────────────────
+
+enum CategoryKind {
+  INCOME
+  EXPENSE
+}
+
+model Category {
+  id        String       @id @default(cuid())
+  userId    String
+  name      String
+  kind      CategoryKind
+  icon      String?
+  color     String?
+  parentId  String?
+  sortOrder Int          @default(0)
+
+  // Лимиты на три режима. Хранятся в primary currency из BudgetSettings.
+  limitEconomy Decimal? @db.Decimal(18, 2)
+  limitNormal  Decimal? @db.Decimal(18, 2)
+  limitFree    Decimal? @db.Decimal(18, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent       Category?     @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children     Category[]    @relation("CategoryTree")
+  transactions Transaction[]
+  longProjects LongProject[]
+
+  @@index([userId])
+}
+
+enum BudgetMode {
+  ECONOMY
+  NORMAL
+  FREE
+}
+
+model BudgetSettings {
+  id                  String     @id @default(cuid())
+  userId              String     @unique
+  activeMode          BudgetMode @default(NORMAL)
+  primaryCurrencyCode String     @default("RUB")
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────────────────────────────────────
+// TRANSACTIONS + TRANSFERS + FACTS
+// ─────────────────────────────────────────────────────────────
+
+// Общий scope: личное vs семейное (shared видят все участники семьи).
+enum Scope {
+  PERSONAL
+  SHARED
+}
+
+enum TransactionKind {
+  INCOME
+  EXPENSE
+  TRANSFER      // одно Transaction на сторону; оба ссылаются на Transfer
+  LOAN_PAYMENT  // платёж по кредиту (связан с Loan + LoanPayment)
+  DEBT_OUT      // выдал в долг (связан с PersonalDebt)
+  DEBT_IN       // возврат по моему займу или получение займа
+  REIMBURSEMENT // зачисление компенсации (обычно создаётся через ReimbursementFact, но как транзакция тоже)
+}
+
+enum TransactionStatus {
+  PLANNED
+  PARTIAL
+  DONE
+  MISSED
+  CANCELLED
+}
+
+model Transaction {
+  id           String            @id @default(cuid())
+  userId       String
+  accountId    String
+  categoryId   String?
+  kind         TransactionKind
+  status       TransactionStatus @default(DONE)
+  amount       Decimal           @db.Decimal(18, 2) // всегда положительное; знак из kind
+  currencyCode String
+  occurredAt   DateTime
+  plannedAt    DateTime?
+  name         String
+  note         String?
+  scope        Scope             @default(PERSONAL)
+  familyId     String?
+
+  // Компенсация: храним expectedReimbursement отдельно, чтобы был план-факт
+  // до того как появятся ReimbursementFact'ы (ожидаемая сумма vs фактическая).
+  isReimbursable        Boolean  @default(false)
+  reimbursementFromName String?
+  expectedReimbursement Decimal? @db.Decimal(18, 2)
+
+  // Связи с доменными объектами
+  transferId     String?
+  loanId         String?
+  loanPaymentId  String?
+  subscriptionId String?
+  longProjectId  String?
+  fundId         String?
+  workSourceId   String?
+  personalDebtId String?
+  plannedEventId String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account      Account       @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  category     Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  currency     Currency      @relation(fields: [currencyCode], references: [code])
+  family       Family?       @relation(fields: [familyId], references: [id], onDelete: SetNull)
+  transfer     Transfer?     @relation(fields: [transferId], references: [id], onDelete: SetNull)
+  loan         Loan?         @relation(fields: [loanId], references: [id], onDelete: SetNull)
+  loanPayment  LoanPayment?  @relation(fields: [loanPaymentId], references: [id], onDelete: SetNull)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  longProject  LongProject?  @relation(fields: [longProjectId], references: [id], onDelete: SetNull)
+  fund         Fund?         @relation(fields: [fundId], references: [id], onDelete: SetNull)
+  workSource   WorkSource?   @relation(fields: [workSourceId], references: [id], onDelete: SetNull)
+  personalDebt PersonalDebt? @relation(fields: [personalDebtId], references: [id], onDelete: SetNull)
+  plannedEvent PlannedEvent? @relation(fields: [plannedEventId], references: [id], onDelete: SetNull)
+
+  facts          TransactionFact[]
+  reimbursements ReimbursementFact[]
+
+  @@index([userId, occurredAt])
+  @@index([accountId])
+  @@index([categoryId])
+  @@index([status])
+}
+
+// Факты частичного подтверждения (когда транзакция PARTIAL и деньги приходят траншами).
+model TransactionFact {
+  id            String   @id @default(cuid())
+  transactionId String
+  amount        Decimal  @db.Decimal(18, 2)
+  occurredAt    DateTime
+  note          String?
+  createdAt     DateTime @default(now())
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([transactionId])
+}
+
+// Факт возврата по компенсируемой транзакции — отдельно от TransactionFact,
+// потому что это деньги по другому направлению (не подтверждение исходной траты,
+// а отдельное поступление привязанное к ней).
+model ReimbursementFact {
+  id            String   @id @default(cuid())
+  transactionId String
+  amount        Decimal  @db.Decimal(18, 2)
+  receivedAt    DateTime
+  accountId     String?
+  note          String?
+  createdAt     DateTime @default(now())
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([transactionId])
+}
+
+model Transfer {
+  id            String   @id @default(cuid())
+  userId        String
+  fromAccountId String
+  toAccountId   String
+  fromAmount    Decimal  @db.Decimal(18, 2)
+  toAmount      Decimal  @db.Decimal(18, 2)
+  fromCcy       String
+  toCcy         String
+  rate          Decimal  @db.Decimal(24, 10) // fromCcy -> toCcy; 1:1 если валюты одинаковые
+  fee           Decimal? @db.Decimal(18, 2)
+  occurredAt    DateTime
+  note          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fromAccount  Account  @relation("TransferFromAccount", fields: [fromAccountId], references: [id], onDelete: Restrict)
+  toAccount    Account  @relation("TransferToAccount", fields: [toAccountId], references: [id], onDelete: Restrict)
+  fromCurrency Currency @relation("TransferFromCcy", fields: [fromCcy], references: [code])
+  toCurrency   Currency @relation("TransferToCcy", fields: [toCcy], references: [code])
+
+  transactions Transaction[]
+
+  @@index([userId, occurredAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// PERSONAL DEBTS (я дал / мне дали)
+// ─────────────────────────────────────────────────────────────
+
+enum DebtDirection {
+  LENT      // я дал в долг
+  BORROWED  // мне дали в долг
+}
+
+model PersonalDebt {
+  id           String        @id @default(cuid())
+  userId       String
+  direction    DebtDirection
+  counterparty String
+  principal    Decimal       @db.Decimal(18, 2)
+  currencyCode String
+  openedAt     DateTime
+  dueAt        DateTime?
+  closedAt     DateTime?
+  note         String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currency     Currency      @relation(fields: [currencyCode], references: [code])
+  transactions Transaction[]
+
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// WORK SOURCES
+// ─────────────────────────────────────────────────────────────
+
+enum WorkKind {
+  EMPLOYMENT
+  FREELANCE
+  ONE_TIME
+}
+
+model WorkSource {
+  id           String   @id @default(cuid())
+  userId       String
+  name         String
+  kind         WorkKind
+  currencyCode String
+  // Salary: чистая ежемесячная сумма. Freelance: ставка (почасовая или проектная).
+  baseAmount   Decimal? @db.Decimal(18, 2)
+  hourlyRate   Decimal? @db.Decimal(18, 2)
+  payDay       Int? // для EMPLOYMENT: день месяца
+  taxRatePct   Decimal? @db.Decimal(5, 2) // 6, 13, ...
+  note         String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currency     Currency      @relation(fields: [currencyCode], references: [code])
+  transactions Transaction[]
+
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// LOANS
+// ─────────────────────────────────────────────────────────────
+
+model Loan {
+  id            String   @id @default(cuid())
+  userId        String
+  name          String
+  principal     Decimal  @db.Decimal(18, 2)
+  annualRatePct Decimal  @db.Decimal(6, 3)
+  termMonths    Int
+  startDate     DateTime
+  currencyCode  String
+  accountId     String? // счёт, с которого авто-списание
+  note          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currency     Currency      @relation(fields: [currencyCode], references: [code])
+  payments     LoanPayment[]
+  transactions Transaction[]
+
+  @@index([userId])
+}
+
+// Факт платежа по кредиту с разбивкой на тело и проценты.
+// Амортизация-график НЕ хранится — считается на лету из principal/rate/term.
+model LoanPayment {
+  id            String   @id @default(cuid())
+  loanId        String
+  paidAt        DateTime
+  totalAmount   Decimal  @db.Decimal(18, 2)
+  principalPart Decimal  @db.Decimal(18, 2)
+  interestPart  Decimal  @db.Decimal(18, 2)
+  note          String?
+  createdAt     DateTime @default(now())
+
+  loan         Loan          @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([loanId, paidAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// SUBSCRIPTIONS (портировано из Sub Tracker)
+// ─────────────────────────────────────────────────────────────
+
+enum SharingType {
+  PERSONAL
+  SPLIT
+  PAID_FOR_OTHERS
+}
+
+model Subscription {
+  id                    String      @id @default(cuid())
+  userId                String
+  name                  String
+  icon                  String?
+  iconColor             String?
+  iconBg                String?
+  price                 Decimal     @db.Decimal(18, 2)
+  currencyCode          String
+  billingIntervalMonths Int         @default(1) // 1 / 3 / 6 / 12 / custom
+  nextPaymentDate       DateTime
+  sharingType           SharingType @default(PERSONAL)
+  totalUsers            Int? // для SPLIT: всего участников (включая меня)
+  familyId              String? // если шеринг внутри семьи
+  isActive              Boolean     @default(true)
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+  deletedAt             DateTime?
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currency     Currency @relation(fields: [currencyCode], references: [code])
+  family       Family?  @relation(fields: [familyId], references: [id], onDelete: SetNull)
+
+  shares       SubscriptionShare[]
+  transactions Transaction[]
+
+  @@index([userId])
+  @@index([nextPaymentDate])
+}
+
+// Связь подписки с конкретным человеком (для SPLIT и PAID_FOR_OTHERS).
+// person — свободный ярлык (подходит если человек не в Family);
+// familyMemberId — опциональная жёсткая связь.
+model SubscriptionShare {
+  id             String   @id @default(cuid())
+  subscriptionId String
+  person         String
+  familyMemberId String?
+  amount         Decimal? @db.Decimal(18, 2) // null = равный сплит
+  createdAt      DateTime @default(now())
+
+  subscription Subscription  @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  familyMember FamilyMember? @relation(fields: [familyMemberId], references: [id], onDelete: SetNull)
+
+  @@index([subscriptionId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// LONG PROJECTS
+// ─────────────────────────────────────────────────────────────
+
+model LongProject {
+  id           String    @id @default(cuid())
+  userId       String
+  name         String
+  note         String?
+  budget       Decimal   @db.Decimal(18, 2)
+  currencyCode String
+  categoryId   String?
+  startDate    DateTime
+  endDate      DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currency     Currency      @relation(fields: [currencyCode], references: [code])
+  category     Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  transactions Transaction[]
+
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// FUNDS + PLANNED EVENTS
+// ─────────────────────────────────────────────────────────────
+
+enum FundKind {
+  TRIP
+  BUY
+  VAULT
+  GIFT
+  OTHER
+}
+
+model Fund {
+  id                  String    @id @default(cuid())
+  userId              String
+  kind                FundKind
+  name                String
+  note                String?
+  goalAmount          Decimal   @db.Decimal(18, 2)
+  currentAmount       Decimal   @default(0) @db.Decimal(18, 2)
+  monthlyContribution Decimal?  @db.Decimal(18, 2)
+  targetDate          DateTime?
+  currencyCode        String
+  scope               Scope     @default(PERSONAL)
+  familyId            String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currency Currency @relation(fields: [currencyCode], references: [code])
+  family   Family?  @relation(fields: [familyId], references: [id], onDelete: SetNull)
+
+  plannedEvents PlannedEvent[]
+  transactions  Transaction[]
+
+  @@index([userId])
+}
+
+enum PlannedEventKind {
+  BIRTHDAY
+  HOLIDAY
+  TRIP
+  PURCHASE
+  OTHER
+}
+
+model PlannedEvent {
+  id             String           @id @default(cuid())
+  userId         String
+  kind           PlannedEventKind
+  name           String
+  note           String?
+  eventDate      DateTime
+  repeatsYearly  Boolean          @default(false)
+  fundId         String?
+  expectedAmount Decimal?         @db.Decimal(18, 2)
+  currencyCode   String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fund         Fund?         @relation(fields: [fundId], references: [id], onDelete: SetNull)
+  currency     Currency?     @relation(fields: [currencyCode], references: [code])
+  transactions Transaction[]
+
+  @@index([userId, eventDate])
+}
+
+// ─────────────────────────────────────────────────────────────
+// FAMILY
+// ─────────────────────────────────────────────────────────────
+
+enum FamilyRole {
+  OWNER
+  MEMBER
+}
+
+model Family {
+  id        String   @id @default(cuid())
+  name      String
+  note      String?
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner         User           @relation("FamilyOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members       FamilyMember[]
+  transactions  Transaction[]
+  funds         Fund[]
+  subscriptions Subscription[]
+}
+
+model FamilyMember {
+  id          String     @id @default(cuid())
+  familyId    String
+  userId      String? // null если участник ещё не зарегистрированный пользователь
+  displayName String
+  letter      String? // для аватарки ("W", "M", "S")
+  color       String?
+  role        FamilyRole @default(MEMBER)
+  joinedAt    DateTime   @default(now())
+
+  family             Family              @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user               User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  subscriptionShares SubscriptionShare[]
+
+  @@unique([familyId, userId])
+  @@index([familyId])
+}
