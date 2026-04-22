@@ -548,6 +548,34 @@ async function seedTransactions() {
     { userId: DEFAULT_USER_ID, accountId: ACCOUNT_IDS.sberSalary, categoryId: CATEGORY_IDS.health,    kind: TransactionKind.EXPENSE, status: TransactionStatus.DONE, amount: "480",  currencyCode: "RUB", occurredAt: d("2026-04-18T09:44:00Z"), name: "Аптека · лекарства" },
   ] });
 
+  // Кросс-валютный перевод: Tink USD → Alfa RUB, 500$ по курсу 92.0 = 46000₽.
+  const transferFx = await db.transfer.create({ data: {
+    userId: DEFAULT_USER_ID,
+    fromAccountId: ACCOUNT_IDS.tinkUsd, toAccountId: ACCOUNT_IDS.alfaRub,
+    fromAmount: "500", toAmount: "46000",
+    fromCcy: "USD", toCcy: "RUB", rate: "92.0000000000",
+    fee: "25", occurredAt: d("2026-04-17T11:30:00Z"),
+    note: "конвертация под крупную покупку",
+  } });
+  await db.transaction.create({ data: {
+    userId: DEFAULT_USER_ID, accountId: ACCOUNT_IDS.tinkUsd, categoryId: CATEGORY_IDS.transfers,
+    kind: TransactionKind.TRANSFER, status: TransactionStatus.DONE, transferId: transferFx.id,
+    amount: "500", currencyCode: "USD", occurredAt: d("2026-04-17T11:30:00Z"),
+    name: "Перевод · Тинькофф USD → Альфа RUB",
+  } });
+  await db.transaction.create({ data: {
+    userId: DEFAULT_USER_ID, accountId: ACCOUNT_IDS.alfaRub, categoryId: CATEGORY_IDS.transfers,
+    kind: TransactionKind.TRANSFER, status: TransactionStatus.DONE, transferId: transferFx.id,
+    amount: "46000", currencyCode: "RUB", occurredAt: d("2026-04-17T11:30:00Z"),
+    name: "Перевод · Тинькофф USD → Альфа RUB",
+  } });
+
+  // 16.04 — пара дополнительных expense'ов для разнообразия периода
+  await db.transaction.createMany({ data: [
+    { userId: DEFAULT_USER_ID, accountId: ACCOUNT_IDS.tinkCard, categoryId: CATEGORY_IDS.entertainment, kind: TransactionKind.EXPENSE, status: TransactionStatus.DONE, amount: "1800", currencyCode: "RUB", occurredAt: d("2026-04-16T21:00:00Z"), name: "Кино · Dune Part 3" },
+    { userId: DEFAULT_USER_ID, accountId: ACCOUNT_IDS.sberSalary, categoryId: CATEGORY_IDS.auto, kind: TransactionKind.EXPENSE, status: TransactionStatus.DONE, amount: "2200", currencyCode: "RUB", occurredAt: d("2026-04-16T08:20:00Z"), name: "Заправка · Лукойл" },
+  ] });
+
   // 15.04 (вт) — plan/partial
   await db.transaction.createMany({ data: [
     { userId: DEFAULT_USER_ID, accountId: ACCOUNT_IDS.sberSalary, categoryId: CATEGORY_IDS.health, kind: TransactionKind.EXPENSE, status: TransactionStatus.PLANNED, amount: "4500",  currencyCode: "RUB", occurredAt: d("2026-04-15T20:00:00Z"), plannedAt: d("2026-04-15T20:00:00Z"), name: "Зал · абонемент", note: "Сбер · регулярно" },
