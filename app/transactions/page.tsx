@@ -9,6 +9,7 @@ import {
   getTransactionsGroupedByDay,
   getTransactionsPeriodSummary,
 } from "@/lib/data/transactions";
+import { getLatestRatesMap } from "@/lib/data/wallet";
 import { toPeriodSummaryView, toTxnDayView } from "@/lib/view/transactions";
 
 export const dynamic = "force-dynamic";
@@ -18,16 +19,17 @@ export default async function TransactionsPage() {
   // 30-дневное окно для сводки и ленты.
   const from = new Date(today.getTime() - 30 * 86400_000);
 
-  const [rawDays, summary] = await Promise.all([
+  const [rawDays, summary, rates] = await Promise.all([
     getTransactionsGroupedByDay(DEFAULT_USER_ID, { from }),
     getTransactionsPeriodSummary(DEFAULT_USER_ID, {
       from,
       to: today,
       baseCcy: DEFAULT_CURRENCY,
     }),
+    getLatestRatesMap(),
   ]);
 
-  const days = rawDays.map((r) => toTxnDayView(r, today));
+  const days = rawDays.map((r) => toTxnDayView(r, today, rates, DEFAULT_CURRENCY));
   const summaryView = toPeriodSummaryView(summary);
 
   return (

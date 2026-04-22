@@ -1,5 +1,6 @@
 import { Prisma, TransactionKind, TransactionStatus } from "@prisma/client";
 import { formatAmount } from "@/lib/format/money";
+import { convertToBase } from "@/lib/data/wallet";
 import type {
   PeriodSummary,
   TxnDayRaw,
@@ -41,6 +42,7 @@ export type TxnDayView = {
   date: string;       // "21.04"
   weekday: string;    // "пн · сегодня" | "вс"
   totals: TxnDayTotal[];
+  hasConvertedAmounts: boolean;   // true если в дне была конверсия из foreign ccy
   txns: TxnView[];
 };
 
@@ -263,14 +265,16 @@ export function toTxnView(t: TxnWithJoins): TxnView {
 
 const RUB_SHAPE = { code: "RUB", symbol: "₽", decimals: 2 };
 
-function dayTotalsFromTxns(txns: TxnWithJoins[]): TxnDayTotal[] {
-  const inflow = new Prisma.Decimal(0);
-  const outflow = new Prisma.Decimal(0);
+function dayTotalsFromTxns(
+  txns: TxnWithJoins[],
+  rates: Map<string, Prisma.Decimal>,
+  baseCcy: string,
+): { totals: TxnDayTotal[]; hasConvertedAmounts: boolean } {
+  let inflowTotal = new Prisma.Decimal(0);
+  let outflowTotal = new Prisma.Decimal(0);
   let plannedCount = 0;
   let cancelledCount = 0;
-
-  let inflowTotal = inflow;
-  let outflowTotal = outflow;
+  let hasConverted = false;
 
   for (const t of txns) {
     if (t.status === TransactionStatus.PLANNED) plannedCount += 1;
@@ -279,22 +283,30 @@ function dayTotalsFromTxns(txns: TxnWithJoins[]): TxnDayTotal[] {
       continue;
     }
     const amt = new Prisma.Decimal(t.amount);
-    if (t.kind === TransactionKind.INCOME || t.kind === TransactionKind.REIMBURSEMENT || t.kind === TransactionKind.DEBT_IN) {
-      if (t.status === TransactionStatus.DONE || t.status === TransactionStatus.PARTIAL) {
-        const actual = t.status === TransactionStatus.PARTIAL
-          ? t.facts.reduce((a, f) => a.plus(f.amount), new Prisma.Decimal(0))
-          : amt;
-        // Суммируем только RUB для отображения в дне (мультивалюта в день-тотал — слишком плотно)
-        if (t.currencyCode === "RUB") inflowTotal = inflowTotal.plus(actual);
-      }
-    } else if (t.kind === TransactionKind.EXPENSE || t.kind === TransactionKind.LOAN_PAYMENT || t.kind === TransactionKind.DEBT_OUT) {
-      if (t.status === TransactionStatus.DONE || t.status === TransactionStatus.PARTIAL) {
-        const actual = t.status === TransactionStatus.PARTIAL
-          ? t.facts.reduce((a, f) => a.plus(f.amount), new Prisma.Decimal(0))
-          : amt;
-        if (t.currencyCode === "RUB") outflowTotal = outflowTotal.plus(actual);
-      }
+    const isInflow =
+      t.kind === TransactionKind.INCOME ||
+      t.kind === TransactionKind.REIMBURSEMENT ||
+      t.kind === TransactionKind.DEBT_IN;
+    const isOutflow =
+      t.kind === TransactionKind.EXPENSE ||
+      t.kind === TransactionKind.LOAN_PAYMENT ||
+      t.kind === TransactionKind.DEBT_OUT;
+    if (!isInflow && !isOutflow) continue;
+    if (t.status !== TransactionStatus.DONE && t.status !== TransactionStatus.PARTIAL) {
+      continue;
     }
+    const actual =
+      t.status === TransactionStatus.PARTIAL
+        ? t.facts.reduce((a, f) => a.plus(f.amount), new Prisma.Decimal(0))
+        : amt;
+    const inBase = convertToBase(actual, t.currencyCode, baseCcy, rates);
+    if (!inBase) {
+      console.warn(`[day-totals] skip tx ${t.id}: no rate ${t.currencyCode}→${baseCcy}`);
+      continue;
+    }
+    if (t.currencyCode !== baseCcy) hasConverted = true;
+    if (isInflow) inflowTotal = inflowTotal.plus(inBase);
+    else outflowTotal = outflowTotal.plus(inBase);
   }
 
   const totals: TxnDayTotal[] = [];
@@ -304,17 +316,18 @@ function dayTotalsFromTxns(txns: TxnWithJoins[]): TxnDayTotal[] {
       t.kind === TransactionKind.REIMBURSEMENT ||
       t.kind === TransactionKind.DEBT_IN,
   );
+  const prefix = hasConverted ? "≈ " : "";
   if (!inflowTotal.isZero() || plannedCount > 0 || hasInflowKind) {
     totals.push({
       label: "приток",
-      value: `+${formatRub(inflowTotal)}`,
+      value: `${prefix}+${formatRub(inflowTotal)}`,
       tone: "pos",
     });
   }
   if (!outflowTotal.isZero()) {
     totals.push({
       label: "отток",
-      value: `−${formatRub(outflowTotal)}`,
+      value: `${prefix}−${formatRub(outflowTotal)}`,
       tone: "info",
     });
   }
@@ -332,7 +345,7 @@ function dayTotalsFromTxns(txns: TxnWithJoins[]): TxnDayTotal[] {
       tone: "mut",
     });
   }
-  return totals;
+  return { totals, hasConvertedAmounts: hasConverted };
 }
 
 function formatRub(amount: Prisma.Decimal): string {
@@ -341,12 +354,19 @@ function formatRub(amount: Prisma.Decimal): string {
   return `${sym} ${num}`;
 }
 
-export function toTxnDayView(raw: TxnDayRaw, today: Date): TxnDayView {
+export function toTxnDayView(
+  raw: TxnDayRaw,
+  today: Date,
+  rates: Map<string, Prisma.Decimal>,
+  baseCcy: string,
+): TxnDayView {
   const d = new Date(raw.date + "T00:00:00Z");
+  const { totals, hasConvertedAmounts } = dayTotalsFromTxns(raw.txns, rates, baseCcy);
   return {
     date: formatDateRu(d),
     weekday: formatWeekdayRu(d, today),
-    totals: dayTotalsFromTxns(raw.txns),
+    totals,
+    hasConvertedAmounts,
     txns: raw.txns.map(toTxnView),
   };
 }

@@ -576,10 +576,12 @@ async function seedTransactions() {
     name: "Перевод · Тинькофф USD → Альфа RUB",
   } });
 
-  // 16.04 — пара дополнительных expense'ов для разнообразия периода
+  // 16.04 — пара дополнительных expense'ов для разнообразия периода.
+  // Adobe в USD — покажет "≈" на day-totals после конверсии.
   await db.transaction.createMany({ data: [
     { userId: DEFAULT_USER_ID, accountId: ACCOUNT_IDS.tinkCard, categoryId: CATEGORY_IDS.entertainment, kind: TransactionKind.EXPENSE, status: TransactionStatus.DONE, amount: "1800", currencyCode: "RUB", occurredAt: d("2026-04-16T21:00:00Z"), name: "Кино · Dune Part 3" },
     { userId: DEFAULT_USER_ID, accountId: ACCOUNT_IDS.sberSalary, categoryId: CATEGORY_IDS.auto, kind: TransactionKind.EXPENSE, status: TransactionStatus.DONE, amount: "2200", currencyCode: "RUB", occurredAt: d("2026-04-16T08:20:00Z"), name: "Заправка · Лукойл" },
+    { userId: DEFAULT_USER_ID, accountId: ACCOUNT_IDS.tinkUsd, categoryId: CATEGORY_IDS.subs, kind: TransactionKind.EXPENSE, status: TransactionStatus.DONE, amount: "10", currencyCode: "USD", occurredAt: d("2026-04-16T14:00:00Z"), name: "Adobe CC · Фото", subscriptionId: SUB_IDS.adobe },
   ] });
 
   // 15.04 (вт) — plan/partial
