@@ -24,6 +24,11 @@ function d(iso: string): Date {
   return new Date(iso);
 }
 
+// Timestamp n минут назад от NOW.
+function mAgo(minutes: number): Date {
+  return new Date(NOW.getTime() - minutes * 60 * 1000);
+}
+
 // ────────────────────────────────────────────────────────────────
 // 1. Currencies + exchange rates (справочник, upsert)
 // ────────────────────────────────────────────────────────────────
@@ -118,24 +123,24 @@ async function seedAccounts() {
   await db.account.createMany({
     data: [
       // Тинькофф
-      { id: ACCOUNT_IDS.tinkCard,    userId: DEFAULT_USER_ID, institutionId: INSTITUTION_IDS.tinkoff, kind: AccountKind.CARD,    name: "Дебетовая Black Edition", currencyCode: "RUB", balance: "142680.00", sub: "карта ···4218 · основная", sortOrder: 1 },
-      { id: ACCOUNT_IDS.tinkUsd,     userId: DEFAULT_USER_ID, institutionId: INSTITUTION_IDS.tinkoff, kind: AccountKind.CARD,    name: "Валютный счёт",           currencyCode: "USD", balance: "2145.00",   sub: "безкомиссионный · SWIFT", sortOrder: 2 },
-      { id: ACCOUNT_IDS.tinkSavings, userId: DEFAULT_USER_ID, institutionId: INSTITUTION_IDS.tinkoff, kind: AccountKind.SAVINGS, name: "Копилка · подушка",       currencyCode: "RUB", balance: "41640.00",  sub: "7.5% годовых", annualRatePct: "7.500", sortOrder: 3 },
+      { id: ACCOUNT_IDS.tinkCard,    userId: DEFAULT_USER_ID, institutionId: INSTITUTION_IDS.tinkoff, kind: AccountKind.CARD,    name: "Дебетовая Black Edition", currencyCode: "RUB", balance: "142680.00", sub: "карта ···4218 · основная", sortOrder: 1, balanceUpdatedAt: mAgo(4) },
+      { id: ACCOUNT_IDS.tinkUsd,     userId: DEFAULT_USER_ID, institutionId: INSTITUTION_IDS.tinkoff, kind: AccountKind.CARD,    name: "Валютный счёт",           currencyCode: "USD", balance: "2145.00",   sub: "безкомиссионный · SWIFT", sortOrder: 2, subtype: "checking-usd", customPillLabel: "Счёт", balanceUpdatedAt: mAgo(12) },
+      { id: ACCOUNT_IDS.tinkSavings, userId: DEFAULT_USER_ID, institutionId: INSTITUTION_IDS.tinkoff, kind: AccountKind.SAVINGS, name: "Копилка · подушка",       currencyCode: "RUB", balance: "41640.00",  sub: "7.5% годовых", annualRatePct: "7.500", sortOrder: 3, balanceUpdatedAt: mAgo(4) },
       // Сбер
-      { id: ACCOUNT_IDS.sberSalary,   userId: DEFAULT_USER_ID, institutionId: INSTITUTION_IDS.sber, kind: AccountKind.CARD,    name: "Зарплатная · Сбер Премиум", currencyCode: "RUB", balance: "87240.00", sub: "карта ···9812 · зп 10-го", sortOrder: 1 },
-      { id: ACCOUNT_IDS.sberSavings,  userId: DEFAULT_USER_ID, institutionId: INSTITUTION_IDS.sber, kind: AccountKind.SAVINGS, name: "Накопительный · цели",      currencyCode: "RUB", balance: "98000.00", sub: "8.2% годовых", annualRatePct: "8.200", sortOrder: 2 },
-      { id: ACCOUNT_IDS.sberMortgage, userId: DEFAULT_USER_ID, institutionId: INSTITUTION_IDS.sber, kind: AccountKind.LOAN,    name: "Ипотечный · привязка",     currencyCode: "RUB", balance: "13680.00", sub: "списание 28-го · ₽ 57 400", sortOrder: 3 },
+      { id: ACCOUNT_IDS.sberSalary,   userId: DEFAULT_USER_ID, institutionId: INSTITUTION_IDS.sber, kind: AccountKind.CARD,    name: "Зарплатная · Сбер Премиум", currencyCode: "RUB", balance: "87240.00", sub: "карта ···9812 · зп 10-го", sortOrder: 1, balanceUpdatedAt: mAgo(4) },
+      { id: ACCOUNT_IDS.sberSavings,  userId: DEFAULT_USER_ID, institutionId: INSTITUTION_IDS.sber, kind: AccountKind.SAVINGS, name: "Накопительный · цели",      currencyCode: "RUB", balance: "98000.00", sub: "8.2% годовых", annualRatePct: "8.200", sortOrder: 2, balanceUpdatedAt: mAgo(4) },
+      { id: ACCOUNT_IDS.sberMortgage, userId: DEFAULT_USER_ID, institutionId: INSTITUTION_IDS.sber, kind: AccountKind.LOAN,    name: "Ипотечный · привязка",     currencyCode: "RUB", balance: "13680.00", sub: "списание 28-го · ₽ 57 400", sortOrder: 3, balanceUpdatedAt: mAgo(2) },
       // Альфа
-      { id: ACCOUNT_IDS.alfaRub, userId: DEFAULT_USER_ID, institutionId: INSTITUTION_IDS.alfa, kind: AccountKind.CARD, name: "Мультивалютная · Alfa-X", currencyCode: "RUB", balance: "33520.00", sub: "4.2% на остаток", sortOrder: 1 },
-      { id: ACCOUNT_IDS.alfaEur, userId: DEFAULT_USER_ID, institutionId: INSTITUTION_IDS.alfa, kind: AccountKind.CARD, name: "EUR-кошелёк (Alfa-X)",    currencyCode: "EUR", balance: "890.00",   sub: "для фриланс-платежей", sortOrder: 2 },
+      { id: ACCOUNT_IDS.alfaRub, userId: DEFAULT_USER_ID, institutionId: INSTITUTION_IDS.alfa, kind: AccountKind.CARD, name: "Мультивалютная · Alfa-X", currencyCode: "RUB", balance: "33520.00", sub: "4.2% на остаток", sortOrder: 1, subtype: "multi", customPillLabel: "Мульти", balanceUpdatedAt: mAgo(12) },
+      { id: ACCOUNT_IDS.alfaEur, userId: DEFAULT_USER_ID, institutionId: INSTITUTION_IDS.alfa, kind: AccountKind.CARD, name: "EUR-кошелёк (Alfa-X)",    currencyCode: "EUR", balance: "890.00",   sub: "для фриланс-платежей", sortOrder: 2, subtype: "multi", customPillLabel: "Мульти", balanceUpdatedAt: mAgo(12) },
       // Крипто
-      { id: ACCOUNT_IDS.binance, userId: DEFAULT_USER_ID, institutionId: INSTITUTION_IDS.crypto, kind: AccountKind.CRYPTO, name: "Binance · спот",           currencyCode: "USDT", balance: "240.00",    sub: "стейкинг ~4% / год" },
-      { id: ACCOUNT_IDS.ledger,  userId: DEFAULT_USER_ID, institutionId: INSTITUTION_IDS.crypto, kind: AccountKind.CRYPTO, name: "Ledger · холодный кошелёк", currencyCode: "BTC",  balance: "0.00097000", sub: "долгосрочное хранение" },
+      { id: ACCOUNT_IDS.binance, userId: DEFAULT_USER_ID, institutionId: INSTITUTION_IDS.crypto, kind: AccountKind.CRYPTO, name: "Binance · спот",           currencyCode: "USDT", balance: "240.00",    sub: "стейкинг ~4% / год",     subtype: "exchange",    customPillLabel: "Биржа",    balanceUpdatedAt: mAgo(8) },
+      { id: ACCOUNT_IDS.ledger,  userId: DEFAULT_USER_ID, institutionId: INSTITUTION_IDS.crypto, kind: AccountKind.CRYPTO, name: "Ledger · холодный кошелёк", currencyCode: "BTC",  balance: "0.00097",   sub: "долгосрочное хранение", subtype: "cold-wallet", customPillLabel: "Hardware", balanceUpdatedAt: mAgo(18) },
       // Наличка
       { id: ACCOUNT_IDS.cashSafeRub, userId: DEFAULT_USER_ID, institutionId: INSTITUTION_IDS.cash, kind: AccountKind.CASH, name: "Наличные · сейф RUB",    currencyCode: "RUB", balance: "12000.00", location: "дома · сейф" },
       { id: ACCOUNT_IDS.cashWallet,  userId: DEFAULT_USER_ID, institutionId: INSTITUTION_IDS.cash, kind: AccountKind.CASH, name: "Кошелёк",                 currencyCode: "RUB", balance: "4400.00",  location: "кошелёк" },
       { id: ACCOUNT_IDS.cashSafeUsd, userId: DEFAULT_USER_ID, institutionId: INSTITUTION_IDS.cash, kind: AccountKind.CASH, name: "Наличные · сейф USD",    currencyCode: "USD", balance: "200.00",   location: "дома · сейф" },
-      // Архивные
+      // Архивные: balanceUpdatedAt=null (не трогали после архивации)
       { id: "acc_archived_raif", userId: DEFAULT_USER_ID, institutionId: null, kind: AccountKind.CARD,   name: "Райффайзен · дебетовая", currencyCode: "RUB", balance: "0.00", isArchived: true, archivedAt: d("2024-11-01") },
       { id: "acc_archived_cb",   userId: DEFAULT_USER_ID, institutionId: null, kind: AccountKind.CRYPTO, name: "Coinbase · спот",         currencyCode: "USD", balance: "0.00", isArchived: true, archivedAt: d("2025-03-01") },
     ],
