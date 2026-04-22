@@ -1,17 +1,19 @@
-import { CASH_STASH } from "@/lib/mock-wallet";
+import type { CashStashView } from "@/lib/view/wallet";
 
-export function CashStashSection() {
+type Props = { stash: CashStashView[]; meta: string };
+
+export function CashStashSection({ stash, meta }: Props) {
   return (
     <div className="section fade-in" style={{ animationDelay: "340ms" }}>
       <div className="section-hd">
         <div className="ttl mono">
           <b>наличка</b> <span className="dim">· разные локации и валюты</span>
         </div>
-        <div className="meta mono">3 локации · 2 валюты · ₽ 18 400 итого</div>
+        <div className="meta mono">{meta}</div>
       </div>
       <div className="section-body flush">
         <div className="cash-grid">
-          {CASH_STASH.map((c) => (
+          {stash.map((c) => (
             <div key={c.id} className="cash-cell" tabIndex={0}>
               <div className="top">
                 <span className="sym mono">{c.sym}</span>

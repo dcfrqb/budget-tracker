@@ -1,7 +1,9 @@
 import { CountUp } from "@/components/count-up";
-import { WALLET_TOTALS } from "@/lib/mock-wallet";
+import type { WalletTotalView } from "@/lib/view/wallet";
 
-export function WalletTotals() {
+type Props = { totals: WalletTotalView[] };
+
+export function WalletTotals({ totals }: Props) {
   return (
     <div className="section fade-in" style={{ animationDelay: "60ms" }}>
       <div className="section-hd">
@@ -10,7 +12,7 @@ export function WalletTotals() {
       </div>
       <div className="section-body flush">
         <div className="totals">
-          {WALLET_TOTALS.map((t, i) => (
+          {totals.map((t, i) => (
             <div key={i} className="total-cell">
               <div className="k">{t.k}</div>
               <div className={`v ${t.tone}`}>₽ <CountUp to={t.value} /></div>

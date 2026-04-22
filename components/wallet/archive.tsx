@@ -1,16 +1,19 @@
-import { ARCHIVED } from "@/lib/mock-wallet";
+import type { ArchivedView } from "@/lib/view/wallet";
 
-export function Archive() {
+type Props = { items: ArchivedView[] };
+
+export function Archive({ items }: Props) {
+  if (items.length === 0) return null;
   return (
     <div className="section fade-in" style={{ animationDelay: "420ms", marginBottom: 0 }}>
       <div className="section-hd">
         <div className="ttl mono">
           <b>архив</b> <span className="dim">· закрытые счета</span>
         </div>
-        <div className="meta mono">2 счёта · не участвуют в итогах</div>
+        <div className="meta mono">{items.length} {items.length === 1 ? "счёт" : "счёта"} · не участвуют в итогах</div>
       </div>
       <div className="section-body flush">
-        {ARCHIVED.map((a) => (
+        {items.map((a) => (
           <div key={a.id} className="arch-row">
             <div className={`acc-ico ${a.iconKind} mono`}>{a.icon}</div>
             <div className="acc-main">

@@ -1,9 +1,11 @@
-import { INSTITUTIONS } from "@/lib/mock-wallet";
+import type { InstitutionView } from "@/lib/view/wallet";
 
-export function Institutions() {
+type Props = { institutions: InstitutionView[] };
+
+export function Institutions({ institutions }: Props) {
   return (
     <>
-      {INSTITUTIONS.map((inst, idx) => (
+      {institutions.map((inst, idx) => (
         <div key={inst.id} className="fade-in" style={{ animationDelay: `${180 + idx * 40}ms` }}>
           <div className="inst">
             <div className="inst-hd">

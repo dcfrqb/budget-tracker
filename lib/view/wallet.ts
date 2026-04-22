@@ -61,7 +61,9 @@ export function toAccountView(
   let updated: string;
   if (a.currencyCode !== baseCcy) {
     const inBase = convertToBase(a.balance, a.currencyCode, baseCcy, rates);
-    updated = inBase ? `≈ ${formatRubPrefix(inBase).replace("₽ ", "")} ₽` : "обн";
+    updated = inBase
+      ? `≈ ${formatRubPrefix(new Prisma.Decimal(inBase.toFixed(0))).replace("₽ ", "")} ₽`
+      : "обн";
   } else {
     updated = "обн";
   }
@@ -136,7 +138,7 @@ export function toInstitutionView(
     letter: firstLetter(inst.name),
     name: inst.name,
     sub: inst.sub ?? "",
-    total: formatRubPrefix(instTotal),
+    total: formatRubPrefix(new Prisma.Decimal(instTotal.toFixed(0))),
     share: sharePct,
     accounts,
   };
@@ -163,7 +165,10 @@ export function toCashStashView(
   let sub = a.sub ?? "";
   if (a.currencyCode !== baseCcy) {
     const inBase = convertToBase(a.balance, a.currencyCode, baseCcy, rates);
-    if (inBase) sub = `≈ ${formatRubPrefix(inBase).replace("₽ ", "")} ₽${sub ? " · " + sub : ""}`;
+    if (inBase) {
+      const rounded = new Prisma.Decimal(inBase.toFixed(0));
+      sub = `≈ ${formatRubPrefix(rounded).replace("₽ ", "")} ₽${sub ? " · " + sub : ""}`;
+    }
   }
   return {
     id: a.id,

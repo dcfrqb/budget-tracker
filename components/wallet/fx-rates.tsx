@@ -1,6 +1,8 @@
-import { FX_RATES } from "@/lib/mock-wallet";
+import type { FxRateView } from "@/lib/view/wallet";
 
-export function FxRates() {
+type Props = { rates: FxRateView[] };
+
+export function FxRates({ rates }: Props) {
   return (
     <div className="section fade-in" style={{ animationDelay: "120ms" }}>
       <div className="section-hd">
@@ -13,7 +15,7 @@ export function FxRates() {
       </div>
       <div className="section-body flush">
         <div className="rates-row">
-          {FX_RATES.map((r, i) => (
+          {rates.map((r, i) => (
             <div key={i} className="rate">
               <span className="pair mono">{r.pair[0]}<b> / </b>{r.pair[1]}</span>
               <span>
