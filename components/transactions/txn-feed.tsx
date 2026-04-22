@@ -1,13 +1,15 @@
-import { TXN_DAYS, type Txn, type TxnDay } from "@/lib/mock-transactions";
+import type { TxnDayView, TxnView } from "@/lib/view/transactions";
 
-const KIND_LETTER: Record<Txn["kind"], string> = {
+type Props = { days: TxnDayView[]; totalCount: number };
+
+const KIND_LETTER: Record<TxnView["kind"], string> = {
   inc:  "I",
   exp:  "E",
   xfr:  "X",
   loan: "L",
 };
 
-const STATUS_CLASS: Record<Txn["status"], string> = {
+const STATUS_CLASS: Record<TxnView["status"], string> = {
   planned: "st-planned",
   partial: "st-partial",
   done:    "st-done",
@@ -26,7 +28,7 @@ function ReimbursableFlag() {
   );
 }
 
-function TxnRow({ t }: { t: Txn }) {
+function TxnRow({ t }: { t: TxnView }) {
   const amtClass = `txn-amt${t.amountStrike ? " strike" : ""} ${t.amountTone ?? ""}`.trim();
   return (
     <div className="txn-row" tabIndex={0}>
@@ -49,7 +51,7 @@ function TxnRow({ t }: { t: Txn }) {
   );
 }
 
-function DayGroup({ day }: { day: TxnDay }) {
+function DayGroup({ day }: { day: TxnDayView }) {
   return (
     <div className="txn-day">
       <div className="txn-day-hd">
@@ -72,8 +74,8 @@ function DayGroup({ day }: { day: TxnDay }) {
   );
 }
 
-export function TxnFeed() {
-  const total = TXN_DAYS.reduce((n, d) => n + d.txns.length, 0);
+export function TxnFeed({ days, totalCount }: Props) {
+  const shown = days.reduce((n, d) => n + d.txns.length, 0);
 
   return (
     <div className="section fade-in" style={{ animationDelay: "180ms" }}>
@@ -81,14 +83,16 @@ export function TxnFeed() {
         <div className="ttl mono">
           <b>лента</b> <span className="dim">· новые сверху</span>
         </div>
-        <div className="meta mono">{total} из 143 · прокрутка</div>
+        <div className="meta mono">{shown} из {totalCount} · прокрутка</div>
       </div>
-      {TXN_DAYS.map((day) => (
+      {days.map((day) => (
         <DayGroup key={day.date} day={day} />
       ))}
-      <div className="txn-more">
-        <button type="button" className="btn">Ещё 20 · ↓</button>
-      </div>
+      {shown < totalCount && (
+        <div className="txn-more">
+          <button type="button" className="btn">Ещё · ↓</button>
+        </div>
+      )}
     </div>
   );
 }

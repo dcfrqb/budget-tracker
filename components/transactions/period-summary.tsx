@@ -1,8 +1,10 @@
 import { CountUp } from "@/components/count-up";
-import { TXN_PERIOD_SUMMARY } from "@/lib/mock-transactions";
+import type { PeriodSummaryView } from "@/lib/view/transactions";
 
-export function PeriodSummary() {
-  const { inflow, outflow, transfers, net } = TXN_PERIOD_SUMMARY;
+type Props = { summary: PeriodSummaryView };
+
+export function PeriodSummary({ summary }: Props) {
+  const { inflow, outflow, transfers, net, metaLine } = summary;
 
   return (
     <div className="section fade-in" style={{ animationDelay: "120ms" }}>
@@ -10,9 +12,7 @@ export function PeriodSummary() {
         <div className="ttl mono">
           <b>сводка периода</b> <span className="dim">· 30д</span>
         </div>
-        <div className="meta mono">
-          {inflow.count + outflow.count + transfers.count} транз. · 2 план · 1 частично
-        </div>
+        <div className="meta mono">{metaLine}</div>
       </div>
       <div className="section-body flush">
         <div className="period-grid">
@@ -40,7 +40,7 @@ export function PeriodSummary() {
           <div className="period-cell">
             <div className="code net">НЕТТО</div>
             <div className="val net">
-              +₽ <CountUp to={net.value} />
+              +₽ <CountUp to={Math.abs(net.value)} />
             </div>
             <div className="meta">{net.note}</div>
           </div>

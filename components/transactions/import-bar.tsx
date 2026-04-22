@@ -1,3 +1,4 @@
+// TODO: CSV import — separate slice. Пока визуальная заглушка.
 export function ImportBar() {
   return (
     <div className="section fade-in" style={{ animationDelay: "300ms" }}>

@@ -118,17 +118,18 @@ export function formatTime(d: Date): string {
 }
 
 // "+₽ 120 000" / "−₽ 1 860" / "₽ 20 000" (transfer) / "+$ 45 000".
+// sign="-" даёт Unicode minus (U+2212), не ASCII hyphen, для консистентности
+// с day-totals и моком.
 function signedAmount(
   amount: Prisma.Decimal | string,
   currency: { code: string; symbol: string; decimals: number },
   sign: "+" | "-" | "",
 ): string {
   const base = formatAmount(amount, currency);
-  // formatAmount отдаёт "142 680 ₽" — нужно переставить символ перед числом.
-  // "<number> <symbol>" → "<symbol><number>" с учётом знака.
   const [num, sym] = splitTail(base);
   if (sign === "") return `${sym} ${num}`;
-  return `${sign}${sym} ${num}`;
+  const visibleSign = sign === "-" ? "−" : "+";
+  return `${visibleSign}${sym} ${num}`;
 }
 
 function splitTail(s: string): [string, string] {
