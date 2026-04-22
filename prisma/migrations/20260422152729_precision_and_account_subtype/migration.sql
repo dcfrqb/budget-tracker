@@ -1,0 +1,57 @@
+-- AlterTable
+ALTER TABLE "Account" ADD COLUMN     "balanceUpdatedAt" TIMESTAMP(3),
+ADD COLUMN     "customPillLabel" TEXT,
+ADD COLUMN     "subtype" TEXT,
+ALTER COLUMN "balance" SET DATA TYPE DECIMAL(28,10);
+
+-- AlterTable
+ALTER TABLE "Category" ALTER COLUMN "limitEconomy" SET DATA TYPE DECIMAL(28,10),
+ALTER COLUMN "limitNormal" SET DATA TYPE DECIMAL(28,10),
+ALTER COLUMN "limitFree" SET DATA TYPE DECIMAL(28,10);
+
+-- AlterTable
+ALTER TABLE "Fund" ALTER COLUMN "goalAmount" SET DATA TYPE DECIMAL(28,10),
+ALTER COLUMN "currentAmount" SET DATA TYPE DECIMAL(28,10),
+ALTER COLUMN "monthlyContribution" SET DATA TYPE DECIMAL(28,10);
+
+-- AlterTable
+ALTER TABLE "Loan" ALTER COLUMN "principal" SET DATA TYPE DECIMAL(28,10);
+
+-- AlterTable
+ALTER TABLE "LoanPayment" ALTER COLUMN "totalAmount" SET DATA TYPE DECIMAL(28,10),
+ALTER COLUMN "principalPart" SET DATA TYPE DECIMAL(28,10),
+ALTER COLUMN "interestPart" SET DATA TYPE DECIMAL(28,10);
+
+-- AlterTable
+ALTER TABLE "LongProject" ALTER COLUMN "budget" SET DATA TYPE DECIMAL(28,10);
+
+-- AlterTable
+ALTER TABLE "PersonalDebt" ALTER COLUMN "principal" SET DATA TYPE DECIMAL(28,10);
+
+-- AlterTable
+ALTER TABLE "PlannedEvent" ALTER COLUMN "expectedAmount" SET DATA TYPE DECIMAL(28,10);
+
+-- AlterTable
+ALTER TABLE "ReimbursementFact" ALTER COLUMN "amount" SET DATA TYPE DECIMAL(28,10);
+
+-- AlterTable
+ALTER TABLE "Subscription" ALTER COLUMN "price" SET DATA TYPE DECIMAL(28,10);
+
+-- AlterTable
+ALTER TABLE "SubscriptionShare" ALTER COLUMN "amount" SET DATA TYPE DECIMAL(28,10);
+
+-- AlterTable
+ALTER TABLE "Transaction" ALTER COLUMN "amount" SET DATA TYPE DECIMAL(28,10),
+ALTER COLUMN "expectedReimbursement" SET DATA TYPE DECIMAL(28,10);
+
+-- AlterTable
+ALTER TABLE "TransactionFact" ALTER COLUMN "amount" SET DATA TYPE DECIMAL(28,10);
+
+-- AlterTable
+ALTER TABLE "Transfer" ALTER COLUMN "fromAmount" SET DATA TYPE DECIMAL(28,10),
+ALTER COLUMN "toAmount" SET DATA TYPE DECIMAL(28,10),
+ALTER COLUMN "fee" SET DATA TYPE DECIMAL(28,10);
+
+-- AlterTable
+ALTER TABLE "WorkSource" ALTER COLUMN "baseAmount" SET DATA TYPE DECIMAL(28,10),
+ALTER COLUMN "hourlyRate" SET DATA TYPE DECIMAL(28,10);
