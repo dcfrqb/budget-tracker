@@ -18,5 +18,10 @@ export const accountUpdateSchema = accountCreateSchema.partial().extend({
   isArchived: z.boolean().optional(),
 });
 
+export const accountReorderSchema = z
+  .array(z.object({ id: zCuid, sortOrder: z.number().int().nonnegative() }))
+  .min(1);
+
 export type AccountCreateInput = z.infer<typeof accountCreateSchema>;
 export type AccountUpdateInput = z.infer<typeof accountUpdateSchema>;
+export type AccountReorderInput = z.infer<typeof accountReorderSchema>;
