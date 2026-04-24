@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export function AddAccountCta() {
   return (
     <div className="section fade-in" style={{ animationDelay: "380ms" }}>
@@ -10,10 +12,10 @@ export function AddAccountCta() {
           </div>
         </div>
         <div className="r">
-          <button type="button" className="btn">Банк</button>
-          <button type="button" className="btn">Крипто</button>
-          <button type="button" className="btn">Наличка</button>
-          <button type="button" className="btn primary">Ручной ввод</button>
+          <Link href="/wallet/accounts/new?kind=CARD" className="btn">Банк</Link>
+          <Link href="/wallet/accounts/new?kind=CRYPTO" className="btn">Крипто</Link>
+          <Link href="/wallet/accounts/new?kind=CASH" className="btn">Наличка</Link>
+          <Link href="/wallet/accounts/new" className="btn primary">Ручной ввод</Link>
         </div>
       </div>
     </div>
