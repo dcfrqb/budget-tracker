@@ -122,6 +122,9 @@ export async function getFxRates(): Promise<FxRateRow[]> {
   });
 }
 
+// Aggregate totals in base currency. LOAN accounts are excluded from all aggregates
+// (they represent liabilities, not assets). LOAN accounts remain visible on /wallet
+// in their institution section but do not contribute to any monetary total.
 export type WalletTotals = {
   net: { valueBase: Prisma.Decimal; accountsCount: number };
   liquid: { valueBase: Prisma.Decimal; accountsCount: number };
@@ -129,7 +132,7 @@ export type WalletTotals = {
   cash: { valueBase: Prisma.Decimal; accountsCount: number };
 };
 
-// 4 агрегата. Архивные не учитываются. LOAN-счёт только в net.
+// 4 агрегата. Архивные не учитываются. LOAN-счёт исключён из net и sub-агрегатов.
 // Если rate'а нет — счёт скипается + лог в консоль (на MVP достаточно).
 export async function getWalletTotals(
   userId: string,
@@ -152,6 +155,9 @@ export async function getWalletTotals(
   };
 
   for (const a of accounts) {
+    // LOAN accounts represent liabilities — excluded from all money aggregates.
+    if (a.kind === "LOAN") continue;
+
     const inBase = convertToBase(a.balance, a.currencyCode, baseCcy, rates);
     if (!inBase) {
       console.warn(

@@ -77,3 +77,21 @@ export type TransactionCreateInput = z.infer<typeof transactionCreateSchema>;
 export type TransactionUpdateInput = z.infer<typeof transactionUpdateSchema>;
 export type TransactionConfirmInput = z.infer<typeof transactionConfirmSchema>;
 export type TransactionListQuery = z.infer<typeof transactionListQuerySchema>;
+
+// ─────────────────────────────────────────────────────────────
+// One-liner quick-input schema
+// Used by createTransactionFromOneLinerAction.
+// NOTE: no TRANSFER kind — one-liner only creates INCOME / EXPENSE.
+// ─────────────────────────────────────────────────────────────
+
+export const transactionOneLinerSchema = z.object({
+  accountId: zCuid,
+  amount: zMoney,
+  currencyCode: zCurrencyCode,
+  kind: z.enum(["INCOME", "EXPENSE"]),
+  occurredAt: zIsoDate,
+  name: z.string().min(1).max(240),
+  categoryId: zCuid.nullish(),
+});
+
+export type TransactionOneLinerInput = z.infer<typeof transactionOneLinerSchema>;

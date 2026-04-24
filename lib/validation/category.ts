@@ -14,7 +14,10 @@ export const categoryCreateSchema = z.object({
   limitFree: zMoney.nullish(),
 });
 
-export const categoryUpdateSchema = categoryCreateSchema.partial();
+// PATCH: допускает archivedAt: null для восстановления (unarchive).
+export const categoryUpdateSchema = categoryCreateSchema
+  .partial()
+  .extend({ archivedAt: z.null().optional() });
 
 export type CategoryCreateInput = z.infer<typeof categoryCreateSchema>;
 export type CategoryUpdateInput = z.infer<typeof categoryUpdateSchema>;

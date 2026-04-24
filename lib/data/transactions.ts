@@ -136,6 +136,16 @@ export type PeriodSummary = {
   totalCount: number;
 };
 
+export async function getTransactionById(
+  userId: string,
+  id: string,
+): Promise<TxnWithJoins | null> {
+  return db.transaction.findFirst({
+    where: { id, userId, deletedAt: null },
+    include: TXN_INCLUDE,
+  });
+}
+
 export async function getTransactionsPeriodSummary(
   userId: string,
   { from, to, baseCcy }: { from?: Date; to?: Date; baseCcy: string },
