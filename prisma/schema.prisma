@@ -22,28 +22,31 @@ enum Gender {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  gender    Gender   @default(UNSPECIFIED)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String    @id @default(cuid())
+  email       String    @unique
+  name        String?
+  gender      Gender    @default(UNSPECIFIED)
+  // NULL = онбординг не пройден. Ставится при завершении wizard'а.
+  onboardedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  institutions      Institution[]
-  accounts          Account[]
-  categories        Category[]
-  transactions      Transaction[]
-  transfers         Transfer[]
-  workSources       WorkSource[]
-  loans             Loan[]
-  subscriptions     Subscription[]
-  longProjects      LongProject[]
-  funds             Fund[]
-  plannedEvents     PlannedEvent[]
-  personalDebts     PersonalDebt[]
-  budgetSettings    BudgetSettings?
-  familyMemberships FamilyMember[]
-  ownedFamilies     Family[]        @relation("FamilyOwner")
+  institutions           Institution[]
+  accounts               Account[]
+  categories             Category[]
+  transactions           Transaction[]
+  transfers              Transfer[]
+  workSources            WorkSource[]
+  loans                  Loan[]
+  subscriptions          Subscription[]
+  longProjects           LongProject[]
+  funds                  Fund[]
+  plannedEvents          PlannedEvent[]
+  personalDebts          PersonalDebt[]
+  budgetSettings         BudgetSettings?
+  familyMemberships      FamilyMember[]
+  ownedFamilies          Family[]                @relation("FamilyOwner")
+  integrationCredentials IntegrationCredential[]
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -56,19 +59,19 @@ model Currency {
   symbol   String
   decimals Int    @default(2)
 
-  accounts            Account[]
-  transactions        Transaction[]
-  funds               Fund[]
-  loans               Loan[]
-  workSources         WorkSource[]
-  subscriptions       Subscription[]
-  longProjects        LongProject[]
-  plannedEvents       PlannedEvent[]
-  personalDebts       PersonalDebt[]
-  ratesFrom           ExchangeRate[] @relation("RateFromCcy")
-  ratesTo             ExchangeRate[] @relation("RateToCcy")
-  transfersFrom       Transfer[]     @relation("TransferFromCcy")
-  transfersTo         Transfer[]     @relation("TransferToCcy")
+  accounts      Account[]
+  transactions  Transaction[]
+  funds         Fund[]
+  loans         Loan[]
+  workSources   WorkSource[]
+  subscriptions Subscription[]
+  longProjects  LongProject[]
+  plannedEvents PlannedEvent[]
+  personalDebts PersonalDebt[]
+  ratesFrom     ExchangeRate[] @relation("RateFromCcy")
+  ratesTo       ExchangeRate[] @relation("RateToCcy")
+  transfersFrom Transfer[]     @relation("TransferFromCcy")
+  transfersTo   Transfer[]     @relation("TransferToCcy")
 }
 
 model ExchangeRate {
@@ -118,16 +121,16 @@ enum AccountKind {
 }
 
 model Account {
-  id            String      @id @default(cuid())
-  userId        String
-  institutionId String?
-  kind          AccountKind
-  name          String
-  currencyCode  String
-  balance       Decimal     @default(0) @db.Decimal(28, 10)
-  sub           String?
-  location      String?     // для CASH: "дома · сейф"
-  annualRatePct Decimal?    @db.Decimal(6, 3) // для SAVINGS
+  id               String      @id @default(cuid())
+  userId           String
+  institutionId    String?
+  kind             AccountKind
+  name             String
+  currencyCode     String
+  balance          Decimal     @default(0) @db.Decimal(28, 10)
+  sub              String?
+  location         String? // для CASH: "дома · сейф"
+  annualRatePct    Decimal?    @db.Decimal(6, 3) // для SAVINGS
   // Свободный технический тег подвида счёта (multi/checking-usd/cold-wallet/hardware/exchange).
   // Используется view-слоем для выбора pill-лейбла и иконки.
   subtype          String?
@@ -135,12 +138,12 @@ model Account {
   customPillLabel  String?
   // Обновляется ТОЛЬКО при ручной правке balance. null = баланс с момента создания не трогали.
   balanceUpdatedAt DateTime?
-  sortOrder     Int         @default(0)
-  isArchived    Boolean     @default(false)
-  archivedAt    DateTime?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  deletedAt     DateTime?
+  sortOrder        Int         @default(0)
+  isArchived       Boolean     @default(false)
+  archivedAt       DateTime?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  deletedAt        DateTime?
 
   user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   institution   Institution?  @relation(fields: [institutionId], references: [id], onDelete: SetNull)
@@ -176,6 +179,8 @@ model Category {
   limitNormal  Decimal? @db.Decimal(28, 10)
   limitFree    Decimal? @db.Decimal(28, 10)
 
+  archivedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -186,6 +191,7 @@ model Category {
   longProjects LongProject[]
 
   @@index([userId])
+  @@index([userId, archivedAt])
 }
 
 enum BudgetMode {
@@ -218,10 +224,10 @@ enum Scope {
 enum TransactionKind {
   INCOME
   EXPENSE
-  TRANSFER      // одно Transaction на сторону; оба ссылаются на Transfer
-  LOAN_PAYMENT  // платёж по кредиту (связан с Loan + LoanPayment)
-  DEBT_OUT      // выдал в долг (связан с PersonalDebt)
-  DEBT_IN       // возврат по моему займу или получение займа
+  TRANSFER // одно Transaction на сторону; оба ссылаются на Transfer
+  LOAN_PAYMENT // платёж по кредиту (связан с Loan + LoanPayment)
+  DEBT_OUT // выдал в долг (связан с PersonalDebt)
+  DEBT_IN // возврат по моему займу или получение займа
   REIMBURSEMENT // зачисление компенсации (обычно создаётся через ReimbursementFact, но как транзакция тоже)
 }
 
@@ -357,8 +363,8 @@ model Transfer {
 // ─────────────────────────────────────────────────────────────
 
 enum DebtDirection {
-  LENT      // я дал в долг
-  BORROWED  // мне дали в долг
+  LENT // я дал в долг
+  BORROWED // мне дали в долг
 }
 
 model PersonalDebt {
@@ -393,20 +399,22 @@ enum WorkKind {
 }
 
 model WorkSource {
-  id           String   @id @default(cuid())
-  userId       String
-  name         String
-  kind         WorkKind
-  currencyCode String
+  id            String   @id @default(cuid())
+  userId        String
+  name          String
+  kind          WorkKind
+  currencyCode  String
   // Salary: чистая ежемесячная сумма. Freelance: ставка (почасовая или проектная).
-  baseAmount   Decimal? @db.Decimal(28, 10)
-  hourlyRate   Decimal? @db.Decimal(28, 10)
-  payDay       Int? // для EMPLOYMENT: день месяца
-  taxRatePct   Decimal? @db.Decimal(5, 2) // 6, 13, ...
-  note         String?
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  baseAmount    Decimal? @db.Decimal(28, 10)
+  hourlyRate    Decimal? @db.Decimal(28, 10)
+  payDay        Int? // для EMPLOYMENT: день месяца
+  taxRatePct    Decimal? @db.Decimal(5, 2) // 6, 13, ...
+  /// Override для расчёта часовой ставки (цена в часах работы). null → fallback HOURS_PER_MONTH_DEFAULT=160 из lib/constants.ts.
+  hoursPerMonth Int?
+  note          String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   currency     Currency      @relation(fields: [currencyCode], references: [code])
@@ -488,9 +496,9 @@ model Subscription {
   updatedAt             DateTime    @updatedAt
   deletedAt             DateTime?
 
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  currency     Currency @relation(fields: [currencyCode], references: [code])
-  family       Family?  @relation(fields: [familyId], references: [id], onDelete: SetNull)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currency Currency @relation(fields: [currencyCode], references: [code])
+  family   Family?  @relation(fields: [familyId], references: [id], onDelete: SetNull)
 
   shares       SubscriptionShare[]
   transactions Transaction[]
@@ -649,4 +657,38 @@ model FamilyMember {
 
   @@unique([familyId, userId])
   @@index([familyId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// INTEGRATION CREDENTIALS (banks / CSV adapters)
+// ─────────────────────────────────────────────────────────────
+// Зашифрованные секреты адаптеров банков. encryptedPayload = AES-256-GCM(JSON.stringify(secrets)),
+// ключ — серверный (ENV), не хранится в БД. В базе лежат только ciphertext + IV + auth tag (все base64).
+
+enum IntegrationStatus {
+  DISCONNECTED
+  CONNECTED
+  NEEDS_OTP /// ждёт SMS/pin при повторной auth
+  ERROR
+}
+
+model IntegrationCredential {
+  id               String            @id @default(cuid())
+  userId           String
+  adapterId        String /// "tinkoff-retail" | "tinkoff-email" | "tinkoff-csv" | "sber-csv" | etc.
+  displayLabel     String? /// Пользовательская метка ("Моя карта Black")
+  encryptedPayload String /// JSON.stringify(secrets) → AES-256-GCM ciphertext base64
+  encryptionIv     String /// IV для GCM в base64
+  encryptionTag    String /// Auth tag GCM в base64
+  status           IntegrationStatus @default(DISCONNECTED)
+  lastSyncAt       DateTime?
+  lastErrorAt      DateTime?
+  lastErrorMessage String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, adapterId])
+  @@index([userId, status])
 }
