@@ -204,7 +204,11 @@ export default async function AnalyticsPage() {
   return (
     <>
       <AnalyticsStatusStrip />
-      <Weather />
+      <Weather
+        kind={weather.kind}
+        savingsRatePct={weather.savingsRatePct}
+        reason={weather.reason}
+      />
       <AnalyticsKpiRow items={kpiItems} periodLabel={periodFromLabel} />
       <TrendCharts />
       <CategoryPie
