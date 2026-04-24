@@ -1,13 +1,25 @@
 import { CountUp } from "@/components/count-up";
-import { PLANNING_KPI } from "@/lib/mock-planning";
 
-export function PlanningKpiRow() {
-  const k = PLANNING_KPI;
+export type PlanningKpiData = {
+  saved: { label: string; value: number; sub: string };
+  monthly: { label: string; value: number; sub: string };
+  next: { label: string; label2: string; sub: string };
+  hours: { label: string; value: number; sub: string };
+};
+
+export function PlanningKpiRow({
+  kpi,
+  fundsCount = 0,
+}: {
+  kpi: PlanningKpiData;
+  fundsCount?: number;
+}) {
+  const k = kpi;
   return (
     <div className="section fade-in" style={{ animationDelay: "60ms" }}>
       <div className="section-hd">
         <div className="ttl mono"><b>план будущего</b> <span className="dim">· обзор</span></div>
-        <div className="meta mono">6 накоплений · 4 покупки · 1 трип</div>
+        <div className="meta mono">{fundsCount} накоплений</div>
       </div>
       <div className="section-body flush">
         <div className="kpi-row">

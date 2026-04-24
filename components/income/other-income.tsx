@@ -1,6 +1,15 @@
-import { OTHER_INCOME } from "@/lib/mock-income";
+export type OtherIncomeRow = {
+  id: string;
+  icon: string;
+  name: string;
+  sub: string;
+  src: string;
+  date: string;
+  amount: string;
+  amountTone?: "warn" | "acc" | "info";
+};
 
-export function OtherIncome() {
+export function OtherIncome({ rows }: { rows: OtherIncomeRow[] }) {
   return (
     <div className="section fade-in" style={{ animationDelay: "240ms" }}>
       <div className="section-hd">
@@ -14,7 +23,7 @@ export function OtherIncome() {
         </div>
       </div>
       <div className="section-body flush">
-        {OTHER_INCOME.map((o) => (
+        {rows.map((o) => (
           <div key={o.id} className="other-row" tabIndex={0}>
             <div className="o-ico">{o.icon}</div>
             <div className="o-main">
@@ -28,6 +37,11 @@ export function OtherIncome() {
             <div className={`exp-amt ${o.amountTone ?? ""}`}>{o.amount}</div>
           </div>
         ))}
+        {rows.length === 0 && (
+          <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
+            нет прочих поступлений
+          </div>
+        )}
       </div>
     </div>
   );

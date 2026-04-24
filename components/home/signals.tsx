@@ -1,25 +1,39 @@
-import { HOME_SIGNALS } from "@/lib/mock";
+import { getT } from "@/lib/i18n/server";
 
-export function Signals() {
+export type SignalView = {
+  id: string;
+  kind: "acc" | "warn" | "info";
+  title: string;
+  body: string;
+};
+
+export async function Signals({ signals }: { signals: SignalView[] }) {
+  const t = await getT();
+
   return (
     <div className="section fade-in" style={{ animationDelay: "300ms" }}>
       <div className="section-hd">
         <div className="ttl mono">
-          <b>сигналы</b> <span className="dim">· подсказки, не действия</span>
+          <b>{t("signals.section_title")}</b>{" "}
+          <span className="dim">· {t("signals.subtitle")}</span>
         </div>
-        <div className="meta mono">{HOME_SIGNALS.length} активно</div>
+        <div className="meta mono">
+          {t("signals.active_count", { vars: { n: String(signals.length) } })}
+        </div>
       </div>
       <div className="section-body">
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {HOME_SIGNALS.map((s) => (
+          {signals.map((s) => (
             <div key={s.id} className={`signal ${s.kind === "acc" ? "" : s.kind}`}>
               <div className="hd">{s.title}</div>
-              <div
-                className="body mono"
-                dangerouslySetInnerHTML={{ __html: s.bodyHtml }}
-              />
+              <div className="body mono">{s.body}</div>
             </div>
           ))}
+          {signals.length === 0 && (
+            <div className="mono" style={{ fontSize: 12, color: "var(--muted)" }}>
+              {t("signals.empty")}
+            </div>
+          )}
         </div>
       </div>
     </div>

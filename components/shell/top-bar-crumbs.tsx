@@ -2,7 +2,6 @@
 
 import { usePathname } from "next/navigation";
 import { NAV_TABS } from "@/lib/nav";
-import { TODAY_ISO } from "@/lib/mock";
 
 function activeTab(pathname: string) {
   return (
@@ -32,7 +31,7 @@ export function TopBarCrumbs() {
       <span className="sep">/</span>
       {SECONDARY[tab.id] ?? "—"}
       <span className="sep">/</span>
-      {TODAY_ISO}
+      {new Date().toISOString().slice(0, 10)}
     </span>
   );
 }

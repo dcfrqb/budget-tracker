@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import { Segmented } from "@/components/segmented";
-import { MONTH_DAY, MONTH_DAYS, MONTH_LABEL } from "@/lib/mock";
+
+const RU_MONTHS_SHORT = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
+const now = new Date();
+const MONTH_LABEL = `${RU_MONTHS_SHORT[now.getMonth()]} ${now.getFullYear()}`;
+const MONTH_DAY = now.getDate();
+const MONTH_DAYS = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
 
 type TxnType = "all" | "inc" | "exp" | "xfr" | "loan";
 type Period = "7д" | "30д" | "90д" | "1г";

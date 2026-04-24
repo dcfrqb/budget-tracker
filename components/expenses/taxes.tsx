@@ -1,16 +1,26 @@
-import { TAX_HINTS } from "@/lib/mock-expenses";
+export type TaxHintView = {
+  id: string;
+  title: string;
+  sub: string;
+  dueLabel: string;
+  dueTone: "warn" | "muted";
+  amount: string;
+  amountTone: "warn" | "muted";
+  buttonLabel: string;
+  buttonKind: "urgent" | "default";
+};
 
-export function Taxes() {
+export function Taxes({ hints }: { hints: TaxHintView[] }) {
   return (
     <div className="section fade-in" style={{ animationDelay: "360ms", marginBottom: 0 }}>
       <div className="section-hd">
         <div className="ttl mono">
           <b>налоги</b> <span className="dim">· только подсказки · платить вручную</span>
         </div>
-        <div className="meta mono">{TAX_HINTS.length} отслеж.</div>
+        <div className="meta mono">{hints.length} отслеж.</div>
       </div>
       <div>
-        {TAX_HINTS.map((t) => (
+        {hints.map((t) => (
           <div key={t.id} className="tax-card">
             <div className="l">
               <div className="t">{t.title}</div>
@@ -23,6 +33,11 @@ export function Taxes() {
             </div>
           </div>
         ))}
+        {hints.length === 0 && (
+          <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
+            нет налоговых подсказок
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,14 +1,33 @@
-import { BIG_PURCHASES } from "@/lib/mock-planning";
+export type BigPurchaseView = {
+  id: string;
+  icon: string;
+  name: string;
+  sub: string;
+  dueLabel: string;
+  pct: number;
+  hoursMain: string;
+  hoursSub: string;
+  pctTone?: "warn" | "dim";
+};
 
-export function BigPurchases() {
+export function BigPurchases({
+  purchases,
+  hourlyRate,
+}: {
+  purchases: BigPurchaseView[];
+  hourlyRate?: string;
+}) {
   return (
     <div className="section fade-in" style={{ animationDelay: "300ms" }}>
       <div className="section-hd">
         <div className="ttl mono"><b>крупные покупки · прогресс</b></div>
-        <div className="meta mono">4 запланировано · часы посчитаны от ставки ₽ 1 180/ч</div>
+        <div className="meta mono">
+          {purchases.length} запланировано
+          {hourlyRate ? ` · часы от ставки ${hourlyRate}` : ""}
+        </div>
       </div>
       <div className="section-body flush">
-        {BIG_PURCHASES.map((p) => (
+        {purchases.map((p) => (
           <div key={p.id} className="bp-row" tabIndex={0}>
             <div className="bp-ico">{p.icon}</div>
             <div className="bp-main">
@@ -35,6 +54,11 @@ export function BigPurchases() {
             </div>
           </div>
         ))}
+        {purchases.length === 0 && (
+          <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
+            нет крупных покупок
+          </div>
+        )}
       </div>
     </div>
   );

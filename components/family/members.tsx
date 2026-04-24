@@ -1,15 +1,32 @@
-import { MEMBERS } from "@/lib/mock-family";
+export type MemberStat = { k: string; v: string; tone?: string };
 
-export function Members() {
+export type MemberCardView = {
+  id: string;
+  letter: string;
+  color: string;
+  name: string;
+  role: string;
+  roleLabel: string;
+  since: string;
+  stats: MemberStat[];
+  balK: string;
+  balV: string;
+  balTone: string;
+};
+
+export function Members({ members, periodLabel }: { members: MemberCardView[]; periodLabel?: string }) {
   return (
     <div className="section fade-in" style={{ animationDelay: "200ms" }}>
       <div className="section-hd">
-        <div className="ttl mono"><b>участники</b> <span className="dim">· за апрель</span></div>
-        <div className="meta mono">3 / неогранич. · можно удалить любого</div>
+        <div className="ttl mono">
+          <b>участники</b>{" "}
+          <span className="dim">· {periodLabel ?? "текущий месяц"}</span>
+        </div>
+        <div className="meta mono">{members.length} / неогранич.</div>
       </div>
       <div className="section-body flush">
         <div className="mem-grid">
-          {MEMBERS.map((m) => (
+          {members.map((m) => (
             <div key={m.id} className="mem-card">
               <div className="mem-top">
                 <div className="mem-av" style={{ background: m.color }}>{m.letter}</div>
@@ -35,6 +52,11 @@ export function Members() {
               </div>
             </div>
           ))}
+          {members.length === 0 && (
+            <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
+              нет участников
+            </div>
+          )}
         </div>
       </div>
     </div>

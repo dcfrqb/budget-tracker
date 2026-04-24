@@ -1,40 +1,46 @@
 import { CountUp } from "@/components/count-up";
-import { EXPENSES_KPI } from "@/lib/mock-expenses";
 
-export function ExpensesKpiRow() {
-  const k = EXPENSES_KPI;
+export type ExpensesKpiData = {
+  loans: { label: string; value: number; sub: string };
+  subs: { label: string; value: number; sub: string };
+  utilities: { label: string; value: number; sub: string };
+  taxes: { label: string; value: number; sub: string };
+  projects: { label: string; value: number; sub: string };
+};
+
+export function ExpensesKpiRow({ kpi }: { kpi: ExpensesKpiData }) {
   return (
     <div className="section fade-in" style={{ animationDelay: "60ms" }}>
       <div className="section-hd">
         <div className="ttl mono"><b>обзор обязательств</b></div>
-        <div className="meta mono">резерв в этом мес. ₽ 74 600</div>
+        <div className="meta mono">текущий месяц</div>
       </div>
       <div className="section-body flush">
         <div className="kpi-row" style={{ ["--kpi-cols" as string]: 5 } as React.CSSProperties}>
           <div className="kpi">
-            <div className="c loan">{k.loans.label}</div>
-            <div className="v neg">₽ <CountUp to={k.loans.value} /></div>
-            <div className="s">{k.loans.sub}</div>
+            <div className="c loan">{kpi.loans.label}</div>
+            <div className="v neg">₽ <CountUp to={kpi.loans.value} /></div>
+            <div className="s">{kpi.loans.sub}</div>
           </div>
           <div className="kpi">
-            <div className="c sub">{k.subs.label}</div>
-            <div className="v info">₽ <CountUp to={k.subs.value} /></div>
-            <div className="s">{k.subs.sub}</div>
+            <div className="c sub">{kpi.subs.label}</div>
+            <div className="v info">₽ <CountUp to={kpi.subs.value} /></div>
+            <div className="s">{kpi.subs.sub}</div>
           </div>
           <div className="kpi">
-            <div className="c util">{k.utilities.label}</div>
-            <div className="v warn">₽ <CountUp to={k.utilities.value} /></div>
-            <div className="s">{k.utilities.sub}</div>
+            <div className="c util">{kpi.utilities.label}</div>
+            <div className="v warn">₽ <CountUp to={kpi.utilities.value} /></div>
+            <div className="s">{kpi.utilities.sub}</div>
           </div>
           <div className="kpi">
-            <div className="c tax">{k.taxes.label}</div>
-            <div className="v acc">₽ <CountUp to={k.taxes.value} /></div>
-            <div className="s">{k.taxes.sub}</div>
+            <div className="c tax">{kpi.taxes.label}</div>
+            <div className="v acc">₽ <CountUp to={kpi.taxes.value} /></div>
+            <div className="s">{kpi.taxes.sub}</div>
           </div>
           <div className="kpi">
-            <div className="c acc">{k.projects.label}</div>
-            <div className="v acc">{k.projects.value}</div>
-            <div className="s">{k.projects.sub}</div>
+            <div className="c acc">{kpi.projects.label}</div>
+            <div className="v acc">{kpi.projects.value}</div>
+            <div className="s">{kpi.projects.sub}</div>
           </div>
         </div>
       </div>

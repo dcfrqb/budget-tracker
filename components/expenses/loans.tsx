@@ -1,8 +1,19 @@
-/* Amortization mini-chart: interest (top) decreases, principal (bottom) grows.
-   18 columns = next 18 monthly payments. First column is current month. */
+"use client";
+
+import React, { useState, useTransition } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useT } from "@/lib/i18n";
+import { Dialog } from "@/components/ui/dialog";
+import { LoanPaymentDialog } from "@/components/loans/loan-payment-dialog";
+import { deleteLoanAction } from "@/app/(shell)/expenses/loans/actions";
+import type { AccountOption } from "@/components/forms/account-select";
+import type { DefaultSplit } from "@/components/loans/loan-payment-dialog";
+
+/* Amortization mini-chart: interest (top) decreases, principal (bottom) grows. */
 function AmortChart() {
   const cols = Array.from({ length: 18 }, (_, i) => {
-    const interest = 34 - i * 0.5;           // visual % shrink
+    const interest = 34 - i * 0.5;
     const principal = 66 + i * 0.5;
     return { i, interest, principal };
   });
@@ -18,102 +29,185 @@ function AmortChart() {
   );
 }
 
+export type LoanStatItem = { k: string; v: string; tone?: string };
+
+export type LoanCardView = {
+  id: string;
+  name: string;
+  tag: string;
+  sub: string;
+  dueLabel: string;
+  stats: LoanStatItem[];
+  progressPct: number;
+  progressLabel: string;
+  progressSub: string;
+  overpayStats: LoanStatItem[];
+  defaultSplit?: DefaultSplit;
+  defaultAccountId?: string;
+};
+
+type LoanCardProps = {
+  loan: LoanCardView;
+  accounts: AccountOption[];
+};
+
+function LoanCard({ loan, accounts }: LoanCardProps) {
+  const t = useT();
+  const router = useRouter();
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [isPendingDelete, startDeleteTransition] = useTransition();
+
+  function handleDelete() {
+    startDeleteTransition(async () => {
+      await deleteLoanAction(loan.id);
+      setDeleteOpen(false);
+      router.refresh();
+    });
+  }
+
+  return (
+    <article className="loan-card">
+      <header className="loan-hd">
+        <div>
+          <div className="loan-tag">
+            <span className="code">{loan.tag}</span>
+            <span className="loan-name">{loan.name}</span>
+          </div>
+          <div className="loan-sub">{loan.sub}</div>
+        </div>
+        <div className="loan-due">{loan.dueLabel}</div>
+      </header>
+      <div className="loan-body">
+        <div className="loan-cell">
+          <div className="loan-stats">
+            {loan.stats.map((s, i) => (
+              <div key={i}>
+                <div className="k">{s.k}</div>
+                <div className={`v${s.tone ? ` ${s.tone}` : ""}`}>{s.v}</div>
+              </div>
+            ))}
+          </div>
+          <div className="loan-prog-wrap">
+            <div className="loan-prog-lbl">
+              <span>{loan.progressLabel}</span>
+              <span>{loan.progressSub}</span>
+            </div>
+            <div className="loan-prog">
+              <span className="paid" style={{ width: `${loan.progressPct}%` }} />
+              <span className="rem" style={{ width: `${100 - loan.progressPct}%` }} />
+            </div>
+          </div>
+        </div>
+        <div className="loan-cell">
+          <div className="mono" style={{ fontSize: 10, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 8 }}>
+            амортизация
+          </div>
+          <AmortChart />
+          {loan.overpayStats.length > 0 && (
+            <div className="loan-cell overpay" style={{ marginTop: 8 }}>
+              {loan.overpayStats.map((s, i) => (
+                <div key={i} className="row">
+                  <span className="k">{s.k}</span>
+                  <span className={`v${s.tone ? ` ${s.tone}` : ""}`}>{s.v}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="sub-btns" style={{ marginTop: 8 }}>
+        <LoanPaymentDialog
+          loanId={loan.id}
+          loanName={loan.name}
+          defaultSplit={loan.defaultSplit}
+          accounts={accounts}
+          defaultAccountId={loan.defaultAccountId}
+          onPaid={() => router.refresh()}
+        />
+        <Link href={`/expenses/loans/${loan.id}/edit`} className="btn">
+          {t("buttons.edit")}
+        </Link>
+        <button type="button" className="btn" onClick={() => setDeleteOpen(true)}>
+          {t("buttons.delete")}
+        </button>
+      </div>
+
+      <Dialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title={t("forms.loan.delete_confirm_title")}
+        size="sm"
+        footer={
+          <div className="submit-row-actions">
+            <button type="button" className="btn-ghost" onClick={() => setDeleteOpen(false)} disabled={isPendingDelete}>
+              {t("forms.common.cancel")}
+            </button>
+            <button type="button" className="btn-primary" onClick={handleDelete} disabled={isPendingDelete}>
+              {isPendingDelete ? "..." : t("forms.common.delete")}
+            </button>
+          </div>
+        }
+      >
+        <p className="mono" style={{ fontSize: 13, color: "var(--text)" }}>
+          {t("forms.loan.delete_confirm_body", { vars: { name: loan.name } })}
+        </p>
+      </Dialog>
+    </article>
+  );
+}
+
+export function LoansSection({
+  loans,
+  accounts,
+  addLabel,
+}: {
+  loans: LoanCardView[];
+  accounts: AccountOption[];
+  addLabel: string;
+}) {
+  const t = useT();
+  return (
+    <div className="section fade-in" style={{ animationDelay: "120ms" }}>
+      <div className="section-hd">
+        <div className="ttl mono"><b>{t("expenses.loans.section_title")}</b></div>
+        <div className="meta mono">
+          <Link
+            href="/expenses/loans/new"
+            className="btn primary"
+            style={{ padding: "3px 9px", fontSize: 10 }}
+          >
+            {addLabel}
+          </Link>
+        </div>
+      </div>
+      {loans.map((loan) => (
+        <LoanCard key={loan.id} loan={loan} accounts={accounts} />
+      ))}
+      {loans.length === 0 && (
+        <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
+          {t("common.no_data")}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Backward-compat export (for expenses/page.tsx that doesn't pass props yet)
 export function Loans() {
   return (
     <div className="section fade-in" style={{ animationDelay: "120ms" }}>
       <div className="section-hd">
         <div className="ttl mono"><b>кредиты / ипотека</b></div>
         <div className="meta mono">
-          <button type="button" className="btn primary" style={{ padding: "3px 9px", fontSize: 10 }}>
-            + Добавить кредит
-          </button>
+          <Link
+            href="/expenses/loans/new"
+            className="btn primary"
+            style={{ padding: "3px 9px", fontSize: 10 }}
+          >
+            + Кредит
+          </Link>
         </div>
       </div>
-
-      <article className="loan-card">
-        <header className="loan-hd">
-          <div>
-            <div className="loan-tag">
-              <span className="code">КРЕДИТ · ИПОТЕКА</span>
-              <span className="loan-name">Ипотека · Сбербанк</span>
-            </div>
-            <div className="loan-sub">2-комн · Москва · 15 лет · с 2023-06-10</div>
-          </div>
-          <div className="loan-due"><b>28 апр · 7д</b>₽ 57 400 · авто</div>
-        </header>
-        <div className="loan-body">
-          <div className="loan-cell">
-            <div className="loan-stats">
-              <div><div className="k">Остаток тела</div><div className="v neg">₽ 3 847 500</div></div>
-              <div><div className="k">Ставка</div><div className="v">11.9% / yr</div></div>
-              <div><div className="k">Платёж / мес</div><div className="v">₽ 57 400</div></div>
-              <div><div className="k">Осталось</div><div className="v">134 mo</div></div>
-              <div><div className="k">Выпл. всего</div><div className="v acc">₽ 1 952 500</div></div>
-              <div><div className="k">Переплата</div><div className="v neg">₽ 1 237 860</div></div>
-            </div>
-            <div className="loan-prog-wrap">
-              <div className="loan-prog-lbl"><span>прогресс · 34%</span><span>46 / 180 платежей</span></div>
-              <div className="loan-prog">
-                <span className="paid" style={{ width: "34%" }} />
-                <span className="rem"  style={{ width: "66%" }} />
-              </div>
-            </div>
-          </div>
-          <div className="loan-cell">
-            <div className="mono" style={{ fontSize: 10, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 8 }}>
-              амортизация · ближ. 18 мес
-            </div>
-            <AmortChart />
-            <div className="amort-legend">
-              <span><span className="sw" style={{ background: "var(--loan)" }} />проценты</span>
-              <span><span className="sw" style={{ background: "var(--accent)" }} />тело</span>
-              <span style={{ marginLeft: "auto" }}>
-                <span className="sw" style={{ outline: "1px solid var(--warn)", background: "var(--panel)" }} />тек. мес
-              </span>
-            </div>
-            <div className="mono" style={{ fontSize: 11, color: "var(--muted)", marginTop: 10, display: "flex", justifyContent: "space-between" }}>
-              <span>разбивка за мес</span>
-              <span>тело <span style={{ color: "var(--accent)" }}>₽ 38 140</span> · проценты <span style={{ color: "var(--loan)" }}>₽ 19 260</span></span>
-            </div>
-          </div>
-        </div>
-      </article>
-
-      <article className="loan-card">
-        <header className="loan-hd">
-          <div>
-            <div className="loan-tag">
-              <span className="code">КРЕДИТ · ПОТРЕБ.</span>
-              <span className="loan-name">Потреб. · Альфа · ноутбук</span>
-            </div>
-            <div className="loan-sub">24 мес · с 2025-09-12 · 8 выпл.</div>
-          </div>
-          <div className="loan-due"><b>12 мая · 21д</b>₽ 8 540 · авто</div>
-        </header>
-        <div className="loan-body">
-          <div className="loan-cell">
-            <div className="loan-stats">
-              <div><div className="k">Остаток</div><div className="v neg">₽ 138 400</div></div>
-              <div><div className="k">Ставка</div><div className="v">14.5% / yr</div></div>
-              <div><div className="k">Мес</div><div className="v">₽ 8 540</div></div>
-              <div><div className="k">Осталось</div><div className="v">16 mo</div></div>
-            </div>
-            <div className="loan-prog-wrap">
-              <div className="loan-prog-lbl"><span>33%</span><span>8 / 24</span></div>
-              <div className="loan-prog">
-                <span className="paid" style={{ width: "33%" }} />
-                <span className="rem"  style={{ width: "67%" }} />
-              </div>
-            </div>
-          </div>
-          <div className="loan-cell overpay">
-            <div className="row"><span className="k">Выпл. всего</span><span className="v" style={{ color: "var(--accent)" }}>₽ 68 320</span></div>
-            <div className="row"><span className="k">Погаш. тело</span><span className="v" style={{ color: "var(--accent)" }}>₽ 51 600</span></div>
-            <div className="row"><span className="k">Выпл. проценты</span><span className="v" style={{ color: "var(--loan)" }}>₽ 16 720</span></div>
-            <div className="row"><span className="k">Всего %% до конца</span><span className="v warn">₽ 33 440</span></div>
-          </div>
-        </div>
-      </article>
     </div>
   );
 }

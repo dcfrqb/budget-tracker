@@ -1,17 +1,27 @@
-import { EXPENSE_CATEGORIES } from "@/lib/mock-expenses";
+export type ExpenseCategoryView = {
+  id: string;
+  name: string;
+  sub: string;
+  amount: string;
+  amountTone?: "info";
+  pct: number;
+  barColor: string;
+  usageLabel: string;
+  total: string;
+};
 
-export function ExpenseCategories() {
+export function ExpenseCategories({ categories }: { categories: ExpenseCategoryView[] }) {
   return (
     <div className="section fade-in" style={{ animationDelay: "300ms" }}>
       <div className="section-hd">
         <div className="ttl mono">
-          <b>категории</b> <span className="dim">· дом, авто, ЖКХ</span>
+          <b>категории</b> <span className="dim">· текущий месяц</span>
         </div>
-        <div className="meta mono">ср 3мес</div>
+        <div className="meta mono">по сумме</div>
       </div>
       <div className="section-body flush">
         <div className="cat-grid">
-          {EXPENSE_CATEGORIES.map((c) => (
+          {categories.map((c) => (
             <div key={c.id} className="cat-card" tabIndex={0}>
               <div className="cat-top">
                 <div>
@@ -29,6 +39,11 @@ export function ExpenseCategories() {
               </div>
             </div>
           ))}
+          {categories.length === 0 && (
+            <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
+              нет данных по категориям
+            </div>
+          )}
         </div>
       </div>
     </div>

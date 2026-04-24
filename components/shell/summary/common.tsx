@@ -1,7 +1,40 @@
 import { CountUp } from "@/components/count-up";
-import { AVAILABLE, BALANCES, SAFE_UNTIL, STATUS } from "@/lib/mock";
 
-export function SafeUntilBlock() {
+// ─────────────────────────────────────────────────────────────
+// Types for summary blocks — passed from page-level data fetch
+// ─────────────────────────────────────────────────────────────
+
+export type SafeUntilData = {
+  days: number | null;
+  /** ISO date string, e.g. "2026-06-07" */
+  dateIso?: string;
+  deltaLabel?: string;
+};
+
+export type AvailableData = {
+  freeBase: number;
+  totalBase: number;
+  reservedBase: number;
+};
+
+export type BalanceData = {
+  sym: string;
+  display: string;
+};
+
+export type StatusData = {
+  label: string;
+};
+
+// ─────────────────────────────────────────────────────────────
+// SafeUntilBlock — accepts optional props; shows "—" if no data
+// ─────────────────────────────────────────────────────────────
+
+export function SafeUntilBlock({ data }: { data?: SafeUntilData }) {
+  const days = data?.days ?? null;
+  const dateIso = data?.dateIso;
+  const deltaLabel = data?.deltaLabel;
+
   return (
     <div className="sum-block" style={{ padding: "12px 8px" }}>
       <div className="safe-block">
@@ -11,38 +44,49 @@ export function SafeUntilBlock() {
         </div>
         <div className="row">
           <span className="big mono">
-            <CountUp to={SAFE_UNTIL.days} format="int" />
+            {days !== null ? <CountUp to={days} format="int" /> : "—"}
           </span>
           <span className="unit mono">дней</span>
         </div>
-        <div className="sub mono">
-          → {SAFE_UNTIL.dateIso} · <span className="acc">{SAFE_UNTIL.deltaLabel}</span>
-        </div>
+        {(dateIso || deltaLabel) && (
+          <div className="sub mono">
+            {dateIso && <>→ {dateIso}</>}
+            {deltaLabel && <> · <span className="acc">{deltaLabel}</span></>}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-export function AvailableBlock() {
+// ─────────────────────────────────────────────────────────────
+// AvailableBlock
+// ─────────────────────────────────────────────────────────────
+
+export function AvailableBlock({ data }: { data?: AvailableData }) {
+  const freeBase = data?.freeBase ?? 0;
+  const totalBase = data?.totalBase ?? 0;
+  const reservedBase = data?.reservedBase ?? 0;
+
   return (
     <div className="sum-block avail">
       <div className="lbl">
         <span>доступно сейчас</span>
       </div>
       <div className="big2 mono">
-        ₽ <CountUp to={AVAILABLE.now} />
+        ₽ <CountUp to={freeBase} />
       </div>
       <div className="sub">
         <span>
           всего{" "}
           <span className="mono" style={{ color: "var(--muted)" }}>
-            {AVAILABLE.total.toLocaleString("en-US").replace(/,/g, " ")}
+            {totalBase.toLocaleString("en-US").replace(/,/g, " ")}
           </span>
         </span>
         <span>
           резерв{" "}
           <span className="mono" style={{ color: "var(--warn)" }}>
-            {AVAILABLE.reserved.toLocaleString("en-US").replace(/,/g, " ")}
+            {reservedBase.toLocaleString("en-US").replace(/,/g, " ")}
           </span>
         </span>
       </div>
@@ -50,26 +94,35 @@ export function AvailableBlock() {
   );
 }
 
-export function BalancesBlock() {
+// ─────────────────────────────────────────────────────────────
+// BalancesBlock
+// ─────────────────────────────────────────────────────────────
+
+export function BalancesBlock({ balances }: { balances?: BalanceData[] }) {
+  const rows = balances ?? [];
   return (
     <div className="sum-block">
       <div className="lbl">
         <span>балансы</span>
-        <span className="tiny mono">{BALANCES.length} счёта</span>
+        {rows.length > 0 && <span className="tiny mono">{rows.length} счёта</span>}
       </div>
-      {BALANCES.map((b) => (
+      {rows.map((b) => (
         <div key={b.sym} className="bal-item">
           <span className="bal-sym mono">{b.sym}</span>
           <span className="bal-val mono">{b.display}</span>
         </div>
       ))}
+      {rows.length === 0 && (
+        <div className="mono" style={{ fontSize: 11, color: "var(--muted)" }}>нет данных</div>
+      )}
     </div>
   );
 }
 
 type SessionRow = { tone: "pos" | "warn" | "muted" | "live-pos"; k: string; v: React.ReactNode; vClass?: string };
 
-export function SessionStateBlock({ rows }: { rows: SessionRow[] }) {
+export function SessionStateBlock({ status, rows }: { status?: StatusData; rows: SessionRow[] }) {
+  const statusLabel = status?.label ?? "СТАБИЛЬНО";
   return (
     <div className="sum-block">
       <div className="lbl">
@@ -79,7 +132,7 @@ export function SessionStateBlock({ rows }: { rows: SessionRow[] }) {
       <div className="status-row">
         <span className="dot live" style={{ background: "var(--pos)" }} />
         <span className="k">статус</span>
-        <span className="v acc">{STATUS.label}</span>
+        <span className="v acc">{statusLabel}</span>
       </div>
       {rows.map((r, i) => {
         const bg =

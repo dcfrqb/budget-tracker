@@ -1,4 +1,14 @@
-import { BALANCE_FLOWS } from "@/lib/mock-family";
+export type BalanceFlowPerson = { letter: string; color: string };
+
+export type BalanceFlow = {
+  fromName: string;
+  from?: BalanceFlowPerson;
+  toName: string;
+  to?: BalanceFlowPerson;
+  label: string;
+  amount: string;
+  muted?: boolean;
+};
 
 function Arrow() {
   return (
@@ -9,7 +19,7 @@ function Arrow() {
   );
 }
 
-export function FamilyBalances() {
+export function FamilyBalances({ flows }: { flows: BalanceFlow[] }) {
   return (
     <div className="section fade-in" style={{ animationDelay: "240ms" }}>
       <div className="section-hd">
@@ -19,10 +29,10 @@ export function FamilyBalances() {
         </div>
       </div>
       <div className="bal-chord">
-        {BALANCE_FLOWS.map((f, i) => (
+        {flows.map((f, i) => (
           <div key={i} className="bal-flow" style={f.muted ? { opacity: .6 } : undefined}>
             <div className="who" style={f.muted ? { color: "var(--muted)" } : undefined}>
-              <span className="ma" style={{ background: f.from.color }}>{f.from.letter}</span>
+              {f.from && <span className="ma" style={{ background: f.from.color }}>{f.from.letter}</span>}
               {f.fromName}
             </div>
             <div className="arrow mono">
@@ -40,8 +50,13 @@ export function FamilyBalances() {
             <div className="amt" style={f.muted ? { color: "var(--dim)" } : undefined}>{f.amount}</div>
           </div>
         ))}
+        {flows.length === 0 && (
+          <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
+            нет текущих задолженностей
+          </div>
+        )}
         <div className="mono" style={{ fontSize: 11, color: "var(--muted)", paddingTop: 6 }}>
-          алгоритм: минимальное число переводов чтобы обнулить все разницы · следующая сверка — конец месяца (30 апр)
+          алгоритм: минимальное число переводов чтобы обнулить все разницы
         </div>
       </div>
     </div>

@@ -1,19 +1,34 @@
-import { MODES } from "@/lib/mock-analytics";
+export type ModeLimit = { k: string; v: string };
 
-export function ModesReference() {
+export type ModeCard = {
+  id: string;
+  name: string;
+  tag: string;
+  active: boolean;
+  limits: ModeLimit[];
+  safeDays: string;
+  safeColor: string;
+};
+
+export function ModesReference({ modes, activeMode }: { modes: ModeCard[]; activeMode?: string }) {
   return (
     <div className="section fade-in" style={{ animationDelay: "420ms", marginBottom: 0 }}>
       <div className="section-hd">
         <div className="ttl mono">
-          <b>режимы · справка</b> <span className="dim">· только просмотр · переключать на главной</span>
+          <b>режимы · справка</b>{" "}
+          <span className="dim">· только просмотр · переключать на главной</span>
         </div>
         <div className="meta mono">
-          активен: <span className="pos">Норма</span>
+          {activeMode ? (
+            <>активен: <span className="pos">{activeMode}</span></>
+          ) : (
+            "не задан"
+          )}
         </div>
       </div>
       <div className="section-body flush">
         <div className="mode-grid">
-          {MODES.map((m) => (
+          {modes.map((m) => (
             <div key={m.id} className={`mode-card ${m.id}${m.active ? " active" : ""}`}>
               <div className="mode-hd">
                 <div className="mode-name">{m.name}</div>
@@ -34,6 +49,11 @@ export function ModesReference() {
               </div>
             </div>
           ))}
+          {modes.length === 0 && (
+            <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 0" }}>
+              режимы не настроены
+            </div>
+          )}
         </div>
       </div>
     </div>

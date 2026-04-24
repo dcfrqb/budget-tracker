@@ -1,15 +1,32 @@
-import { SHARED_FUNDS } from "@/lib/mock-family";
+export type SharedFundContrib = {
+  avLetter?: string;
+  avColor?: string;
+  who: string;
+  amount: string;
+  tone?: string;
+};
 
-export function SharedFunds() {
+export type SharedFundCard = {
+  id: string;
+  kindLabel: string;
+  due: string;
+  name: string;
+  sub: string;
+  contrib: SharedFundContrib[];
+  pct: number;
+  footV: string;
+};
+
+export function SharedFunds({ funds }: { funds: SharedFundCard[] }) {
   return (
     <div className="section fade-in" style={{ animationDelay: "320ms" }}>
       <div className="section-hd">
         <div className="ttl mono"><b>общие накопления</b> <span className="dim">· кто сколько вложил</span></div>
-        <div className="meta mono">2 активных фонда · +₽ 14 500 / мес всего</div>
+        <div className="meta mono">{funds.length} активных фондов</div>
       </div>
       <div className="section-body flush">
         <div className="sfund-grid">
-          {SHARED_FUNDS.map((f) => (
+          {funds.map((f) => (
             <article key={f.id} className="sfund-card" tabIndex={0}>
               <div className="sfund-top">
                 <span className="sfund-kind">{f.kindLabel}</span>
@@ -41,6 +58,11 @@ export function SharedFunds() {
               </div>
             </article>
           ))}
+          {funds.length === 0 && (
+            <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
+              нет общих накоплений
+            </div>
+          )}
         </div>
       </div>
     </div>

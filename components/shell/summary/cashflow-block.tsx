@@ -1,25 +1,38 @@
 import { Sparkline } from "@/components/shell/sparkline";
-import { CASHFLOW_30D, CASHFLOW_DELTA_LABEL } from "@/lib/mock";
 
-export function CashflowBlock() {
+// TODO: заменить заглушку когда появятся исторические точки cashflow
+const CASHFLOW_STUB: number[] = [];
+
+export function CashflowBlock({ points, deltaLabel }: { points?: number[]; deltaLabel?: string }) {
+  const data = points ?? CASHFLOW_STUB;
   return (
     <div className="sum-block">
       <div className="lbl">
         <span>денежный поток 30д</span>
-        <span className="tiny">стабильно-плюс</span>
+        <span className="tiny">текущий период</span>
       </div>
-      <Sparkline points={CASHFLOW_30D} />
-      <div
-        className="mono"
-        style={{
-          fontSize: 10,
-          color: "var(--muted)",
-          marginTop: 4,
-          letterSpacing: ".1em",
-        }}
-      >
-        ▁▂▃▃▅▇▇ {CASHFLOW_DELTA_LABEL}
-      </div>
+      {data.length > 0 ? (
+        <>
+          <Sparkline points={data} />
+          {deltaLabel && (
+            <div
+              className="mono"
+              style={{
+                fontSize: 10,
+                color: "var(--muted)",
+                marginTop: 4,
+                letterSpacing: ".1em",
+              }}
+            >
+              {deltaLabel}
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="mono" style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
+          нет данных
+        </div>
+      )}
     </div>
   );
 }

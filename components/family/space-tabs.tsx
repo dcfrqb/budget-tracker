@@ -1,10 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { SPACES } from "@/lib/mock-family";
 
-export function SpaceTabs() {
-  const [active, setActive] = useState(SPACES[0].id);
+export type SpaceTab = {
+  id: string;
+  tag: string;
+  n: string;
+  s: string;
+  amount: string;
+  amountLabel: string;
+};
+
+export function SpaceTabs({ spaces }: { spaces: SpaceTab[] }) {
+  const [active, setActive] = useState(spaces[0]?.id ?? "");
   return (
     <div className="section fade-in" style={{ animationDelay: "160ms" }}>
       <div className="section-hd">
@@ -14,7 +22,7 @@ export function SpaceTabs() {
         <div className="meta mono">переключай при добавлении транзакции</div>
       </div>
       <div className="space-tabs">
-        {SPACES.map((s) => (
+        {spaces.map((s) => (
           <div
             key={s.id}
             className={`space-tab${active === s.id ? " on" : ""}`}
@@ -33,6 +41,11 @@ export function SpaceTabs() {
             </div>
           </div>
         ))}
+        {spaces.length === 0 && (
+          <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
+            нет пространств
+          </div>
+        )}
       </div>
     </div>
   );

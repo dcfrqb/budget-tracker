@@ -1,14 +1,35 @@
-import { SHARED_SUBS } from "@/lib/mock-family";
+export type SharedSubSegment = { pct: number; color: string };
 
-export function SharedSubs() {
+export type SharedSubMemberDot = { letter: string; color: string; small?: boolean };
+
+export type SharedSubRow = {
+  id: string;
+  icon: string;
+  iconBg: string;
+  iconColor: string;
+  name: string;
+  sub: string;
+  badge: string;
+  badgeLabel: string;
+  segments: SharedSubSegment[];
+  members: SharedSubMemberDot[];
+  amount: string;
+  your: string;
+  yourTone?: "acc" | string;
+};
+
+export function SharedSubs({ rows, yourShareLabel }: { rows: SharedSubRow[]; yourShareLabel?: string }) {
   return (
     <div className="section fade-in" style={{ animationDelay: "360ms", marginBottom: 0 }}>
       <div className="section-hd">
         <div className="ttl mono"><b>общие подписки</b> <span className="dim">· шеринг</span></div>
-        <div className="meta mono">4 шеринга · твоя доля ₽ 1 340 / мес</div>
+        <div className="meta mono">
+          {rows.length} шерингов
+          {yourShareLabel ? ` · твоя доля ${yourShareLabel}` : ""}
+        </div>
       </div>
       <div className="section-body flush">
-        {SHARED_SUBS.map((s) => (
+        {rows.map((s) => (
           <div key={s.id} className="ssub-row" tabIndex={0}>
             <div className="ssub-ico" style={{ background: s.iconBg, color: s.iconColor }}>{s.icon}</div>
             <div className="ssub-main">
@@ -43,6 +64,11 @@ export function SharedSubs() {
             </div>
           </div>
         ))}
+        {rows.length === 0 && (
+          <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
+            нет общих подписок
+          </div>
+        )}
       </div>
     </div>
   );

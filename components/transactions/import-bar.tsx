@@ -1,4 +1,5 @@
-// TODO: CSV import — separate slice. Пока визуальная заглушка.
+import Link from "next/link";
+
 export function ImportBar() {
   return (
     <div className="section fade-in" style={{ animationDelay: "300ms" }}>
@@ -12,14 +13,14 @@ export function ImportBar() {
             </svg>
           </div>
           <div>
-            <div className="t">Импорт из банковского CSV</div>
-            <div className="s">Тинькофф · Сбер · Альфа · Т-Банк · авто-категория</div>
+            <div className="t">CSV Import</div>
+            <div className="s">Tinkoff · other banks · auto-category</div>
           </div>
         </div>
         <div className="r">
-          <button type="button" className="btn">Тинькофф .csv</button>
-          <button type="button" className="btn">Сбер .csv</button>
-          <button type="button" className="btn primary">Загрузить файл</button>
+          <Link href="/transactions/import" className="btn primary">
+            CSV Import
+          </Link>
         </div>
       </div>
     </div>
