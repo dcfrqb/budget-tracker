@@ -25,10 +25,12 @@ export type AccountView = {
   colPill: string;
   value: string;
   updated: string;
+  excludedFromAnalytics: boolean;
 };
 
 const KIND_LABEL: Record<AccountKind, string> = {
   CARD: "Дебет",
+  CREDIT: "Кредит",
   SAVINGS: "Накоп.",
   CASH: "Наличные",
   CRYPTO: "Биржа",
@@ -37,6 +39,7 @@ const KIND_LABEL: Record<AccountKind, string> = {
 
 const COL_PILL: Record<AccountKind, string> = {
   CARD: "Карта",
+  CREDIT: "Кредитная",
   SAVINGS: "Накоп.",
   CASH: "Наличные",
   CRYPTO: "Крипто",
@@ -99,6 +102,7 @@ export function toAccountView(
     colPill,
     value,
     updated,
+    excludedFromAnalytics: !a.includeInAnalytics,
   };
 }
 

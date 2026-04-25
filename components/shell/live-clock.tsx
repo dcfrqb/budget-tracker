@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 
 function fmt(d: Date) {
   const hh = String(d.getHours()).padStart(2, "0");
@@ -9,7 +9,7 @@ function fmt(d: Date) {
   return `${hh}:${mm}:${ss}`;
 }
 
-export function LiveClock() {
+export const LiveClock = memo(function LiveClock() {
   const [now, setNow] = useState<string | null>(null);
 
   useEffect(() => {
@@ -23,4 +23,4 @@ export function LiveClock() {
       обн <b>{now ?? "--:--:--"}</b>
     </span>
   );
-}
+});

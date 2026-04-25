@@ -147,11 +147,12 @@ a { color: inherit; text-decoration: none; }
 .topbar .pulse {
   width: 6px; height: 6px; border-radius: 50%;
   background: var(--pos);
+  will-change: transform;
   animation: heartbeat 2s var(--e-out-cubic) infinite;
 }
 @keyframes heartbeat {
-  0%,100% { box-shadow: 0 0 0 0 rgba(63,185,80,.55); opacity: .85; transform: scale(1); }
-  50%     { box-shadow: 0 0 0 4px rgba(63,185,80,0); opacity: 1;  transform: scale(1.15); }
+  0%,100% { opacity: .85; transform: scale(1); }
+  50%     { opacity: 1;   transform: scale(1.15); }
 }
 .topbar .kbd {
   font-family: var(--mono-font), monospace; font-size: 11px;
@@ -389,11 +390,17 @@ a { color: inherit; text-decoration: none; }
 }
 .qa-btn .qa-inner { display: flex; align-items: center; gap: 7px; }
 .qa-btn .qa-inner svg {
-  color: var(--accent); flex-shrink: 0;
+  flex-shrink: 0;
   transition: filter var(--d-fast) var(--e-out);
 }
+/* per-kind icon colors */
+.qa-btn[data-qa="inc"] .qa-inner svg { color: var(--pos); }
+.qa-btn[data-qa="exp"] .qa-inner svg { color: var(--neg); }
+.qa-btn[data-qa="txn"] .qa-inner svg { color: var(--muted); }
 .qa-btn:hover { background: var(--bg); }
-.qa-btn:hover .qa-inner svg { filter: drop-shadow(0 0 4px rgba(88,211,163,.7)); }
+.qa-btn[data-qa="inc"]:hover .qa-inner svg { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--pos) 70%, transparent)); }
+.qa-btn[data-qa="exp"]:hover .qa-inner svg { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--neg) 70%, transparent)); }
+.qa-btn[data-qa="txn"]:hover .qa-inner svg { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--muted) 50%, transparent)); }
 .qa-btn .k { color: var(--dim); font-size: 11px; }
 
 /* ── OBLIGATIONS ────────────────────────────────────────────────── */
@@ -563,7 +570,7 @@ a { color: inherit; text-decoration: none; }
 .status-row .v {
   font-family: var(--mono-font), monospace; font-size: 11px; font-weight: 600; text-align: right;
 }
-.status-row .dot.live { animation: heartbeat 2s var(--e-out-cubic) infinite; }
+.status-row .dot.live { will-change: transform; animation: heartbeat 2s var(--e-out-cubic) infinite; }
 
 .sum-quick { display: flex; gap: 6px; }
 .sum-quick button {
@@ -1725,10 +1732,18 @@ a { color: inherit; text-decoration: none; }
   font-family: var(--mono-font), monospace; font-size: 12px; font-weight: 700;
 }
 .acc-ico.card    { background: rgba(88,211,163,.1);  color: var(--accent); }
+.acc-ico.credit  { background: rgba(248,81,73,.1);  color: var(--neg); }
 .acc-ico.savings { background: rgba(121,192,255,.1); color: var(--info); }
 .acc-ico.cash    { background: rgba(125,136,152,.15); color: var(--muted); }
 .acc-ico.crypto  { background: rgba(210,153,34,.12); color: var(--warn); }
 .acc-ico.loan    { background: rgba(248,81,73,.1);  color: var(--neg); }
+.acc-badge-excl {
+  font-family: var(--mono-font), monospace; font-size: 9px;
+  color: var(--muted); background: var(--panel-3);
+  border: 1px solid var(--border); border-radius: 2px;
+  padding: 1px 5px; letter-spacing: .06em; text-transform: uppercase;
+  cursor: default;
+}
 .acc-main { min-width: 0; }
 .acc-main .n { font-size: 13px; font-weight: 500; }
 .acc-main .m {
@@ -1787,6 +1802,28 @@ a { color: inherit; text-decoration: none; }
 .cash-cell .loc { font-family: var(--mono-font), monospace; font-size: 10px; color: var(--muted); }
 .cash-cell .v { font-family: var(--mono-font), monospace; font-weight: 700; font-size: 18px; margin-top: 4px; }
 .cash-cell .s { font-family: var(--mono-font), monospace; font-size: 10px; color: var(--muted); }
+
+/* Cash add-location inline form */
+.cash-add-form {
+  padding: 16px 20px;
+  background: var(--panel-2);
+  border-top: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.cash-add-title {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .08em; color: var(--muted);
+}
+.cash-add-fields {
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: stretch;
+}
+.cash-add-fields input,
+.cash-add-fields select {
+  flex: 1; min-width: 120px;
+}
+.cash-add-actions {
+  display: flex; gap: 8px;
+}
 
 .arch-row {
   display: grid; grid-template-columns: 32px 1fr 100px 130px 120px 90px;
@@ -2255,6 +2292,10 @@ a { color: inherit; text-decoration: none; }
   font-family: var(--mono);
   font-variant-numeric: tabular-nums;
   text-align: right;
+}
+/* Leading-aligned variant — for balance fields where left-align is intentional */
+.money-input--leading {
+  text-align: left;
 }
 
 /* Submit row */

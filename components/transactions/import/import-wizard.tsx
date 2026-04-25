@@ -413,7 +413,7 @@ export function ImportWizard({ accounts, categories }: ImportWizardProps) {
                 </tr>
               </thead>
               <tbody>
-                {preview.rows.map((row, i) => (
+                {preview.rows.slice(0, 500).map((row, i) => (
                   <PreviewRow
                     key={i}
                     row={row}
@@ -440,6 +440,11 @@ export function ImportWizard({ accounts, categories }: ImportWizardProps) {
                 ))}
               </tbody>
             </table>
+            {preview.rows.length > 500 && (
+              <div className="import-warning dim" style={{ padding: "6px 12px" }}>
+                {t("import.preview.truncated_hint", { vars: { n: String(preview.rows.length) } })}
+              </div>
+            )}
           </div>
 
           {error && <div className="import-error">{error}</div>}

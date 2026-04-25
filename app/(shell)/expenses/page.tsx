@@ -22,14 +22,43 @@ import type { SubSummaryItem, SubsMonthlyTotals } from "@/components/expenses/su
 
 export const dynamic = "force-dynamic";
 
+type SearchParams = Promise<{
+  section?: string;
+  period?: string;
+}>;
+
+type SectionId = "all" | "loans" | "subs" | "projects" | "taxes";
+
+function showSection(active: SectionId, id: SectionId): boolean {
+  return active === "all" || active === id;
+}
+
+// Maps period param to a look-back window in days
+function parsePeriodDays(period: string | undefined): number {
+  switch (period) {
+    case "30d": return 30;
+    case "1y":  return 365;
+    case "all": return 3650;
+    case "90d":
+    default:    return 90;
+  }
+}
+
 const MONTH_KEYS = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"] as const;
 
 function fmtBase(n: Prisma.Decimal): string {
   return formatRubPrefix(n);
 }
 
-export default async function ExpensesPage() {
+export default async function ExpensesPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const sp = await searchParams;
   const [userId, t] = await Promise.all([getCurrentUserId(), getT()]);
+
+  const activeSection = (sp.section ?? "all") as SectionId;
 
   const monthShort = MONTH_KEYS.map(k => t(`common.month.short.${k}` as Parameters<typeof t>[0]));
 
@@ -38,6 +67,8 @@ export default async function ExpensesPage() {
   }
 
   const now = new Date();
+  const periodDays = parsePeriodDays(sp.period);
+  const periodStart = new Date(now.getTime() - periodDays * 24 * 60 * 60 * 1000);
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999));
   const window30End = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
@@ -79,6 +110,8 @@ export default async function ExpensesPage() {
         deletedAt: null,
         status: TransactionStatus.DONE,
         kind: TransactionKind.EXPENSE,
+        // Apply period filter to project transaction lookback
+        occurredAt: { gte: periodStart },
       },
       select: { longProjectId: true, amount: true },
     });
@@ -262,11 +295,17 @@ export default async function ExpensesPage() {
     <>
       <ExpensesStatusStrip />
       <ExpensesKpiRow kpi={kpi} />
-      <Loans />
-      <Subscriptions items={subItems} totals={subsMonthlyTotals} />
-      <LongProjects projects={longProjectViews} />
-      <ExpenseCategories categories={expenseCategoryViews} />
-      <Taxes hints={[]} />
+      {showSection(activeSection, "loans") && <Loans />}
+      {showSection(activeSection, "subs") && (
+        <Subscriptions items={subItems} totals={subsMonthlyTotals} />
+      )}
+      {showSection(activeSection, "projects") && (
+        <LongProjects projects={longProjectViews} />
+      )}
+      {showSection(activeSection, "taxes") && <Taxes hints={[]} />}
+      {activeSection === "all" && (
+        <ExpenseCategories categories={expenseCategoryViews} />
+      )}
     </>
   );
 }

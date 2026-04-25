@@ -1,5 +1,8 @@
+import "server-only";
 // ─────────────────────────────────────────────────────────────
-// Dict registry and key resolver
+// Dict registry and key resolver — SERVER ONLY
+// Both locale dicts live here. The client receives only the
+// active locale's dict via LocaleClientProvider prop.
 // ─────────────────────────────────────────────────────────────
 
 import type { Locale, Dict } from "./types";

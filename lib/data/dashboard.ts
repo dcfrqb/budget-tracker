@@ -183,10 +183,19 @@ export const getHomeDashboard = cache(async (
     for (const acc of inst.accounts) {
       // LOAN accounts represent liabilities — exclude from balance totals.
       if (acc.kind === "LOAN") continue;
-      addBalance(acc.currencyCode, new Prisma.Decimal(acc.balance));
+      // Accounts excluded from analytics don't count towards safe-until / available
+      if (!acc.includeInAnalytics) continue;
+      // CREDIT accounts: balance = current debt — subtract as liability.
+      if (acc.kind === "CREDIT") {
+        addBalance(acc.currencyCode, new Prisma.Decimal(acc.balance).negated());
+      } else {
+        addBalance(acc.currencyCode, new Prisma.Decimal(acc.balance));
+      }
     }
   }
   for (const acc of cash) {
+    // Cash accounts excluded from analytics (default for CASH per D8 spec)
+    if (!acc.includeInAnalytics) continue;
     addBalance(acc.currencyCode, new Prisma.Decimal(acc.balance));
   }
 

@@ -1,50 +1,69 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useT } from "@/lib/i18n";
 import { Segmented } from "@/components/segmented";
 
-const RU_MONTHS_SHORT = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
-const now = new Date();
-const MONTH_LABEL = `${RU_MONTHS_SHORT[now.getMonth()]} ${now.getFullYear()}`;
-const MONTH_DAY = now.getDate();
-const MONTH_DAYS = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-
 type TxnType = "all" | "inc" | "exp" | "xfr" | "loan";
-type Period = "7д" | "30д" | "90д" | "1г";
-
-const TYPES = [
-  { id: "all"  as const, label: "Все" },
-  { id: "inc"  as const, label: "Доходы" },
-  { id: "exp"  as const, label: "Расходы" },
-  { id: "xfr"  as const, label: "Переводы" },
-  { id: "loan" as const, label: "Займы" },
-];
-
-const PERIODS = [
-  { id: "7д"  as const, label: "7д" },
-  { id: "30д" as const, label: "30д" },
-  { id: "90д" as const, label: "90д" },
-  { id: "1г"  as const, label: "1г" },
-];
+type Period = "7d" | "30d" | "90d" | "1y";
 
 export function TxnStatusStrip() {
-  const [type, setType] = useState<TxnType>("all");
-  const [period, setPeriod] = useState<Period>("30д");
+  const t = useT();
+  const router = useRouter();
+  const sp = useSearchParams();
+
+  const type = (sp.get("type") as TxnType) ?? "all";
+  const period = (sp.get("period") as Period) ?? "30d";
+
+  const TYPES: { id: TxnType; label: string }[] = [
+    { id: "all",  label: t("transactions.filter.type_all") },
+    { id: "inc",  label: t("transactions.filter.type_inc") },
+    { id: "exp",  label: t("transactions.filter.type_exp") },
+    { id: "xfr",  label: t("transactions.filter.type_xfr") },
+    { id: "loan", label: t("transactions.filter.type_loan") },
+  ];
+
+  const PERIODS: { id: Period; label: string }[] = [
+    { id: "7d",  label: t("transactions.filter.period_7d") },
+    { id: "30d", label: t("transactions.filter.period_30d") },
+    { id: "90d", label: t("transactions.filter.period_90d") },
+    { id: "1y",  label: t("transactions.filter.period_1y") },
+  ];
+
+  const push = useCallback(
+    (key: string, value: string) => {
+      const params = new URLSearchParams(sp.toString());
+      params.set(key, value);
+      router.push(`?${params.toString()}`, { scroll: false });
+    },
+    [sp, router],
+  );
+
+  const now = new Date();
+  const monthLabel = `${now.getFullYear()}`;
+  const monthDay = now.getDate();
+  const monthDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
 
   return (
     <div className="status-strip fade-in" style={{ animationDelay: "0ms" }}>
-      <span className="lbl">ТИП</span>
-      <Segmented options={TYPES} value={type} onChange={setType} />
+      <span className="lbl">{t("transactions.filter.label_type")}</span>
+      <Segmented
+        options={TYPES}
+        value={type}
+        onChange={(v) => push("type", v)}
+      />
 
-      <span className="lbl">ПЕРИОД</span>
-      <Segmented options={PERIODS} value={period} onChange={setPeriod} />
+      <span className="lbl">{t("transactions.filter.label_period")}</span>
+      <Segmented
+        options={PERIODS}
+        value={period}
+        onChange={(v) => push("period", v)}
+      />
 
       <div className="clock-right">
         <span>
-          {MONTH_LABEL} · <b>д{MONTH_DAY}/{MONTH_DAYS}</b>
-        </span>
-        <span>
-          синхр <b>2с</b>
+          {monthLabel} · <b>{t("common.unit.day")}{monthDay}/{monthDays}</b>
         </span>
       </div>
     </div>

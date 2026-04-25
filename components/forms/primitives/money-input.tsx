@@ -12,6 +12,7 @@ interface MoneyInputProps {
   required?: boolean;
   currencyCode?: string;
   placeholder?: string;
+  inputClassName?: string;
 }
 
 export function MoneyInput({
@@ -22,6 +23,7 @@ export function MoneyInput({
   required,
   currencyCode,
   placeholder = "0.00",
+  inputClassName,
 }: MoneyInputProps) {
   return (
     <Field label={label} name={register.name} error={error} hint={hint} required={required}>
@@ -31,7 +33,7 @@ export function MoneyInput({
           id={register.name}
           type="text"
           inputMode="decimal"
-          className="money-input"
+          className={inputClassName ? `money-input ${inputClassName}` : "money-input"}
           placeholder={placeholder}
           aria-invalid={!!error}
           // Trim whitespace on blur

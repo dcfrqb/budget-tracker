@@ -357,6 +357,19 @@ export const enDict: RuDictShape = {
         intervalCustom: "every {n} mo",
       },
     },
+    filter: {
+      label_section: "SECTION",
+      label_period: "PERIOD",
+      section_all: "All",
+      section_loans: "Loans",
+      section_subs: "Subscriptions",
+      section_projects: "Projects",
+      section_taxes: "Taxes",
+      period_30d: "30d",
+      period_90d: "90d",
+      period_1y: "1y",
+      period_all: "all",
+    },
   },
 
   income: {
@@ -373,6 +386,17 @@ export const enDict: RuDictShape = {
     },
     today: "today",
     in_days: "+{n}d",
+    filter: {
+      label_view: "VIEW",
+      label_period: "PERIOD",
+      view_sources: "Sources",
+      view_expected: "Expected",
+      view_other: "Other",
+      period_30d: "30d",
+      period_90d: "90d",
+      period_1y: "1y",
+      period_all: "all",
+    },
   },
 
   planning: {
@@ -505,10 +529,97 @@ export const enDict: RuDictShape = {
     new: {
       no_accounts: "No accounts found. Create an account in Wallet first.",
     },
+    filter: {
+      label_type: "TYPE",
+      label_period: "PERIOD",
+      type_all: "All",
+      type_inc: "Income",
+      type_exp: "Expenses",
+      type_xfr: "Transfers",
+      type_loan: "Loans",
+      period_7d: "7d",
+      period_30d: "30d",
+      period_90d: "90d",
+      period_1y: "1y",
+    },
   },
 
   wallet: {
     cash_meta: "{locations} locations · {currencies} currencies",
+    add_account: {
+      title: "Add new account",
+      sub: "bank · crypto · manual",
+      btn_bank: "Bank",
+      btn_crypto: "Crypto",
+      btn_manual: "Manual",
+    },
+    account: {
+      badge: {
+        not_in_analytics: "not in analytics",
+      },
+      form: {
+        include_in_analytics: {
+          label: "Include in analytics",
+          hint: "Affects safe-until, available amount and aggregates",
+        },
+        credit: {
+          rate: "Annual rate (%)",
+          limit: "Credit limit",
+          grace_period: "Grace period (days)",
+          statement_day: "Statement day (1–31)",
+          min_payment: {
+            label: "Minimum payment",
+            percent: "Percentage of debt (%)",
+            fixed: "Fixed amount",
+            type_percent: "Percent",
+            type_fixed: "Fixed",
+          },
+        },
+        savings: {
+          rate: "Annual rate (%)",
+          capitalization: "Capitalization",
+          withdrawal_limit: "Withdrawal limit (optional)",
+          cap_none: "No capitalization",
+          cap_monthly: "Monthly",
+          cap_quarterly: "Quarterly",
+          cap_yearly: "Yearly",
+        },
+      },
+    },
+    cash: {
+      section_title: "cash",
+      section_sub: "· various locations and currencies",
+      add_location: {
+        title: "New cash location",
+        placeholder_location: "Location name (e.g. «home safe»)",
+        placeholder_balance: "Starting balance",
+        submit: "Add",
+        cancel: "Cancel",
+      },
+    },
+    fx: {
+      add_pair: {
+        button: "+ add rate",
+        title: "Add currency pair",
+        from_label: "From",
+        to_label: "To",
+        submit: "Add",
+        cancel: "Cancel",
+        unsupported: "Currency not supported by CBR",
+        same_currency_error: "Please select different currencies",
+        duplicate_error: "This pair is already added",
+      },
+      remove_pair: {
+        title: "Remove pair",
+      },
+      refresh: "Refresh rates",
+      unavailable: "—",
+      fetched_ago: "updated {n} min. ago",
+      source: {
+        cbr: "CBR",
+        db: "from cache",
+      },
+    },
   },
 
   forms: {
@@ -612,6 +723,15 @@ export const enDict: RuDictShape = {
     account: {
       title_create: "New account",
       title_edit: "Edit account",
+      credit: {
+        balance_hint: "Enter the current debt on the credit card (positive number)",
+      },
+      errors: {
+        credit_rate_required: "Rate is required for credit accounts",
+        credit_limit_required: "Credit limit is required",
+        savings_rate_required: "Rate is required for savings accounts",
+        cash_goes_through_cash_stash: "Cash is added via the cash section, not through the account form",
+      },
       field: {
         institution: "Bank / Institution",
         name: "Account name",
@@ -622,6 +742,7 @@ export const enDict: RuDictShape = {
       },
       kind: {
         card: "Card",
+        credit: "Credit card",
         savings: "Savings",
         cash: "Cash",
         crypto: "Crypto",
@@ -995,9 +1116,23 @@ export const enDict: RuDictShape = {
     quick: {
       title: "quick actions",
       hotkey_hint: "hotkeys active · Q",
-      income: "+Income",
-      expense: "+Expense",
-      transaction: "+Transaction",
+      income: {
+        label: "+Income",
+        aria: "add income",
+      },
+      expense: {
+        label: "−Expense",
+        aria: "add expense",
+      },
+      transfer: {
+        label: "↔ Transfer",
+        aria: "create transfer",
+      },
+      transaction: {
+        label: "+Transaction",
+        aria: "add transaction",
+      },
+      shortcut_hint: "I / E / T for quick actions",
     },
   },
 
@@ -1109,6 +1244,7 @@ export const enDict: RuDictShape = {
       total: "Total rows",
       will_import: "Will import",
       duplicate_hint: "Likely already exists in database",
+      truncated_hint: "Showing 500 of {n} rows. All rows will be processed on import.",
     },
     confirm: {
       button: "Import {n}",

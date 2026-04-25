@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AccountKind, InstitutionKind } from "@prisma/client";
+import { AccountKind, InstitutionKind, SavingsCapitalization } from "@prisma/client";
 import { useServerActionForm } from "./use-server-action-form";
 import { accountCreateSchema, accountUpdateSchema } from "@/lib/validation/account";
 import { createAccountAction, updateAccountAction } from "@/app/(shell)/wallet/actions";
@@ -22,6 +22,25 @@ function errMsg(e: any): string | undefined {
   if (typeof e === "string") return e;
   if (typeof e?.message === "string") return e.message;
   return undefined;
+}
+
+const ACCOUNT_ERROR_CODES = new Set([
+  "credit_rate_required",
+  "credit_limit_required",
+  "savings_rate_required",
+  "cash_goes_through_cash_stash",
+]);
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function useAccountErrMsg(t: ReturnType<typeof useT>) {
+  return (e: any): string | undefined => {
+    const raw = errMsg(e);
+    if (!raw) return undefined;
+    if (ACCOUNT_ERROR_CODES.has(raw)) {
+      return t(`forms.account.errors.${raw}` as Parameters<typeof t>[0]);
+    }
+    return raw;
+  };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -64,6 +83,7 @@ export function AccountForm({
   onSuccess,
 }: AccountFormProps) {
   const t = useT();
+  const accErrMsg = useAccountErrMsg(t);
   const router = useRouter();
   const [showNewInstitution, setShowNewInstitution] = useState(false);
 
@@ -90,6 +110,7 @@ export function AccountForm({
       defaultValues: {
         kind: AccountKind.CARD,
         balance: "0",
+        includeInAnalytics: true,
         ...initialValues,
       } as any,
       onSuccess: () => {
@@ -110,6 +131,8 @@ export function AccountForm({
   } = form;
 
   const institutionSelectValue = watch("institutionId") as string | undefined;
+  const selectedKind = watch("kind") as AccountKind;
+  const [minPaymentType, setMinPaymentType] = React.useState<"percent" | "fixed">("percent");
 
   // Handle institution select change
   const handleInstitutionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -122,10 +145,11 @@ export function AccountForm({
     }
   };
 
+  // CASH excluded from create form (D5); CREDIT added
   const kindOptions = [
     { value: AccountKind.CARD, label: t("forms.account.kind.card") },
+    { value: AccountKind.CREDIT, label: t("forms.account.kind.credit") },
     { value: AccountKind.SAVINGS, label: t("forms.account.kind.savings") },
-    { value: AccountKind.CASH, label: t("forms.account.kind.cash") },
     { value: AccountKind.CRYPTO, label: t("forms.account.kind.crypto") },
     { value: AccountKind.LOAN, label: t("forms.account.kind.loan") },
   ];
@@ -142,6 +166,13 @@ export function AccountForm({
     { value: InstitutionKind.CASH, label: t("forms.account.institution_kind_cash") },
   ];
 
+  const savingsCapOptions = [
+    { value: SavingsCapitalization.NONE, label: t("wallet.account.form.savings.cap_none") },
+    { value: SavingsCapitalization.MONTHLY, label: t("wallet.account.form.savings.cap_monthly") },
+    { value: SavingsCapitalization.QUARTERLY, label: t("wallet.account.form.savings.cap_quarterly") },
+    { value: SavingsCapitalization.YEARLY, label: t("wallet.account.form.savings.cap_yearly") },
+  ];
+
   const translatedErrorKey =
     formError === "unique_violation"
       ? t("forms.common.form_error.unique_violation")
@@ -152,6 +183,10 @@ export function AccountForm({
       : formError
       ? t("forms.common.form_error.internal")
       : null;
+
+  const isCredit = selectedKind === AccountKind.CREDIT;
+  const isSavings = selectedKind === AccountKind.SAVINGS;
+  const payType = minPaymentType;
 
   return (
     <form onSubmit={submit} className="form-grid">
@@ -220,7 +255,7 @@ export function AccountForm({
         register={register("kind")}
         label={t("forms.account.field.kind")}
         options={kindOptions}
-        error={errMsg(errors.kind)}
+        error={accErrMsg(errors.kind)}
         required
       />
 
@@ -235,11 +270,131 @@ export function AccountForm({
 
       {/* Starting balance — only on create */}
       {mode === "create" && (
-        <MoneyInput
-          register={register("balance")}
-          label={t("forms.account.field.balance")}
-          error={errMsg(errors.balance)}
-        />
+        <>
+          <MoneyInput
+            register={register("balance")}
+            label={t("forms.account.field.balance")}
+            error={errMsg(errors.balance)}
+            inputClassName="money-input--leading"
+          />
+          {isCredit && (
+            <p className="form-hint mono dim" style={{ fontSize: "var(--text-xs)", marginTop: "calc(-1 * var(--sp-2))" }}>
+              {t("forms.account.credit.balance_hint")}
+            </p>
+          )}
+        </>
+      )}
+
+      {/* ── CREDIT conditional fields (D6) ── */}
+      {isCredit && (
+        <div className="form-indent">
+          <p className="form-section-label">{t("forms.account.kind.credit")}</p>
+          <MoneyInput
+            register={register("creditRatePct")}
+            label={t("wallet.account.form.credit.rate")}
+            error={accErrMsg(errors.creditRatePct)}
+            required
+          />
+          <MoneyInput
+            register={register("creditLimit")}
+            label={t("wallet.account.form.credit.limit")}
+            error={accErrMsg(errors.creditLimit)}
+            required
+          />
+          <div className="field">
+            <label className="form-label">{t("wallet.account.form.credit.grace_period")}</label>
+            <input
+              type="number"
+              min={0}
+              max={365}
+              step={1}
+              {...register("gracePeriodDays", { valueAsNumber: true })}
+            />
+            {errMsg(errors.gracePeriodDays) && (
+              <span className="field-error" role="alert">{errMsg(errors.gracePeriodDays)}</span>
+            )}
+          </div>
+          <div className="field">
+            <label className="form-label">{t("wallet.account.form.credit.statement_day")}</label>
+            <input
+              type="number"
+              min={1}
+              max={31}
+              step={1}
+              {...register("statementDay", { valueAsNumber: true })}
+            />
+            {errMsg(errors.statementDay) && (
+              <span className="field-error" role="alert">{errMsg(errors.statementDay)}</span>
+            )}
+          </div>
+          {/* Min payment — radio for percent vs fixed */}
+          <div className="field">
+            <label className="form-label">{t("wallet.account.form.credit.min_payment.label")}</label>
+            <div style={{ display: "flex", gap: 16, marginBottom: 8 }}>
+              <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer" }}>
+                <input
+                  type="radio"
+                  value="percent"
+                  checked={payType === "percent"}
+                  onChange={() => {
+                    setMinPaymentType("percent");
+                    setValue("minPaymentFixed", null);
+                  }}
+                />
+                {t("wallet.account.form.credit.min_payment.type_percent")}
+              </label>
+              <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer" }}>
+                <input
+                  type="radio"
+                  value="fixed"
+                  checked={payType === "fixed"}
+                  onChange={() => {
+                    setMinPaymentType("fixed");
+                    setValue("minPaymentPercent", null);
+                  }}
+                />
+                {t("wallet.account.form.credit.min_payment.type_fixed")}
+              </label>
+            </div>
+            {payType === "percent" ? (
+              <MoneyInput
+                register={register("minPaymentPercent")}
+                label={t("wallet.account.form.credit.min_payment.percent")}
+                error={errMsg(errors.minPaymentPercent)}
+              />
+            ) : (
+              <MoneyInput
+                register={register("minPaymentFixed")}
+                label={t("wallet.account.form.credit.min_payment.fixed")}
+                error={errMsg(errors.minPaymentFixed)}
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── SAVINGS conditional fields (D6) ── */}
+      {isSavings && (
+        <div className="form-indent">
+          <p className="form-section-label">{t("forms.account.kind.savings")}</p>
+          <MoneyInput
+            register={register("annualRatePct")}
+            label={t("wallet.account.form.savings.rate")}
+            error={accErrMsg(errors.annualRatePct)}
+            required
+          />
+          <SelectField
+            register={register("savingsCapitalization")}
+            label={t("wallet.account.form.savings.capitalization")}
+            options={savingsCapOptions}
+            error={errMsg(errors.savingsCapitalization)}
+          />
+          <MoneyInput
+            register={register("withdrawalLimit")}
+            label={t("wallet.account.form.savings.withdrawal_limit")}
+            error={errMsg(errors.withdrawalLimit)}
+          />
+        </div>
       )}
 
       {/* Note */}
@@ -249,6 +404,20 @@ export function AccountForm({
         error={errMsg(errors.sub)}
         placeholder={t("forms.account.placeholder.note")}
       />
+
+      {/* includeInAnalytics checkbox (D7) */}
+      <div className="field">
+        <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            {...register("includeInAnalytics")}
+          />
+          <span className="form-label" style={{ margin: 0 }}>
+            {t("wallet.account.form.include_in_analytics.label")}
+          </span>
+        </label>
+        <div className="field-hint">{t("wallet.account.form.include_in_analytics.hint")}</div>
+      </div>
 
       <SubmitRow
         isSubmitting={isPending}

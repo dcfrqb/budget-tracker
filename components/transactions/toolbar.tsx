@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useT } from "@/lib/i18n";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocale, useT } from "@/lib/i18n";
 import { QuickInput, type CategoryOption } from "@/components/transactions/quick-input";
 
 export interface TxnToolbarProps {
@@ -20,11 +20,34 @@ export function TxnToolbar({
   accountName,
 }: TxnToolbarProps) {
   const t = useT();
-  const [chips, setChips] = useState<ChipState[]>([
-    { id: "inc", label: t("forms.common.kind.income"),   active: true },
-    { id: "exp", label: t("forms.common.kind.expense"),  active: true },
-    { id: "xfr", label: t("forms.common.kind.transfer"), active: true },
+  const locale = useLocale();
+
+  // Derive chip labels from t(); re-compute only when locale changes.
+  // Active state is tracked separately so toggling chips doesn't re-derive labels.
+  const chipLabels = useMemo(
+    () => ({
+      inc: t("forms.common.kind.income"),
+      exp: t("forms.common.kind.expense"),
+      xfr: t("forms.common.kind.transfer"),
+    }),
+    // t is stable per locale (useCallback in useT), locale used as explicit dep.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [locale],
+  );
+
+  const [chips, setChips] = useState<ChipState[]>(() => [
+    { id: "inc", label: chipLabels.inc, active: true },
+    { id: "exp", label: chipLabels.exp, active: true },
+    { id: "xfr", label: chipLabels.xfr, active: true },
   ]);
+
+  // Keep chip labels in sync when locale changes (preserves active state).
+  useEffect(() => {
+    setChips((prev) =>
+      prev.map((c) => ({ ...c, label: chipLabels[c.id] })),
+    );
+  }, [chipLabels]);
+
   const [query, setQuery] = useState("");
   const [showQuick, setShowQuick] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);

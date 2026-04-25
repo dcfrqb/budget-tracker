@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type Props = {
   to: number;
@@ -22,21 +22,42 @@ export function CountUp({ to, format: fmt = "spaced", durationMs = 800, fallback
   const [display, setDisplay] = useState<string>(fallback ?? format(to, fmt));
   const rafRef = useRef<number | null>(null);
 
+  // Store the latest animation params in a ref so the tick callback
+  // doesn't need to be recreated when they change.
+  const paramsRef = useRef({ to, fmt, durationMs });
+  paramsRef.current = { to, fmt, durationMs };
+
+  // Stable tick function — deps are empty, reads latest values from ref.
+  const tick = useCallback((start: number) => {
+    const step = (now: number) => {
+      const { to: toVal, fmt: fmtVal, durationMs: dur } = paramsRef.current;
+      const k = Math.min(1, (now - start) / dur);
+      setDisplay(format(toVal * easeOutCubic(k), fmtVal));
+      if (k < 1) {
+        rafRef.current = requestAnimationFrame(step);
+      } else {
+        rafRef.current = null;
+      }
+    };
+    return step;
+  }, []); // stable — no deps
+
   useEffect(() => {
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
       setDisplay(format(to, fmt));
       return;
     }
     const start = performance.now();
-    const tick = (now: number) => {
-      const k = Math.min(1, (now - start) / durationMs);
-      setDisplay(format(to * easeOutCubic(k), fmt));
-      if (k < 1) rafRef.current = requestAnimationFrame(tick);
-    };
-    rafRef.current = requestAnimationFrame(tick);
+    const step = tick(start);
+    rafRef.current = requestAnimationFrame(step);
     return () => {
-      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
     };
+  // Re-run animation only when target value or formatting params change.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [to, fmt, durationMs]);
 
   return <span data-countup>{display}</span>;

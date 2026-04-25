@@ -9,6 +9,7 @@ import { QuickInput, type CategoryOption } from "@/components/transactions/quick
 type Action = {
   id: "inc" | "exp" | "txn";
   labelKey: TKey;
+  ariaKey: TKey;
   key: string;
   quick: string;
   svg: React.ReactNode;
@@ -17,7 +18,8 @@ type Action = {
 const ACTIONS: Action[] = [
   {
     id: "inc",
-    labelKey: "home.quick.income",
+    labelKey: "home.quick.income.label",
+    ariaKey: "home.quick.income.aria",
     key: "I",
     quick: "income",
     svg: (
@@ -39,7 +41,8 @@ const ACTIONS: Action[] = [
   },
   {
     id: "exp",
-    labelKey: "home.quick.expense",
+    labelKey: "home.quick.expense.label",
+    ariaKey: "home.quick.expense.aria",
     key: "E",
     quick: "expense",
     svg: (
@@ -61,9 +64,10 @@ const ACTIONS: Action[] = [
   },
   {
     id: "txn",
-    labelKey: "home.quick.transaction",
+    labelKey: "home.quick.transfer.label",
+    ariaKey: "home.quick.transfer.aria",
     key: "T",
-    quick: "transaction",
+    quick: "transfer",
     svg: (
       <svg
         width="15"
@@ -136,7 +140,7 @@ export function QuickActions({
         <div className="ttl mono">
           <b>{t("home.quick.title")}</b>
         </div>
-        <div className="meta mono">{t("home.quick.hotkey_hint")}</div>
+        <div className="meta mono">{t("home.quick.shortcut_hint")}</div>
       </div>
       <div className="section-body flush">
         {/* Quick one-liner input */}
@@ -154,6 +158,7 @@ export function QuickActions({
               type="button"
               className="qa-btn"
               data-qa={a.id}
+              aria-label={t(a.ariaKey)}
               onClick={() => openDrawer(a.quick)}
             >
               <span className="qa-inner">

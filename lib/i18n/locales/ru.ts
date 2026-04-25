@@ -365,6 +365,19 @@ export const ruDict = {
         intervalCustom: "каждые {n} мес",
       },
     },
+    filter: {
+      label_section: "РАЗДЕЛ",
+      label_period: "ПЕРИОД",
+      section_all: "Все",
+      section_loans: "Кредиты",
+      section_subs: "Подписки",
+      section_projects: "Проекты",
+      section_taxes: "Налоги",
+      period_30d: "30д",
+      period_90d: "90д",
+      period_1y: "1г",
+      period_all: "всё",
+    },
   },
 
   income: {
@@ -381,6 +394,17 @@ export const ruDict = {
     },
     today: "сегодня",
     in_days: "+{n}д",
+    filter: {
+      label_view: "ВИД",
+      label_period: "ПЕРИОД",
+      view_sources: "Источники",
+      view_expected: "Ожидаемые",
+      view_other: "Прочее",
+      period_30d: "30д",
+      period_90d: "90д",
+      period_1y: "1г",
+      period_all: "всё",
+    },
   },
 
   planning: {
@@ -513,10 +537,97 @@ export const ruDict = {
     new: {
       no_accounts: "Нет счетов. Создайте счёт в разделе Кошелёк.",
     },
+    filter: {
+      label_type: "ТИП",
+      label_period: "ПЕРИОД",
+      type_all: "Все",
+      type_inc: "Доходы",
+      type_exp: "Расходы",
+      type_xfr: "Переводы",
+      type_loan: "Займы",
+      period_7d: "7д",
+      period_30d: "30д",
+      period_90d: "90д",
+      period_1y: "1г",
+    },
   },
 
   wallet: {
     cash_meta: "{locations} локаций · {currencies} валют",
+    add_account: {
+      title: "Добавить новый счёт",
+      sub: "банк · крипто · ручной ввод",
+      btn_bank: "Банк",
+      btn_crypto: "Крипто",
+      btn_manual: "Ручной ввод",
+    },
+    account: {
+      badge: {
+        not_in_analytics: "не в аналитике",
+      },
+      form: {
+        include_in_analytics: {
+          label: "Учитывать в аналитике",
+          hint: "Влияет на safe-until, доступную сумму и агрегаты",
+        },
+        credit: {
+          rate: "Ставка годовых (%)",
+          limit: "Кредитный лимит",
+          grace_period: "Беспроцентный период (дней)",
+          statement_day: "День выписки (1–31)",
+          min_payment: {
+            label: "Минимальный платёж",
+            percent: "Процент от долга (%)",
+            fixed: "Фиксированная сумма",
+            type_percent: "Процент",
+            type_fixed: "Фиксированная",
+          },
+        },
+        savings: {
+          rate: "Ставка годовых (%)",
+          capitalization: "Капитализация",
+          withdrawal_limit: "Лимит снятия (опционально)",
+          cap_none: "Нет капитализации",
+          cap_monthly: "Ежемесячная",
+          cap_quarterly: "Ежеквартальная",
+          cap_yearly: "Ежегодная",
+        },
+      },
+    },
+    cash: {
+      section_title: "наличка",
+      section_sub: "· разные локации и валюты",
+      add_location: {
+        title: "Новая локация наличных",
+        placeholder_location: "Название локации (напр. «сейф дома»)",
+        placeholder_balance: "Начальный остаток",
+        submit: "Добавить",
+        cancel: "Отмена",
+      },
+    },
+    fx: {
+      add_pair: {
+        button: "+ добавить курс",
+        title: "Добавить пару валют",
+        from_label: "Из",
+        to_label: "В",
+        submit: "Добавить",
+        cancel: "Отмена",
+        unsupported: "Валюта не поддерживается ЦБ РФ",
+        same_currency_error: "Выберите разные валюты",
+        duplicate_error: "Эта пара уже добавлена",
+      },
+      remove_pair: {
+        title: "Убрать пару",
+      },
+      refresh: "Обновить курсы",
+      unavailable: "—",
+      fetched_ago: "обновлено {n} мин. назад",
+      source: {
+        cbr: "ЦБ РФ",
+        db: "из кэша",
+      },
+    },
   },
 
   forms: {
@@ -620,6 +731,15 @@ export const ruDict = {
     account: {
       title_create: "Новый счёт",
       title_edit: "Редактировать счёт",
+      credit: {
+        balance_hint: "Введите текущий долг по кредитке (положительное число)",
+      },
+      errors: {
+        credit_rate_required: "Ставка обязательна для кредитных счетов",
+        credit_limit_required: "Кредитный лимит обязателен",
+        savings_rate_required: "Ставка обязательна для сберегательных счетов",
+        cash_goes_through_cash_stash: "Наличка добавляется через раздел наличных, не через форму счёта",
+      },
       field: {
         institution: "Банк / Организация",
         name: "Название счёта",
@@ -630,6 +750,7 @@ export const ruDict = {
       },
       kind: {
         card: "Карта",
+        credit: "Кредитная карта",
         savings: "Сберегательный",
         cash: "Наличные",
         crypto: "Крипто",
@@ -1003,9 +1124,23 @@ export const ruDict = {
     quick: {
       title: "быстрые действия",
       hotkey_hint: "хоткеи активны · Q",
-      income: "+Доход",
-      expense: "+Расход",
-      transaction: "+Транзакция",
+      income: {
+        label: "+Доход",
+        aria: "добавить доход",
+      },
+      expense: {
+        label: "−Расход",
+        aria: "добавить расход",
+      },
+      transfer: {
+        label: "↔ Перевод",
+        aria: "создать перевод",
+      },
+      transaction: {
+        label: "+Транзакция",
+        aria: "добавить транзакцию",
+      },
+      shortcut_hint: "I / E / T для быстрых действий",
     },
   },
 
@@ -1117,6 +1252,7 @@ export const ruDict = {
       total: "Всего строк",
       will_import: "Будет импортировано",
       duplicate_hint: "Вероятно, уже существует в базе",
+      truncated_hint: "Показано 500 из {n} строк. Все строки будут обработаны при импорте.",
     },
     confirm: {
       button: "Импортировать {n}",

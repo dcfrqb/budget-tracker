@@ -17,22 +17,84 @@ import { getCategories } from "@/lib/data/categories";
 import { db } from "@/lib/db";
 import { toPeriodSummaryView, toTxnDayView } from "@/lib/view/transactions";
 import { toDebtView } from "@/lib/view/debts";
-import { Prisma } from "@prisma/client";
+import { Prisma, TransactionKind } from "@prisma/client";
+import type { ListFilters } from "@/lib/data/transactions";
 
 export const dynamic = "force-dynamic";
 
-export default async function TransactionsPage() {
+type SearchParams = Promise<{
+  type?: string;
+  period?: string;
+  q?: string;
+  categoryId?: string;
+  accountId?: string;
+}>;
+
+// Maps URL period param to a date range (from, to).
+function parsePeriod(period: string | undefined): { from: Date; to: Date } {
+  const to = new Date();
+  let from: Date;
+  switch (period) {
+    case "7d":
+      from = new Date(to.getTime() - 7 * 86400_000);
+      break;
+    case "90d":
+      from = new Date(to.getTime() - 90 * 86400_000);
+      break;
+    case "1y":
+      from = new Date(to.getTime() - 365 * 86400_000);
+      break;
+    case "30d":
+    default:
+      from = new Date(to.getTime() - 30 * 86400_000);
+      break;
+  }
+  return { from, to };
+}
+
+// Maps URL type param to TransactionKind[].
+function parseKindFilter(type: string | undefined): TransactionKind[] | undefined {
+  switch (type) {
+    case "inc":
+      return [TransactionKind.INCOME, TransactionKind.REIMBURSEMENT, TransactionKind.DEBT_IN];
+    case "exp":
+      return [TransactionKind.EXPENSE, TransactionKind.LOAN_PAYMENT, TransactionKind.DEBT_OUT];
+    case "xfr":
+      return [TransactionKind.TRANSFER];
+    case "loan":
+      return [TransactionKind.LOAN_PAYMENT, TransactionKind.DEBT_IN, TransactionKind.DEBT_OUT];
+    case "all":
+    default:
+      return undefined;
+  }
+}
+
+export default async function TransactionsPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const sp = await searchParams;
   const [userId, t] = await Promise.all([getCurrentUserId(), getT()]);
-  const today = new Date();
-  // 30-дневное окно для сводки и ленты.
-  const from = new Date(today.getTime() - 30 * 86400_000);
+
+  const { from, to } = parsePeriod(sp.period);
+  const kindFilter = parseKindFilter(sp.type);
+
+  const filters: ListFilters = {
+    from,
+    to,
+    ...(kindFilter ? { kind: kindFilter } : {}),
+    ...(sp.q ? { q: sp.q } : {}),
+    ...(sp.categoryId ? { categoryId: sp.categoryId } : {}),
+    ...(sp.accountId ? { accountId: sp.accountId } : {}),
+  };
 
   const [rawDays, summary, rates, debts, accounts, categories] =
     await Promise.all([
-      getTransactionsGroupedByDay(userId, { from }),
+      getTransactionsGroupedByDay(userId, filters),
       getTransactionsPeriodSummary(userId, {
         from,
-        to: today,
+        to,
         baseCcy: DEFAULT_CURRENCY,
       }),
       getLatestRatesMap(),
@@ -45,6 +107,7 @@ export default async function TransactionsPage() {
       getCategories(userId),
     ]);
 
+  const today = new Date();
   const days = rawDays.map((r) =>
     toTxnDayView(r, today, rates, DEFAULT_CURRENCY),
   );

@@ -8,6 +8,7 @@ import { WalletTotals } from "@/components/wallet/totals";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { getCurrentUserId } from "@/lib/api/auth";
 import { getT } from "@/lib/i18n/server";
+import { db } from "@/lib/db";
 import {
   getArchivedAccounts,
   getCashStash,
@@ -23,20 +24,41 @@ import {
   toInstitutionView,
   toWalletTotalsView,
 } from "@/lib/view/wallet";
+import { fetchCbrRates, getCbrAvailableCodes } from "@/lib/fx/cbr-fetcher";
 
 export const dynamic = "force-dynamic";
 
 export default async function WalletPage() {
   const [userId, t] = await Promise.all([getCurrentUserId(), getT()]);
-  const [institutions, cashAccounts, archivedAccounts, fxRows, totals, rates] =
+  const [institutions, cashAccounts, archivedAccounts, totals, rates, currencies, budgetSettings] =
     await Promise.all([
       getInstitutionsWithAccounts(userId),
       getCashStash(userId),
       getArchivedAccounts(userId),
-      getFxRates(),
       getWalletTotals(userId, DEFAULT_CURRENCY),
       getLatestRatesMap(),
+      db.currency.findMany({ orderBy: { code: "asc" } }),
+      db.budgetSettings.findUnique({
+        where: { userId },
+        select: { primaryCurrencyCode: true, shownFxPairs: true },
+      }),
     ]);
+
+  const shownFxPairs = budgetSettings?.shownFxPairs ?? [];
+  const primaryCurrency = budgetSettings?.primaryCurrencyCode ?? DEFAULT_CURRENCY;
+
+  // Fetch FX rates (CBR + DB fallback) using shownFxPairs setting
+  const fxRows = await getFxRates(shownFxPairs);
+
+  // Get CBR-available codes for the add-pair dialog (disable unsupported currencies)
+  let cbrAvailableCodes: string[] = [];
+  try {
+    const cbrRates = await fetchCbrRates();
+    cbrAvailableCodes = [...getCbrAvailableCodes(cbrRates)];
+  } catch {
+    // If CBR is unreachable, allow all currencies in dialog (no disable)
+    cbrAvailableCodes = currencies.map((c) => c.code);
+  }
 
   const totalsView = toWalletTotalsView(totals);
   const fxView = fxRows.map(toFxRateView);
@@ -50,16 +72,32 @@ export default async function WalletPage() {
   const archivedView = archivedAccounts.map(toArchivedView);
 
   const cashCcyCount = new Set(cashAccounts.map((a) => a.currencyCode)).size;
-  const cashMeta = t("wallet.cash_meta", { vars: { locations: String(cashAccounts.length), currencies: String(cashCcyCount) } });
+  const cashMeta = t("wallet.cash_meta", {
+    vars: {
+      locations: String(cashAccounts.length),
+      currencies: String(cashCcyCount),
+    },
+  });
+
+  const currencyOptions = currencies.map((c) => ({ code: c.code, symbol: c.symbol }));
 
   return (
     <>
       <WalletStatusStrip />
       <WalletTotals totals={totalsView} />
-      <FxRates rates={fxView} />
+      <FxRates
+        rates={fxView}
+        currencies={currencyOptions}
+        cbrAvailableCodes={cbrAvailableCodes}
+      />
       <Institutions institutions={instViews} />
-      <CashStashSection stash={cashView} meta={cashMeta} />
       <AddAccountCta />
+      <CashStashSection
+        stash={cashView}
+        meta={cashMeta}
+        currencies={currencyOptions}
+        primaryCurrency={primaryCurrency}
+      />
       <Archive items={archivedView} />
     </>
   );

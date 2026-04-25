@@ -8,8 +8,9 @@ import { getCurrentUserId } from "@/lib/api/auth";
 import { getInstitutionsWithAccounts } from "@/lib/data/wallet";
 import { getLatestRatesMap, convertToBase } from "@/lib/data/wallet";
 import { Prisma } from "@prisma/client";
-import { formatRubPrefix } from "@/lib/format/money";
+import { formatAmount, formatRubPrefix } from "@/lib/format/money";
 import { getT } from "@/lib/i18n/server";
+import { db } from "@/lib/db";
 
 const BAR_COLORS = [
   "var(--accent)", "var(--info)", "var(--pos)", "var(--warn)",
@@ -18,10 +19,13 @@ const BAR_COLORS = [
 
 export default async function WalletSummary() {
   const [userId, t] = await Promise.all([getCurrentUserId(), getT()]);
-  const [institutions, rates] = await Promise.all([
+  const [institutions, rates, currencies] = await Promise.all([
     getInstitutionsWithAccounts(userId),
     getLatestRatesMap(),
+    db.currency.findMany({ select: { code: true, symbol: true, decimals: true, name: true } }),
   ]);
+
+  const currencyMap = new Map(currencies.map((c) => [c.code, c]));
 
   let totalBase = new Prisma.Decimal(0);
   const instTotals: { name: string; total: Prisma.Decimal }[] = [];
@@ -30,6 +34,8 @@ export default async function WalletSummary() {
   for (const inst of institutions) {
     let instTotal = new Prisma.Decimal(0);
     for (const acc of inst.accounts) {
+      // UI list shows all accounts; aggregates only count included ones
+      if (!acc.includeInAnalytics) continue;
       const inBase = convertToBase(acc.balance, acc.currencyCode, DEFAULT_CURRENCY, rates);
       if (inBase) {
         instTotal = instTotal.plus(inBase);
@@ -49,19 +55,24 @@ export default async function WalletSummary() {
     color: BAR_COLORS[i % BAR_COLORS.length],
   }));
 
+  const baseCurrency = currencyMap.get(DEFAULT_CURRENCY) ?? {
+    code: DEFAULT_CURRENCY, symbol: DEFAULT_CURRENCY, decimals: 2, name: DEFAULT_CURRENCY,
+  };
+
   const ccyBalances = [...ccyMap.entries()].map(([code, amount]) => {
-    const sym = code === "RUB" ? "\u20bd" : code === "USD" ? "$" : code === "EUR" ? "\u20ac" : code === "GEL" ? "\u20be" : code;
+    const ccy = currencyMap.get(code) ?? { code, symbol: code, decimals: 2, name: code };
     const inBase = convertToBase(amount, code, DEFAULT_CURRENCY, rates);
-    const rubStr = inBase ? formatRubPrefix(inBase) : "\u2014";
+    const rubStr = inBase ? formatRubPrefix(new Prisma.Decimal(inBase.toFixed(0))) : "—";
     return {
-      sym,
-      val: `${sym} ${Number(amount.toFixed(code === "BTC" ? 8 : 0)).toLocaleString("ru-RU")}`,
+      sym: ccy.symbol,
+      val: formatAmount(amount, ccy),
       rub: rubStr,
     };
   });
 
   const totalNum = Number(totalBase.toFixed(0));
   const accountCount = institutions.reduce((s, i) => s + i.accounts.length, 0);
+  const totalStr = formatRubPrefix(new Prisma.Decimal(totalNum));
 
   return (
     <SummaryShell>
@@ -69,10 +80,12 @@ export default async function WalletSummary() {
         <div className="net-hero">
           <div className="lbl">
             <span>{t("summary.wallet.net_label")}</span>
-            <span className="tiny">{DEFAULT_CURRENCY}</span>
+            <span className="tiny">{baseCurrency.symbol} {DEFAULT_CURRENCY}</span>
           </div>
           <div className="row">
-            <span className="big mono">\u20bd <CountUp to={totalNum} /></span>
+            <span className="big mono">
+              {baseCurrency.symbol} <CountUp to={totalNum} />
+            </span>
           </div>
           <div className="sub mono">{t("summary.wallet.accounts_sub", { vars: { n: String(accountCount) } })}</div>
         </div>
@@ -106,8 +119,8 @@ export default async function WalletSummary() {
             <span>{t("summary.wallet.ccy_label")}</span>
             <span className="tiny mono">{accountCount} {t("summary.wallet.accounts_key")}</span>
           </div>
-          {ccyBalances.map((b) => (
-            <div key={b.sym} className="bal-item with-rub">
+          {ccyBalances.map((b, i) => (
+            <div key={i} className="bal-item with-rub">
               <span className="bal-sym mono">{b.sym}</span>
               <span className="bal-val mono">{b.val}</span>
               <span className="bal-rub mono">{b.rub}</span>

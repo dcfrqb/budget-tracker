@@ -1,8 +1,12 @@
+"use client";
+
+import { useT } from "@/lib/i18n";
 import type { InstitutionView } from "@/lib/view/wallet";
 
 type Props = { institutions: InstitutionView[] };
 
 export function Institutions({ institutions }: Props) {
+  const t = useT();
   return (
     <>
       {institutions.map((inst, idx) => (
@@ -31,6 +35,14 @@ export function Institutions({ institutions }: Props) {
                   <div className="m">
                     <span className="acc-kind">{a.kindLabel}</span>
                     <span>{a.sub}</span>
+                    {a.excludedFromAnalytics && (
+                      <span
+                        className="acc-badge-excl"
+                        title={t("wallet.account.badge.not_in_analytics")}
+                      >
+                        {t("wallet.account.badge.not_in_analytics")}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <span className="acc-ccy mono">{a.ccy}</span>
@@ -40,8 +52,8 @@ export function Institutions({ institutions }: Props) {
                   <span className="acc-updated">{a.updated}</span>
                 </div>
                 <div className="acc-actions">
-                  <button type="button" title="Пополнить">+</button>
-                  <button type="button" title="Перевод">↔</button>
+                  <button type="button" title="+">+</button>
+                  <button type="button" title="↔">↔</button>
                 </div>
               </div>
             ))}

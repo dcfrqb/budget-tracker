@@ -1,44 +1,67 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useT } from "@/lib/i18n";
 import { Segmented } from "@/components/segmented";
 
-const RU_MONTHS_SHORT = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
-const now = new Date();
-const MONTH_LABEL = `${RU_MONTHS_SHORT[now.getMonth()]} ${now.getFullYear()}`;
-const MONTH_DAY = now.getDate();
-const MONTH_DAYS = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-
-const SECTIONS = [
-  { id: "all"      as const, label: "Все" },
-  { id: "loans"    as const, label: "Кредиты" },
-  { id: "subs"     as const, label: "Подписки" },
-  { id: "projects" as const, label: "Проекты" },
-  { id: "taxes"    as const, label: "Налоги" },
-];
-
-const PERIODS = [
-  { id: "30д" as const, label: "30д" },
-  { id: "90д" as const, label: "90д" },
-  { id: "1г"  as const, label: "1г" },
-  { id: "всё" as const, label: "всё" },
-];
-
-type Sec = (typeof SECTIONS)[number]["id"];
-type Period = (typeof PERIODS)[number]["id"];
+type Sec = "all" | "loans" | "subs" | "projects" | "taxes";
+type Period = "30d" | "90d" | "1y" | "all";
 
 export function ExpensesStatusStrip() {
-  const [section, setSection] = useState<Sec>("all");
-  const [period, setPeriod] = useState<Period>("90д");
+  const t = useT();
+  const router = useRouter();
+  const sp = useSearchParams();
+
+  const section = (sp.get("section") as Sec) ?? "all";
+  const period = (sp.get("period") as Period) ?? "90d";
+
+  const SECTIONS: { id: Sec; label: string }[] = [
+    { id: "all",      label: t("expenses.filter.section_all") },
+    { id: "loans",    label: t("expenses.filter.section_loans") },
+    { id: "subs",     label: t("expenses.filter.section_subs") },
+    { id: "projects", label: t("expenses.filter.section_projects") },
+    { id: "taxes",    label: t("expenses.filter.section_taxes") },
+  ];
+
+  const PERIODS: { id: Period; label: string }[] = [
+    { id: "30d", label: t("expenses.filter.period_30d") },
+    { id: "90d", label: t("expenses.filter.period_90d") },
+    { id: "1y",  label: t("expenses.filter.period_1y") },
+    { id: "all", label: t("expenses.filter.period_all") },
+  ];
+
+  const push = useCallback(
+    (key: string, value: string) => {
+      const params = new URLSearchParams(sp.toString());
+      params.set(key, value);
+      router.push(`?${params.toString()}`, { scroll: false });
+    },
+    [sp, router],
+  );
+
+  const now = new Date();
+  const monthDay = now.getDate();
+  const monthDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+
   return (
     <div className="status-strip fade-in" style={{ animationDelay: "0ms" }}>
-      <span className="lbl">РАЗДЕЛ</span>
-      <Segmented options={SECTIONS} value={section} onChange={setSection} />
-      <span className="lbl">ПЕРИОД</span>
-      <Segmented options={PERIODS} value={period} onChange={setPeriod} />
+      <span className="lbl">{t("expenses.filter.label_section")}</span>
+      <Segmented
+        options={SECTIONS}
+        value={section}
+        onChange={(v) => push("section", v)}
+      />
+      <span className="lbl">{t("expenses.filter.label_period")}</span>
+      <Segmented
+        options={PERIODS}
+        value={period}
+        onChange={(v) => push("period", v)}
+      />
       <div className="clock-right">
-        <span>{MONTH_LABEL} · <b>д{MONTH_DAY}/{MONTH_DAYS}</b></span>
-        <span>синхр <b>2с</b></span>
+        <span>
+          {now.getFullYear()} · <b>{t("common.unit.day")}{monthDay}/{monthDays}</b>
+        </span>
       </div>
     </div>
   );
