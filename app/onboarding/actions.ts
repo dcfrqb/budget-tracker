@@ -6,8 +6,10 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getCurrentUserId } from "@/lib/api/auth";
 import { onboardingSchema } from "@/lib/validation/onboarding";
-
-const ONBOARDED_COOKIE = "bdg:onboarded";
+import {
+  ONBOARDED_COOKIE_NAME,
+  ONBOARDED_COOKIE_OPTS,
+} from "@/lib/constants";
 
 // Default categories created during onboarding.
 // Using 3-letter code-labels consistent with the terminal-quant design system.
@@ -85,14 +87,11 @@ export async function completeOnboardingAction(
     return { error: "save" };
   }
 
-  // Set onboarded cookie (readable by Edge runtime middleware)
+  // Set onboarded cookie (readable by Edge runtime middleware).
+  // httpOnly: false so the middleware (Edge) can read it via req.cookies.
+  // secure: true in production so it is not silently dropped on HTTPS.
   const jar = await cookies();
-  jar.set(ONBOARDED_COOKIE, "1", {
-    path: "/",
-    sameSite: "lax",
-    maxAge: 60 * 60 * 24 * 365, // 1 year
-    httpOnly: false,
-  });
+  jar.set(ONBOARDED_COOKIE_NAME, "1", ONBOARDED_COOKIE_OPTS);
 
   revalidatePath("/", "layout");
   redirect("/");

@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-
-const ONBOARDED_COOKIE = "bdg:onboarded";
+import { ONBOARDED_COOKIE_NAME } from "@/lib/constants";
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  const isOnboarded = req.cookies.get(ONBOARDED_COOKIE)?.value === "1";
+  const isOnboarded = req.cookies.get(ONBOARDED_COOKIE_NAME)?.value === "1";
 
   // If not onboarded and not already on /onboarding, redirect there
   if (!isOnboarded && pathname !== "/onboarding") {

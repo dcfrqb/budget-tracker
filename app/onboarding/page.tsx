@@ -11,9 +11,11 @@ export default async function OnboardingPage() {
 
   const ctx = await getUserContext(userId);
 
-  // Already onboarded — send to root
+  // Already onboarded but cookie is absent (cleared / expired).
+  // RSC cannot write cookies directly — delegate to the route handler which
+  // sets the cookie and then redirects to "/".
   if (ctx.onboardedAt !== null) {
-    redirect("/");
+    redirect("/api/onboarding/heal");
   }
 
   return (
