@@ -114,10 +114,18 @@ model Institution {
 
 enum AccountKind {
   CARD
+  CREDIT
   SAVINGS
   CASH
   CRYPTO
   LOAN
+}
+
+enum SavingsCapitalization {
+  NONE
+  MONTHLY
+  QUARTERLY
+  YEARLY
 }
 
 model Account {
@@ -138,12 +146,28 @@ model Account {
   customPillLabel  String?
   // Обновляется ТОЛЬКО при ручной правке balance. null = баланс с момента создания не трогали.
   balanceUpdatedAt DateTime?
-  sortOrder        Int         @default(0)
-  isArchived       Boolean     @default(false)
-  archivedAt       DateTime?
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
-  deletedAt        DateTime?
+
+  // ── CREDIT (кредитные карты с лимитом/грейсом) ────────────────
+  creditRatePct     Decimal? @db.Decimal(6, 3) // % годовых
+  creditLimit       Decimal? @db.Decimal(28, 10) // лимит в валюте счёта
+  gracePeriodDays   Int? // беспроцентный период в днях (0..365)
+  statementDay      Int? // день выписки (1..31)
+  minPaymentPercent Decimal? @db.Decimal(5, 2) // % от долга (если min payment задан процентом)
+  minPaymentFixed   Decimal? @db.Decimal(28, 10) // фикс сумма (если min payment задан фиксом)
+
+  // ── SAVINGS доп. поля (annualRatePct уже есть выше) ───────────
+  savingsCapitalization SavingsCapitalization?
+  withdrawalLimit       Decimal?               @db.Decimal(28, 10) // ограничение на снятие
+
+  // Учитывать ли этот счёт в агрегатах / safe-until / режимах.
+  includeInAnalytics Boolean @default(true)
+
+  sortOrder  Int       @default(0)
+  isArchived Boolean   @default(false)
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
 
   user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   institution   Institution?  @relation(fields: [institutionId], references: [id], onDelete: SetNull)
@@ -205,6 +229,8 @@ model BudgetSettings {
   userId              String     @unique
   activeMode          BudgetMode @default(NORMAL)
   primaryCurrencyCode String     @default("RUB")
+  // Пары курсов для отображения в UI ("USD/RUB", "EUR/RUB"). Пустой массив → application-level дефолт.
+  shownFxPairs        String[]   @default([])
   createdAt           DateTime   @default(now())
   updatedAt           DateTime   @updatedAt
 
