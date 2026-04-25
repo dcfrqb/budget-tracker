@@ -39,6 +39,12 @@ export default async function EditAccountPage({ params }: Props) {
         annualRatePct: true,
         savingsCapitalization: true,
         withdrawalLimit: true,
+        // Card linking
+        cardLast4: true,
+        // Bank requisites
+        accountNumber: true,
+        bic: true,
+        bankName: true,
       },
     }),
     db.institution.findMany({
@@ -83,6 +89,12 @@ export default async function EditAccountPage({ params }: Props) {
           annualRatePct: account.annualRatePct?.toString() ?? undefined,
           savingsCapitalization: account.savingsCapitalization ?? undefined,
           withdrawalLimit: account.withdrawalLimit?.toString() ?? undefined,
+          // Card linking
+          cardLast4: account.cardLast4 ?? [],
+          // Bank requisites — coerce null→"" so text inputs bind as empty string
+          accountNumber: account.accountNumber ?? "",
+          bic: account.bic ?? "",
+          bankName: account.bankName ?? "",
         }}
       />
     </div>

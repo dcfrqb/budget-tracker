@@ -390,6 +390,16 @@ export const enDict: RuDictShape = {
       tax_sub: "hints only · manual",
       rate_sub_primary: "from primary source",
       rate_sub_empty: "no data",
+      inflow_label: {
+        "30d": "Last month",
+        "90d": "Last 3 months",
+        "1y": "Last 12 months",
+        all: "All time",
+      },
+      inflow_sub: "{days} d · avg {avg} / mo",
+      sources_label: "ACTIVE SOURCES",
+      tax_label: "TAX ACCRUED",
+      rate_label: "HOURLY RATE",
     },
     work_sources: {
       add: "+ Add source",
@@ -692,6 +702,11 @@ export const enDict: RuDictShape = {
         archive: "Archive",
         archive_failed: "Failed to archive account",
       },
+      credit: {
+        debt: "Debt",
+        available: "Available: {amount}",
+        no_limit: "No limit set",
+      },
       form: {
         include_in_analytics: {
           label: "Include in analytics",
@@ -914,6 +929,32 @@ export const enDict: RuDictShape = {
         error: {
           format: "Must be exactly 4 digits",
           duplicate: "This card is already added",
+        },
+      },
+      section: {
+        requisites: {
+          title: "Requisites",
+        },
+      },
+      requisites: {
+        accountNumber: {
+          label: "Account number",
+          hint: "20 digits (for RU)",
+        },
+        bic: {
+          label: "BIC",
+          hint: "9-digit bank code",
+        },
+        bankName: {
+          label: "Bank name",
+        },
+      },
+      balance: {
+        label: {
+          edit: "Current balance",
+        },
+        hint: {
+          edit: "Editing overwrites the balance and updates the last-edited timestamp",
         },
       },
     },

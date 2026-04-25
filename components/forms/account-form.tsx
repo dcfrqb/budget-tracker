@@ -279,8 +279,8 @@ export function AccountForm({
         placeholder={t("forms.account.placeholder.name")}
       />
 
-      {/* Starting balance — only on create, full-width primary field */}
-      {mode === "create" && (
+      {/* Balance — required on create, editable on edit */}
+      {mode === "create" ? (
         <MoneyInput
           register={register("balance")}
           label={t("forms.account.field.balance_required")}
@@ -288,6 +288,16 @@ export function AccountForm({
           inputClassName="money-input--leading"
           required
         />
+      ) : (
+        <div>
+          <MoneyInput
+            register={register("balance")}
+            label={t("forms.account.balance.label.edit")}
+            error={accErrMsg(errors.balance)}
+            inputClassName="money-input--leading"
+          />
+          <p className="field-hint">{t("forms.account.balance.hint.edit")}</p>
+        </div>
       )}
 
       {/* Account kind */}
@@ -435,6 +445,29 @@ export function AccountForm({
 
       {/* cardLast4 chip input */}
       <CardLast4Input chips={chips} onChange={handleChipsChange} />
+
+      {/* Bank requisites (optional) */}
+      <div className="form-indent">
+        <p className="form-section-label">{t("forms.account.section.requisites.title")}</p>
+        <TextField
+          register={register("accountNumber")}
+          label={t("forms.account.requisites.accountNumber.label")}
+          error={errMsg(errors.accountNumber)}
+          placeholder={t("forms.account.requisites.accountNumber.hint")}
+        />
+        <TextField
+          register={register("bic")}
+          label={t("forms.account.requisites.bic.label")}
+          error={errMsg(errors.bic)}
+          placeholder={t("forms.account.requisites.bic.hint")}
+        />
+        <TextField
+          register={register("bankName")}
+          label={t("forms.account.requisites.bankName.label")}
+          error={errMsg(errors.bankName)}
+          placeholder={t("forms.account.requisites.bankName.label")}
+        />
+      </div>
 
       {/* includeInAnalytics checkbox (D7) */}
       <div className="field">

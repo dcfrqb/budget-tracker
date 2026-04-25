@@ -32,6 +32,12 @@ const baseAccountSchema = z.object({
 
   // Card linking — last 4 digits for CSV import matching
   cardLast4: z.array(z.string().regex(/^\d{4}$/)).max(20).default([]),
+
+  // Bank requisites (all optional, free text)
+  // Empty string → null so Prisma clears the column on update (undefined = "don't change").
+  accountNumber: z.string().trim().max(40).nullish().transform((v) => (v && v.length > 0 ? v : null)),
+  bic: z.string().trim().max(20).nullish().transform((v) => (v && v.length > 0 ? v : null)),
+  bankName: z.string().trim().max(120).nullish().transform((v) => (v && v.length > 0 ? v : null)),
 });
 
 // ─────────────────────────────────────────────────────────────

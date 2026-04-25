@@ -45,6 +45,8 @@ function diffDays(a: Date, b: Date): number {
   return Math.ceil((a.getTime() - b.getTime()) / (24*60*60*1000));
 }
 
+type PeriodValue = "30d" | "90d" | "1y" | "all";
+
 // Maps period param to a look-ahead window in days for upcoming income.
 function parseExpectedWindow(period: string | undefined): number {
   switch (period) {
@@ -64,6 +66,17 @@ function parseHistoryWindow(period: string | undefined): number {
     case "all":  return 3650;
     case "90d":
     default:     return 90;
+  }
+}
+
+// Maps period to a { from, to } window used for the inflow KPI.
+function periodToWindow(period: PeriodValue, now: Date): { from: Date; to: Date } {
+  switch (period) {
+    case "30d":  return { from: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000), to: now };
+    case "1y":   return { from: new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000), to: now };
+    case "all":  return { from: new Date(0), to: now };
+    case "90d":
+    default:     return { from: new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000), to: now };
   }
 }
 
@@ -98,40 +111,58 @@ export default async function IncomePage({
   }
 
   const now = new Date();
-  const yearStart = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
-  const monthsElapsed = now.getUTCMonth() + 1;
   const windowEnd = new Date(now.getTime() + expectedWindowDays * 24 * 60 * 60 * 1000);
   const historyStart = new Date(now.getTime() - historyWindowDays * 24 * 60 * 60 * 1000);
+
+  const periodValue = (["30d", "90d", "1y", "all"].includes(sp.period ?? "") ? sp.period : "90d") as PeriodValue;
+  let kpiWindow = periodToWindow(periodValue, now);
 
   const [workSources, rates] = await Promise.all([
     getActiveWorkSources(userId),
     getLatestRatesMap(),
   ]);
 
-  // YTD income (DONE+PARTIAL)
-  const ytdRows = await db.transaction.findMany({
+  // For "all" period, find the earliest income transaction to avoid epoch-based window
+  // which would produce nonsense day counts like "20089 д · ср X / мес".
+  if (periodValue === "all") {
+    const earliest = await db.transaction.findFirst({
+      where: { userId, deletedAt: null, kind: TransactionKind.INCOME },
+      orderBy: { occurredAt: "asc" },
+      select: { occurredAt: true },
+    });
+    if (earliest) {
+      kpiWindow = { from: earliest.occurredAt, to: now };
+    } else {
+      // No income transactions yet — zero-day window, avg sub-label will be skipped below
+      kpiWindow = { from: now, to: now };
+    }
+  }
+
+  // Inflow KPI — DONE+PARTIAL income within the selected period window
+  const inflowRows = await db.transaction.findMany({
     where: {
       userId,
       deletedAt: null,
       kind: TransactionKind.INCOME,
       status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
-      occurredAt: { gte: yearStart, lte: now },
+      occurredAt: { gte: kpiWindow.from, lte: kpiWindow.to },
     },
     select: { amount: true, currencyCode: true, status: true, facts: { select: { amount: true } } },
   });
 
-  let ytdTotal = new Prisma.Decimal(0);
-  for (const txn of ytdRows) {
+  let inflowTotal = new Prisma.Decimal(0);
+  for (const txn of inflowRows) {
     const actual = txn.status === "DONE"
       ? new Prisma.Decimal(txn.amount)
       : txn.facts.reduce((s, f) => s.plus(f.amount), new Prisma.Decimal(0));
     const inBase = convertToBase(actual, txn.currencyCode, DEFAULT_CURRENCY, rates);
-    if (inBase) ytdTotal = ytdTotal.plus(inBase);
+    if (inBase) inflowTotal = inflowTotal.plus(inBase);
   }
 
-  const ytdAvgPerMonth = monthsElapsed > 0
-    ? ytdTotal.div(monthsElapsed).toFixed(0)
-    : "0";
+  const inflowWindowDaysRaw = Math.ceil((kpiWindow.to.getTime() - kpiWindow.from.getTime()) / (24 * 60 * 60 * 1000));
+  const inflowWindowDays = Math.max(1, inflowWindowDaysRaw);
+  const hasInflowData = inflowWindowDaysRaw > 0;
+  const inflowAvgPerMonth = inflowTotal.div(inflowWindowDays).mul(30).toFixed(0);
 
   // Hourly rate from primary work source
   let hourlyRate = 0;
@@ -191,18 +222,24 @@ export default async function IncomePage({
   // Active sources count
   const sourceCount = workSources.length;
 
+  const inflowLabel = t(`income.kpi.inflow_label.${periodValue}` as Parameters<typeof t>[0]);
+
   const kpi = {
     ytd: {
-      value: Number(ytdTotal.toFixed(0)),
-      sub: t("income.kpi.ytd_sub", {
-        vars: {
-          months: String(monthsElapsed),
-          avg: formatRubPrefix(new Prisma.Decimal(ytdAvgPerMonth)),
-        },
-      }),
+      value: Number(inflowTotal.toFixed(0)),
+      label: inflowLabel,
+      sub: hasInflowData
+        ? t("income.kpi.inflow_sub", {
+            vars: {
+              days: String(inflowWindowDays),
+              avg: formatRubPrefix(new Prisma.Decimal(inflowAvgPerMonth)),
+            },
+          })
+        : "",
     },
     sources: {
       value: sourceCount,
+      label: t("income.kpi.sources_label"),
       sub: sourceCount > 0
         ? t("income.kpi.sources_sub_work", {
             vars: {
@@ -214,10 +251,12 @@ export default async function IncomePage({
     },
     tax: {
       value: 0,
+      label: t("income.kpi.tax_label"),
       sub: t("income.kpi.tax_sub"),
     },
     rate: {
       value: hourlyRate,
+      label: t("income.kpi.rate_label"),
       sub: hourlyRate > 0 ? t("income.kpi.rate_sub_primary") : t("income.kpi.rate_sub_empty"),
     },
   };

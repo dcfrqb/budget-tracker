@@ -398,6 +398,16 @@ export const ruDict = {
       tax_sub: "только подсказки · вручную",
       rate_sub_primary: "из основного источника",
       rate_sub_empty: "нет данных",
+      inflow_label: {
+        "30d": "За месяц",
+        "90d": "За 3 месяца",
+        "1y": "За год",
+        all: "За всё время",
+      },
+      inflow_sub: "{days} д · ср {avg} / мес",
+      sources_label: "АКТИВНЫХ ИСТОЧНИКОВ",
+      tax_label: "НАЛОГ НАЧИСЛЕНО",
+      rate_label: "ЧАСОВАЯ СТАВКА",
     },
     work_sources: {
       add: "+ Добавить источник",
@@ -700,6 +710,11 @@ export const ruDict = {
         archive: "Архивировать",
         archive_failed: "Не удалось архивировать счёт",
       },
+      credit: {
+        debt: "Долг",
+        available: "Доступно: {amount}",
+        no_limit: "Лимит не задан",
+      },
       form: {
         include_in_analytics: {
           label: "Учитывать в аналитике",
@@ -922,6 +937,32 @@ export const ruDict = {
         error: {
           format: "Должно быть ровно 4 цифры",
           duplicate: "Эта карта уже добавлена",
+        },
+      },
+      section: {
+        requisites: {
+          title: "Реквизиты",
+        },
+      },
+      requisites: {
+        accountNumber: {
+          label: "Номер счёта",
+          hint: "20 цифр (для РФ)",
+        },
+        bic: {
+          label: "БИК",
+          hint: "9 цифр банка",
+        },
+        bankName: {
+          label: "Название банка",
+        },
+      },
+      balance: {
+        label: {
+          edit: "Текущий остаток",
+        },
+        hint: {
+          edit: "Изменение перепишет остаток вручную и обновит дату последнего изменения",
         },
       },
     },

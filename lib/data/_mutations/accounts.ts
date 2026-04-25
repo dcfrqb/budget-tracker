@@ -62,7 +62,12 @@ export async function updateAccount(
     }
   }
 
-  return db.account.update({ where: { id }, data: input });
+  const updateData: typeof input & { balanceUpdatedAt?: Date } = { ...input };
+  if (input.balance !== undefined) {
+    updateData.balanceUpdatedAt = new Date();
+  }
+
+  return db.account.update({ where: { id }, data: updateData });
 }
 
 export async function archiveAccount(userId: string, id: string) {

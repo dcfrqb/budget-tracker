@@ -149,6 +149,11 @@ model Account {
   // Последние 4 цифры карты(и) (для трекинга при интеграции/импорте). PostgreSQL native string array.
   cardLast4        String[]    @default([])
 
+  // ── BANK REQUISITES (реквизиты счёта) ─────────────────────────
+  accountNumber String?
+  bic           String?
+  bankName      String?
+
   // ── CREDIT (кредитные карты с лимитом/грейсом) ────────────────
   creditRatePct     Decimal? @db.Decimal(6, 3) // % годовых
   creditLimit       Decimal? @db.Decimal(28, 10) // лимит в валюте счёта

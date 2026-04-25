@@ -49,8 +49,24 @@ export function Institutions({ institutions }: Props) {
                 <span className="acc-ccy mono">{a.ccy}</span>
                 <span className="acc-kind">{a.colPill}</span>
                 <div className="acc-val-wrap">
-                  <span className="acc-val">{a.value}</span>
-                  <span className="acc-updated">{a.updated}</span>
+                  {a.creditDebt !== undefined ? (
+                    <>
+                      <span className="acc-updated dim">{t("wallet.account.credit.debt")}</span>
+                      <span className="acc-val neg">{a.creditDebt}</span>
+                      {a.creditNoLimit ? (
+                        <span className="acc-updated dim">{t("wallet.account.credit.no_limit")}</span>
+                      ) : (
+                        <span className="acc-updated dim">
+                          {t("wallet.account.credit.available", { vars: { amount: a.creditAvailable ?? "" } })}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <span className="acc-val">{a.value}</span>
+                      <span className="acc-updated">{a.updated}</span>
+                    </>
+                  )}
                 </div>
               </Link>
             ))}
