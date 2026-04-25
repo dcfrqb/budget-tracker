@@ -283,7 +283,7 @@ export function AccountForm({
       {mode === "create" ? (
         <MoneyInput
           register={register("balance")}
-          label={t("forms.account.field.balance_required")}
+          label={isCredit ? t("forms.account.field.balance_label_credit") : t("forms.account.field.balance_required")}
           error={accErrMsg(errors.balance)}
           inputClassName="money-input--leading"
           required
@@ -480,9 +480,7 @@ export function AccountForm({
             {t("wallet.account.form.include_in_analytics.label")}
           </span>
         </label>
-        <InfoCallout tone="info" compact>
-          {t("wallet.account.form.include_in_analytics.hint")}
-        </InfoCallout>
+        <p className="field-hint">{t("wallet.account.form.include_in_analytics.hint")}</p>
       </div>
 
       <SubmitRow

@@ -1,12 +1,13 @@
 "use client";
 
-import React from "react";
+import React, { useTransition, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TransactionKind, TransactionStatus, Scope } from "@prisma/client";
 import { useServerActionForm } from "./use-server-action-form";
 import { transactionCreateSchema } from "@/lib/validation/transaction";
 import type { TransactionCreateInput } from "@/lib/validation/transaction";
 import { createTransactionAction } from "@/app/(shell)/transactions/actions";
+import { createTransferAction } from "@/app/(shell)/transactions/transfer-actions";
 import { useT } from "@/lib/i18n";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { AccountSelect, type AccountOption } from "./account-select";
@@ -131,6 +132,65 @@ export function TransactionForm({
   const selectedAccount = accounts.find((a) => a.id === watchedAccountId);
   const accountCurrency = selectedAccount?.currencyCode;
 
+  // ── TRANSFER-specific state ──────────────────────────────────
+  const isTransfer = watchedKind === TransactionKind.TRANSFER;
+  const [toAccountId, setToAccountId] = useState("");
+  const [transferPending, startTransferTransition] = useTransition();
+  const [transferError, setTransferError] = useState<string | null>(null);
+
+  function handleTransferSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setTransferError(null);
+    const data = new FormData(e.currentTarget);
+    const fromAccountId = watchedAccountId ?? "";
+    const amount = (data.get("amount") as string) ?? "";
+    const occurredAt = (data.get("occurredAt") as string) ?? todayIso();
+    const note = (data.get("note") as string) || undefined;
+
+    if (!fromAccountId || !toAccountId || !amount) return;
+    if (fromAccountId === toAccountId) {
+      setTransferError(t("forms.tx.errors.transfer_same_account"));
+      return;
+    }
+    // MVP: only same-currency transfers supported.
+    // TODO: multi-currency transfer with FX rate + fee — follow-up.
+    const fromCcy = accounts.find((a) => a.id === fromAccountId)?.currencyCode;
+    const toCcy = accounts.find((a) => a.id === toAccountId)?.currencyCode;
+    if (fromCcy && toCcy && fromCcy !== toCcy) {
+      setTransferError(t("forms.tx.errors.transfer_currency_mismatch"));
+      return;
+    }
+
+    startTransferTransition(async () => {
+      // MVP: same-currency transfer; rate=1, fee=null.
+      // TODO: multi-currency transfer with FX rate + fee — follow-up.
+      const result = await createTransferAction({
+        fromAccountId,
+        toAccountId,
+        fromAmount: amount,
+        toAmount: amount,
+        occurredAt,
+        note: note ?? null,
+      });
+      if (!result.ok) {
+        const errKey = result.formError ?? "internal_error";
+        if (errKey === "transfer_same_account") {
+          setTransferError(t("forms.tx.errors.transfer_same_account"));
+        } else if (errKey === "transfer_currency_mismatch") {
+          setTransferError(t("forms.tx.errors.transfer_currency_mismatch"));
+        } else {
+          setTransferError(t("forms.common.form_error.internal"));
+        }
+        return;
+      }
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        router.push("/transactions");
+      }
+    });
+  }
+
   // Title
   let title: string;
   if (mode === "edit") {
@@ -154,6 +214,7 @@ export function TransactionForm({
   const kindOptions = [
     { value: TransactionKind.INCOME, label: t("forms.common.kind.income") },
     { value: TransactionKind.EXPENSE, label: t("forms.common.kind.expense") },
+    { value: TransactionKind.TRANSFER, label: t("forms.common.kind.transfer") },
     { value: TransactionKind.LOAN_PAYMENT, label: t("forms.common.kind.loan_payment") },
     { value: TransactionKind.DEBT_OUT, label: t("forms.common.kind.debt_out") },
     { value: TransactionKind.DEBT_IN, label: t("forms.common.kind.debt_in") },
@@ -183,6 +244,90 @@ export function TransactionForm({
       : formError
       ? t("forms.common.form_error.internal")
       : null;
+
+  // ── TRANSFER branch — rendered as its own form ───────────────
+  if (isTransfer && mode === "create") {
+    const toAccount = accounts.find((a) => a.id === toAccountId);
+    const fromAccountCcy = selectedAccount?.currencyCode;
+    const toAccountCcy = toAccount?.currencyCode;
+    const ccyMismatch = !!fromAccountCcy && !!toAccountCcy && fromAccountCcy !== toAccountCcy;
+
+    return (
+      <form onSubmit={handleTransferSubmit} className="form-grid">
+        {variant === "page" && (
+          <h1 className="form-title">{t("forms.transfer.title_create")}</h1>
+        )}
+        {/* Kind selector to allow switching away from TRANSFER */}
+        <SelectField
+          register={register("kind")}
+          label={t("forms.tx.field.kind")}
+          options={kindOptions}
+          error={errMsg(errors.kind)}
+          required
+        />
+        {/* From account */}
+        <AccountSelect
+          register={register("accountId")}
+          accounts={accounts}
+          label={t("forms.tx.field.fromAccount")}
+          error={errMsg(errors.accountId)}
+          required
+          placeholder={t("forms.tx.placeholder.account")}
+        />
+        {/* To account */}
+        <div className="field">
+          <label className="form-label" htmlFor="transfer-to-account">
+            {t("forms.tx.field.toAccount")}
+          </label>
+          <select
+            id="transfer-to-account"
+            value={toAccountId}
+            onChange={(e) => setToAccountId(e.target.value)}
+            required
+          >
+            <option value="">{t("forms.tx.placeholder.account")}</option>
+            {accounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        {ccyMismatch && (
+          <p className="field-hint">{t("forms.transfer.cross_currency_hint")}</p>
+        )}
+        {/* Amount */}
+        <MoneyInput
+          register={register("amount")}
+          label={t("forms.tx.field.amount")}
+          error={errMsg(errors.amount)}
+          required
+          currencyCode={fromAccountCcy}
+        />
+        {/* Date */}
+        <DateField
+          register={register("occurredAt")}
+          label={t("forms.tx.field.occurred_at")}
+          error={errMsg(errors.occurredAt)}
+          required
+        />
+        {/* Note */}
+        <TextareaField
+          register={register("note")}
+          label={t("forms.tx.field.note")}
+          error={errMsg(errors.note)}
+          placeholder={t("forms.tx.placeholder.note")}
+        />
+        <SubmitRow
+          isSubmitting={transferPending}
+          submitLabel={t("forms.common.save")}
+          cancelLabel={t("forms.common.cancel")}
+          onCancel={variant === "page" ? () => router.back() : onSuccess}
+          formError={transferError}
+        />
+      </form>
+    );
+  }
 
   return (
     <form onSubmit={submit} className="form-grid">

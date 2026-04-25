@@ -17,7 +17,7 @@ const TRANSFER_INCLUDE = {
 
 export async function createTransfer(userId: string, input: TransferCreateInput) {
   if (input.fromAccountId === input.toAccountId) {
-    throw Object.assign(new Error("fromAccountId and toAccountId must differ"), { code: "INVALID" });
+    throw Object.assign(new Error("fromAccountId and toAccountId must differ"), { code: "INVALID", reason: "SAME_ACCOUNT" });
   }
 
   const [from, to] = await Promise.all([
@@ -37,7 +37,7 @@ export async function createTransfer(userId: string, input: TransferCreateInput)
   let rate = input.rate;
   if (rate === undefined) {
     if (sameCcy) rate = "1";
-    else throw Object.assign(new Error("rate is required for cross-currency transfer"), { code: "INVALID" });
+    else throw Object.assign(new Error("rate is required for cross-currency transfer"), { code: "INVALID", reason: "CURRENCY_MISMATCH" });
   }
 
   const name = `Перевод · ${from.name} → ${to.name}`;

@@ -96,6 +96,15 @@ export async function createAccountAction(rawInput: unknown) {
     }
 
     const { newInstitutionName: _a, newInstitutionKind: _b, ...accountData } = input;
+
+    // Credit card: user enters debt as positive number → store as negative balance.
+    if (accountData.kind === AccountKind.CREDIT && accountData.balance) {
+      const raw = parseFloat(String(accountData.balance));
+      if (!isNaN(raw) && raw > 0) {
+        accountData.balance = String(-raw);
+      }
+    }
+
     const cleaned = stripOrphanFields({ ...accountData, institutionId });
     const account = await createAccount(userId, cleaned);
     revalidateTag("accounts", "default");
@@ -126,7 +135,24 @@ export async function updateAccountAction(id: string, rawData: unknown) {
     return { ok: false as const, fieldErrors };
   }
   try {
-    const cleaned = parsed.data.kind ? stripOrphanFields(parsed.data) : parsed.data;
+    let data = parsed.data;
+
+    // Credit card: user enters debt as positive number → store as negative balance.
+    // If kind is not in update payload, fetch current kind from DB.
+    if (data.balance !== undefined) {
+      const effectiveKind = data.kind ?? (await db.account.findUnique({
+        where: { id },
+        select: { kind: true },
+      }))?.kind;
+      if (effectiveKind === AccountKind.CREDIT) {
+        const raw = parseFloat(String(data.balance));
+        if (!isNaN(raw) && raw > 0) {
+          data = { ...data, balance: String(-raw) };
+        }
+      }
+    }
+
+    const cleaned = data.kind ? stripOrphanFields(data) : data;
     const account = await updateAccount(userId, id, cleaned);
     revalidateTag("accounts", "default");
     revalidatePath("/", "layout");

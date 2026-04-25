@@ -65,7 +65,7 @@ export function NavRail() {
         >
           <span className="icon">{tab.icon}</span>
           <span className="code">{tab.code}</span>
-          <span className="label-full">{tab.label}</span>
+          <span className="label-full mono">{tab.label}</span>
           <span className="tip">{tab.label}</span>
         </Link>
       ))}
@@ -79,7 +79,7 @@ export function NavRail() {
       >
         <span className="icon"><SettingsIcon /></span>
         <span className="code">НАС</span>
-        <span className="label-full">{SETTINGS_TAB.label}</span>
+        <span className="label-full mono">{SETTINGS_TAB.label}</span>
         <span className="tip">{SETTINGS_TAB.label}</span>
       </Link>
     </nav>

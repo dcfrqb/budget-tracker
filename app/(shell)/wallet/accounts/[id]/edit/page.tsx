@@ -74,7 +74,10 @@ export default async function EditAccountPage({ params }: Props) {
           kind: account.kind,
           name: account.name,
           currencyCode: account.currencyCode,
-          balance: account.balance.toString(),
+          // Credit card: balance stored as negative → show positive (debt amount) in edit form.
+          balance: account.kind === "CREDIT"
+            ? account.balance.abs().toString()
+            : account.balance.toString(),
           sub: account.sub ?? undefined,
           sortOrder: account.sortOrder,
           includeInAnalytics: account.includeInAnalytics,

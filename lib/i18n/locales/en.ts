@@ -828,6 +828,8 @@ export const enDict: RuDictShape = {
       field: {
         kind: "Type",
         account: "Account",
+        fromAccount: "From account",
+        toAccount: "To account",
         category: "Category",
         amount: "Amount",
         currency: "Currency",
@@ -854,6 +856,10 @@ export const enDict: RuDictShape = {
         category: "— select —",
         account: "— select account —",
         currency: "— currency —",
+      },
+      errors: {
+        transfer_same_account: "Source and destination accounts must differ",
+        transfer_currency_mismatch: "Cross-currency transfers are not yet supported",
       },
     },
     transfer: {
@@ -899,6 +905,7 @@ export const enDict: RuDictShape = {
         currency: "Currency",
         balance: "Starting balance",
         balance_required: "Starting balance *",
+        balance_label_credit: "Current credit card debt",
         note: "Note",
       },
       kind: {

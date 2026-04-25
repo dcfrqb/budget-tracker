@@ -836,6 +836,8 @@ export const ruDict = {
       field: {
         kind: "Тип",
         account: "Счёт",
+        fromAccount: "Со счёта",
+        toAccount: "На счёт",
         category: "Категория",
         amount: "Сумма",
         currency: "Валюта",
@@ -862,6 +864,10 @@ export const ruDict = {
         category: "— выберите —",
         account: "— выберите счёт —",
         currency: "— валюта —",
+      },
+      errors: {
+        transfer_same_account: "Счёт-источник и счёт-получатель должны быть разными",
+        transfer_currency_mismatch: "Переводы между счетами с разными валютами пока не поддерживаются",
       },
     },
     transfer: {
@@ -907,6 +913,7 @@ export const ruDict = {
         currency: "Валюта",
         balance: "Начальный баланс",
         balance_required: "Стартовый баланс *",
+        balance_label_credit: "Текущий долг по карте",
         note: "Примечание",
       },
       kind: {

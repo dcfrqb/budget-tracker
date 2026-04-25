@@ -232,7 +232,7 @@ a { color: inherit; text-decoration: none; }
   .nav-item .label-full {
     display: inline;
     color: inherit;
-    font-family: var(--mono-font), monospace;
+    font-family: var(--mono-font), 'JetBrains Mono', ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
     font-weight: 500;
     white-space: nowrap;
     overflow: hidden;
@@ -704,7 +704,7 @@ a { color: inherit; text-decoration: none; }
 
 .txn-row {
   display: grid;
-  grid-template-columns: 28px 70px 1fr 110px 130px 90px;
+  grid-template-columns: 28px 70px 1fr 110px 130px minmax(110px, max-content);
   gap: 12px; align-items: center;
   padding: 11px 20px;
   border-bottom: 1px solid var(--grid);
@@ -756,7 +756,7 @@ a { color: inherit; text-decoration: none; }
 .st-missed  { color: var(--neg);   background: rgba(248,81,73,.1);   }
 .st-cancel  { color: var(--dim);   background: transparent; text-decoration: line-through; }
 
-.txn-amt { font-family: var(--mono-font), monospace; font-weight: 700; font-size: 14px; text-align: right; }
+.txn-amt { font-family: var(--mono-font), monospace; font-weight: 700; font-size: 14px; text-align: right; white-space: nowrap; }
 .txn-amt.strike { text-decoration: line-through; color: var(--dim); }
 
 .txn-flag { display: inline-flex; width: 14px; height: 14px; vertical-align: middle; margin-left: 5px; }
@@ -2269,6 +2269,19 @@ a { color: inherit; text-decoration: none; }
   text-transform: uppercase;
   color: var(--muted);
   line-height: 1.2;
+}
+
+/* Section divider label (e.g. "Новая организация", "Кредитная карта") */
+.form-section-label {
+  font-family: var(--mono-font), 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  line-height: 1.2;
+  margin-top: 8px;
+  margin-bottom: 4px;
 }
 
 /* Inputs, textareas, selects inside a .field */

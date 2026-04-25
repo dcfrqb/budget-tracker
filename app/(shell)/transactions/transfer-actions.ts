@@ -1,8 +1,7 @@
 "use server";
 
 import { revalidatePath, revalidateTag } from "next/cache";
-import { withUserAction } from "@/lib/actions/with-user";
-import { actionError, actionOk } from "@/lib/actions/result";
+import { ActionResult, actionError, actionOk } from "@/lib/actions/result";
 import { getCurrentUserId } from "@/lib/api/auth";
 import {
   transferCreateSchema,
@@ -18,16 +17,34 @@ import {
 // Create
 // ─────────────────────────────────────────────────────────────
 
-export const createTransferAction = withUserAction(
-  transferCreateSchema,
-  async (userId, input) => {
-    const transfer = await createTransfer(userId, input);
+export async function createTransferAction(rawInput: unknown): Promise<ActionResult<unknown>> {
+  const userId = await getCurrentUserId();
+  const parsed = transferCreateSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    const fieldErrors: Record<string, string[]> = {};
+    for (const issue of parsed.error.issues) {
+      const key = issue.path.join(".");
+      if (!fieldErrors[key]) fieldErrors[key] = [];
+      fieldErrors[key].push(issue.message);
+    }
+    return { ok: false as const, fieldErrors };
+  }
+  try {
+    const result = await createTransfer(userId, parsed.data);
     revalidateTag("transactions", "default");
     revalidateTag("accounts", "default");
     revalidatePath("/", "layout");
-    return transfer;
-  },
-);
+    return actionOk(result);
+  } catch (e) {
+    const err = e as { code?: string; reason?: string };
+    if (err.code === "INVALID") {
+      if (err.reason === "SAME_ACCOUNT") return actionError("transfer_same_account");
+      if (err.reason === "CURRENCY_MISMATCH") return actionError("transfer_currency_mismatch");
+      return actionError("transfer_invalid");
+    }
+    return actionError("internal_error");
+  }
+}
 
 // ─────────────────────────────────────────────────────────────
 // Update

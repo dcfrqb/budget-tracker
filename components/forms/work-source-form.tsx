@@ -213,7 +213,6 @@ export function WorkSourceForm({
           register={register("hourlyRate")}
           label={t("forms.work.field.hourly_rate")}
           error={errMsg(errors.hourlyRate)}
-          required
           placeholder={t("forms.work.placeholder.hourly_rate")}
           hint={t("forms.work.hint.hourly_rate_freelance")}
         />
@@ -224,7 +223,6 @@ export function WorkSourceForm({
           register={register("baseAmount")}
           label={t("forms.work.field.fixed_amount")}
           error={errMsg(errors.baseAmount)}
-          required
           placeholder={t("forms.work.placeholder.fixed_amount")}
           hint={t("forms.work.hint.fixed_amount_freelance")}
         />
