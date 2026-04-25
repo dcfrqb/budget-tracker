@@ -9,7 +9,7 @@ const importRowSchema = z.object({
   occurredAt: z.string(),
   amount: z.string(),
   currencyCode: z.string(),
-  kind: z.enum(["INCOME", "EXPENSE"]),
+  kind: z.enum(["INCOME", "EXPENSE", "TRANSFER"]),
   rawCategory: z.string().optional(),
   description: z.string().optional(),
   counterparty: z.string().optional(),

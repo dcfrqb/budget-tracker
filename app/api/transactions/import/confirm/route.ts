@@ -65,14 +65,18 @@ export async function POST(req: Request) {
         errors.push({ index: idx, message: "category not found" });
         continue;
       }
+      const isTransfer = row.kind === "TRANSFER";
       toCreate.push({
         userId: DEFAULT_USER_ID,
         accountId: input.accountId,
-        categoryId: rawCategoryId || null,
+        // Transfers don't belong to a category
+        categoryId: isTransfer ? null : (rawCategoryId || null),
         kind:
           row.kind === "INCOME"
             ? TransactionKind.INCOME
-            : TransactionKind.EXPENSE,
+            : row.kind === "TRANSFER"
+              ? TransactionKind.TRANSFER
+              : TransactionKind.EXPENSE,
         status: TransactionStatus.DONE,
         amount: row.amount,
         currencyCode: row.currencyCode,

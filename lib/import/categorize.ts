@@ -1,5 +1,26 @@
 import type { ImportRow } from "./types";
 
+/**
+ * Raw bank category names that indicate an internal transfer.
+ * Used by parsers to set kind = "TRANSFER" before categorisation.
+ */
+const TRANSFER_CATEGORIES = new Set([
+  "переводы",
+  "перевод",
+  "пополнение",
+  "перевод между счетами",
+  "внутренний перевод",
+]);
+
+/**
+ * Returns true when the raw CSV category string represents an inter-account
+ * transfer that should be excluded from income/expense totals.
+ */
+export function isTransferCategory(raw: string | undefined): boolean {
+  if (!raw) return false;
+  return TRANSFER_CATEGORIES.has(raw.toLowerCase().trim());
+}
+
 export type CategoryLike = {
   id: string;
   name: string;
@@ -65,6 +86,8 @@ export function suggestCategory(
   categories: CategoryLike[],
 ): string | undefined {
   if (!row.rawCategory) return undefined;
+  // Transfers have no category
+  if (row.kind === "TRANSFER") return undefined;
 
   const rawLower = row.rawCategory.toLowerCase().trim();
 

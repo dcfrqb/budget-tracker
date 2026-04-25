@@ -1298,6 +1298,15 @@ export const ruDict = {
       },
       shortcut_hint: "I / E / T для быстрых действий",
     },
+    obligations: {
+      title: "обязательства",
+      period_30d: "ближ. 30д",
+      count_suffix: "шт.",
+      empty: {
+        text: "нет обязательств в ближайшие 30 дней",
+        cta: "+ обязательство",
+      },
+    },
   },
 
   quick_input: {
@@ -1408,6 +1417,7 @@ export const ruDict = {
       total: "Всего строк",
       will_import: "Будет импортировано",
       duplicate_hint: "Вероятно, уже существует в базе",
+      transfer_no_category: "—",
       truncated_hint: "Показано 500 из {n} строк. Все строки будут обработаны при импорте.",
     },
     confirm: {

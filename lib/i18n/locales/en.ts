@@ -1290,6 +1290,15 @@ export const enDict: RuDictShape = {
       },
       shortcut_hint: "I / E / T for quick actions",
     },
+    obligations: {
+      title: "obligations",
+      period_30d: "next 30d",
+      count_suffix: "items",
+      empty: {
+        text: "no obligations in the next 30 days",
+        cta: "+ obligation",
+      },
+    },
   },
 
   quick_input: {
@@ -1400,6 +1409,7 @@ export const enDict: RuDictShape = {
       total: "Total rows",
       will_import: "Will import",
       duplicate_hint: "Likely already exists in database",
+      transfer_no_category: "—",
       truncated_hint: "Showing 500 of {n} rows. All rows will be processed on import.",
     },
     confirm: {

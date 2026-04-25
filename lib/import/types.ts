@@ -5,7 +5,7 @@ export type ImportRow = {
   occurredAt: string;            // ISO
   amount: string;                // positive number as string (decimal)
   currencyCode: string;
-  kind: "INCOME" | "EXPENSE";
+  kind: "INCOME" | "EXPENSE" | "TRANSFER";
   rawCategory?: string;
   description?: string;
   counterparty?: string;

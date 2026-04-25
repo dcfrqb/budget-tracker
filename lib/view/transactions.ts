@@ -325,25 +325,36 @@ function dayTotalsFromTxns(
   }
 
   const totals: TxnDayTotal[] = [];
-  const hasInflowKind = txns.some(
-    (txn) =>
+  const prefix = hasConverted ? "≈ " : "";
+  const hasSettled = txns.some((txn) => {
+    if (
+      txn.status !== TransactionStatus.DONE &&
+      txn.status !== TransactionStatus.PARTIAL
+    )
+      return false;
+    const kindIsInflow =
       txn.kind === TransactionKind.INCOME ||
       txn.kind === TransactionKind.REIMBURSEMENT ||
-      txn.kind === TransactionKind.DEBT_IN,
-  );
-  const prefix = hasConverted ? "≈ " : "";
-  if (!inflowTotal.isZero() || plannedCount > 0 || hasInflowKind) {
+      txn.kind === TransactionKind.DEBT_IN;
+    const kindIsOutflow =
+      txn.kind === TransactionKind.EXPENSE ||
+      txn.kind === TransactionKind.LOAN_PAYMENT ||
+      txn.kind === TransactionKind.DEBT_OUT;
+    return kindIsInflow || kindIsOutflow;
+  });
+  if (!inflowTotal.isZero() || !outflowTotal.isZero() || hasSettled) {
+    const net = inflowTotal.minus(outflowTotal);
+    const absNet = net.abs();
+    const sign = net.greaterThanOrEqualTo(0) ? "+" : "−";
+    const tone: TxnDayTotal["tone"] = net.greaterThan(0)
+      ? "pos"
+      : net.lessThan(0)
+        ? "info"
+        : "mut";
     totals.push({
-      label: t("transactions.day.inflow"),
-      value: `${prefix}+${formatRub(inflowTotal)}`,
-      tone: "pos",
-    });
-  }
-  if (!outflowTotal.isZero()) {
-    totals.push({
-      label: t("transactions.day.outflow"),
-      value: `${prefix}−${formatRub(outflowTotal)}`,
-      tone: "info",
+      label: "",
+      value: `${prefix}${sign}${formatRub(absNet)}`,
+      tone,
     });
   }
   if (plannedCount > 0) {

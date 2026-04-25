@@ -1,13 +1,20 @@
+import Link from "next/link";
+import { getT } from "@/lib/i18n/server";
 import type { HomeObligationView } from "@/lib/view/home";
 
-export function Obligations({ obligations }: { obligations: HomeObligationView[] }) {
+export async function Obligations({ obligations }: { obligations: HomeObligationView[] }) {
+  const t = await getT();
+
   return (
     <div className="section fade-in" style={{ animationDelay: "180ms" }}>
       <div className="section-hd">
         <div className="ttl mono">
-          <b>обязательства</b> <span className="dim">· ближ. 30д</span>
+          <b>{t("home.obligations.title")}</b>{" "}
+          <span className="dim">· {t("home.obligations.period_30d")}</span>
         </div>
-        <div className="meta mono">{obligations.length} шт.</div>
+        <div className="meta mono">
+          {obligations.length} {t("home.obligations.count_suffix")}
+        </div>
       </div>
       <div className="section-body flush">
         <div className="ob-grid">
@@ -30,8 +37,21 @@ export function Obligations({ obligations }: { obligations: HomeObligationView[]
             </div>
           ))}
           {obligations.length === 0 && (
-            <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
-              нет обязательств в ближайшие 30 дней
+            <div
+              className="mono"
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "var(--sp-2)",
+                fontSize: 12,
+                color: "var(--muted)",
+                padding: "12px 20px",
+              }}
+            >
+              <span>{t("home.obligations.empty.text")}</span>
+              <Link href="/expenses" className="btn">
+                {t("home.obligations.empty.cta")}
+              </Link>
             </div>
           )}
         </div>

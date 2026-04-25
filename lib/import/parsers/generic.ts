@@ -1,5 +1,6 @@
 import Papa from "papaparse";
 import type { GenericMapping, ImportRow } from "../types";
+import { isTransferCategory } from "../categorize";
 
 export type GenericParseOptions = {
   mapping: GenericMapping;
@@ -52,7 +53,6 @@ export function parseGeneric(
     }
 
     const absAmount = Math.abs(amountNum);
-    const kind: "INCOME" | "EXPENSE" = amountNum >= 0 ? "INCOME" : "EXPENSE";
     const amountStr = absAmount.toFixed(2);
 
     const currencyCode = mapping.currency
@@ -60,6 +60,12 @@ export function parseGeneric(
       : "RUB";
 
     const rawCategory = mapping.category ? (raw[mapping.category] ?? undefined) : undefined;
+
+    const kind: "INCOME" | "EXPENSE" | "TRANSFER" = isTransferCategory(rawCategory)
+      ? "TRANSFER"
+      : amountNum >= 0
+        ? "INCOME"
+        : "EXPENSE";
     const description = mapping.description ? (raw[mapping.description] ?? undefined) : undefined;
 
     rows.push({

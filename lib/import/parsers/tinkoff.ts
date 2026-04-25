@@ -1,5 +1,6 @@
 import Papa from "papaparse";
 import type { ImportRow } from "../types";
+import { isTransferCategory } from "../categorize";
 
 export type TinkoffParseOptions = {
   delimiter?: ";" | ",";
@@ -66,11 +67,16 @@ export function parseTinkoff(
     }
 
     const absAmount = Math.abs(amountNum);
-    const kind: "INCOME" | "EXPENSE" = amountNum >= 0 ? "INCOME" : "EXPENSE";
     const amountStr = absAmount.toFixed(2);
 
     const currencyCode = normalizeCurrency(raw[COL_CURRENCY] ?? "RUB");
     const rawCategory = raw[COL_CATEGORY] ?? undefined;
+
+    const kind: "INCOME" | "EXPENSE" | "TRANSFER" = isTransferCategory(rawCategory)
+      ? "TRANSFER"
+      : amountNum >= 0
+        ? "INCOME"
+        : "EXPENSE";
     const description = raw[COL_DESCRIPTION] ?? undefined;
 
     const descForId = (description ?? "").substring(0, 32);

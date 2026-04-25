@@ -578,9 +578,22 @@ function PreviewRow({
     ? new Date(row.occurredAt).toLocaleDateString("ru-RU")
     : "—";
   const name = row.description ?? row.rawCategory ?? "—";
-  const kindClass = row.kind === "INCOME" ? "pos" : "info";
+  const kindClass =
+    row.kind === "INCOME" ? "pos" : row.kind === "TRANSFER" ? "mut" : "info";
 
-  const filteredCats = categories.filter((c) => c.kind === row.kind);
+  const isTransfer = row.kind === "TRANSFER";
+  const filteredCats = isTransfer
+    ? []
+    : categories.filter((c) => c.kind === row.kind);
+
+  const amountPrefix = row.kind === "INCOME" ? "+" : row.kind === "TRANSFER" ? "↔" : "−";
+
+  const kindLabel =
+    row.kind === "INCOME"
+      ? t("forms.common.kind.income")
+      : row.kind === "TRANSFER"
+        ? t("forms.common.kind.transfer")
+        : t("forms.common.kind.expense");
 
   return (
     <tr className={row.isDuplicate ? "import-row-dup" : included ? "" : "import-row-excluded"}>
@@ -593,7 +606,7 @@ function PreviewRow({
       </td>
       <td className="mono">{dateStr}</td>
       <td className={`mono ${kindClass}`}>
-        {row.kind === "INCOME" ? "+" : "-"}{row.amount} {row.currencyCode}
+        {amountPrefix}{row.amount} {row.currencyCode}
         {row.isDuplicate && (
           <span className="import-dup-badge" title={t("import.preview.duplicate_hint")}>
             dup
@@ -601,22 +614,26 @@ function PreviewRow({
         )}
       </td>
       <td className={`import-kind-badge ${kindClass}`}>
-        {row.kind === "INCOME" ? t("forms.common.kind.income") : t("forms.common.kind.expense")}
+        {kindLabel}
       </td>
       <td className="import-name" title={name}>{name.substring(0, 40)}</td>
       <td>
-        <select
-          value={selectedCategoryId ?? ""}
-          onChange={(e) => onCategoryChange(index, e.target.value || null)}
-          className="import-cat-select"
-        >
-          <option value="">—</option>
-          {filteredCats.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+        {isTransfer ? (
+          <span className="mut import-cat-none">{t("import.preview.transfer_no_category")}</span>
+        ) : (
+          <select
+            value={selectedCategoryId ?? ""}
+            onChange={(e) => onCategoryChange(index, e.target.value || null)}
+            className="import-cat-select"
+          >
+            <option value="">—</option>
+            {filteredCats.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        )}
       </td>
     </tr>
   );
