@@ -313,6 +313,10 @@ export const ruDict = {
       usage_label: "{pct}% от общих расходов",
       total_of: "из {total}",
       project_category: "категория: {name}",
+      section_title: "категории",
+      section_meta: "текущий месяц",
+      section_sort: "по сумме",
+      empty: "нет данных по категориям",
     },
     badge: {
       personal: "Личная",
@@ -773,6 +777,7 @@ export const ruDict = {
       save: "Сохранить",
       cancel: "Отмена",
       required: "Обязательное поле",
+      required_hint: "* — обязательные поля",
       invalid_amount: "Некорректная сумма",
       invalid_date: "Некорректная дата",
       loading: "Загрузка...",
@@ -957,6 +962,8 @@ export const ruDict = {
         hours_per_month: "Часов в месяц",
         is_active: "Активен",
         notes: "Заметки",
+        freelance_mode: "Тип ставки",
+        fixed_amount: "Сумма за проект",
       },
       kind: {
         employment: "Трудоустройство",
@@ -971,12 +978,18 @@ export const ruDict = {
         tax_rate: "6, 13...",
         hours_per_month: "160",
         notes: "Заметки (опционально)",
+        fixed_amount: "0",
       },
       hint: {
         hours_per_month: "По умолчанию 160 ч/мес",
         tax_rate: "Только подсказка — налоги ведёте вручную",
         base_amount_employment: "Чистая ежемесячная зарплата",
         hourly_rate_freelance: "Часовая ставка для расчёта",
+        fixed_amount_freelance: "Стоимость одного проекта без разбивки на часы",
+      },
+      freelance_mode: {
+        hourly: "Почасовая",
+        fixed: "Фикс за проект",
       },
     },
     tx_confirm: {

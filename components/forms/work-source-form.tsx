@@ -19,7 +19,7 @@ import { MoneyInput } from "./primitives/money-input";
 import { NumberField } from "./primitives/number-field";
 import { SelectField } from "./primitives/select-field";
 import { SubmitRow } from "./primitives/submit-row";
-import { HOURS_PER_MONTH_DEFAULT } from "@/lib/constants";
+import { HOURS_PER_MONTH_DEFAULT, DEFAULT_CURRENCY } from "@/lib/constants";
 import type { ActionResult } from "@/lib/actions/result";
 import { z } from "zod";
 
@@ -52,6 +52,10 @@ export function WorkSourceForm({
   const router = useRouter();
   const [isDeleting, startDelete] = useTransition();
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [freelanceMode, setFreelanceMode] = useState<"hourly" | "fixed">(() => {
+    if (initialValues?.baseAmount != null && initialValues?.hourlyRate == null) return "fixed";
+    return "hourly";
+  });
 
   type UpdateInput = z.infer<typeof workSourceUpdateSchema>;
 
@@ -78,6 +82,7 @@ export function WorkSourceForm({
       defaultValues: {
         kind: WorkKind.EMPLOYMENT,
         isActive: true,
+        currencyCode: DEFAULT_CURRENCY,
         ...initialValues,
       } as any,
       onSuccess: () => {
@@ -93,6 +98,7 @@ export function WorkSourceForm({
   const {
     register,
     watch,
+    setValue,
     formState: { errors },
   } = form;
 
@@ -124,6 +130,9 @@ export function WorkSourceForm({
           {mode === "create" ? t("forms.work.title_create") : t("forms.work.title_edit")}
         </h1>
       )}
+      {variant === "page" && (
+        <p className="form-required-hint">{t("forms.common.required_hint")}</p>
+      )}
 
       {/* Kind */}
       <SelectField
@@ -152,7 +161,7 @@ export function WorkSourceForm({
         required
       />
 
-      {/* Base amount — employment / one-time required, freelance optional */}
+      {/* Base amount — employment / one-time */}
       {(isEmployment || watchedKind === WorkKind.ONE_TIME) && (
         <MoneyInput
           register={register("baseAmount")}
@@ -164,15 +173,60 @@ export function WorkSourceForm({
         />
       )}
 
-      {/* Hourly rate — freelance required */}
+      {/* Freelance: rate type segmented control + conditional amount field */}
       {isFreelance && (
+        <div className="field">
+          <div className="form-label">{t("forms.work.field.freelance_mode")}</div>
+          <div className="seg" role="radiogroup">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={freelanceMode === "hourly"}
+              className={freelanceMode === "hourly" ? "on" : ""}
+              onClick={() => {
+                setFreelanceMode("hourly");
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (setValue as any)("baseAmount", null);
+              }}
+            >
+              {t("forms.work.freelance_mode.hourly")}
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={freelanceMode === "fixed"}
+              className={freelanceMode === "fixed" ? "on" : ""}
+              onClick={() => {
+                setFreelanceMode("fixed");
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (setValue as any)("hourlyRate", null);
+              }}
+            >
+              {t("forms.work.freelance_mode.fixed")}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isFreelance && freelanceMode === "hourly" && (
         <MoneyInput
           register={register("hourlyRate")}
           label={t("forms.work.field.hourly_rate")}
           error={errMsg(errors.hourlyRate)}
-          required={isFreelance}
+          required
           placeholder={t("forms.work.placeholder.hourly_rate")}
           hint={t("forms.work.hint.hourly_rate_freelance")}
+        />
+      )}
+
+      {isFreelance && freelanceMode === "fixed" && (
+        <MoneyInput
+          register={register("baseAmount")}
+          label={t("forms.work.field.fixed_amount")}
+          error={errMsg(errors.baseAmount)}
+          required
+          placeholder={t("forms.work.placeholder.fixed_amount")}
+          hint={t("forms.work.hint.fixed_amount_freelance")}
         />
       )}
 

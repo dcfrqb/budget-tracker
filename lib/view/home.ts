@@ -19,7 +19,7 @@ export type HomePlanFactCell = {
   plan: number;
   currency: string;   // "₽" / "+₽"
   sub: string;
-  color: "pos" | "info" | "acc";
+  color: "pos" | "neg" | "info" | "acc";
 };
 
 export type HomeObligationView = {
@@ -197,13 +197,13 @@ export function toHomeView(dashboard: HomeDashboard): HomeView {
     {
       code: "НЕТТО",
       kind: "net",
-      fact: netFact,
-      plan: netPlan,
-      currency: netFact >= 0 ? "+₽" : "₽",
+      fact: Math.abs(netFact),
+      plan: Math.abs(netPlan),
+      currency: netFact > 0 ? "+₽" : netFact < 0 ? "−₽" : "₽",
       sub: netPlan !== 0
-        ? `кон. мес ≈ ${netPlan >= 0 ? "+" : ""}${formatRubPrefix(new Prisma.Decimal(netPlan))}`
+        ? `кон. мес ≈ ${netPlan >= 0 ? "+" : "−"}${formatRubPrefix(new Prisma.Decimal(Math.abs(netPlan)))}`
         : "",
-      color: "acc",
+      color: netFact > 0 ? "pos" : netFact < 0 ? "neg" : "acc",
     },
   ];
 

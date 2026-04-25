@@ -132,6 +132,9 @@ export function TransferForm({
             : t("forms.transfer.title_edit")}
         </h1>
       )}
+      {variant === "page" && (
+        <p className="form-required-hint">{t("forms.common.required_hint")}</p>
+      )}
 
       {/* From account */}
       <AccountSelect

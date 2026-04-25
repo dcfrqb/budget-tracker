@@ -7,6 +7,7 @@ import { useServerActionForm } from "./use-server-action-form";
 import { accountCreateSchema, accountUpdateSchema } from "@/lib/validation/account";
 import { createAccountAction, updateAccountAction, archiveAccountAction } from "@/app/(shell)/wallet/actions";
 import { useT } from "@/lib/i18n";
+import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { CurrencySelect, type CurrencyOption } from "./currency-select";
 import { TextField } from "./primitives/text-field";
 import { TextareaField } from "./primitives/textarea-field";
@@ -115,6 +116,7 @@ export function AccountForm({
         kind: AccountKind.CARD,
         balance: "",
         includeInAnalytics: true,
+        currencyCode: DEFAULT_CURRENCY,
         ...initialValues,
       } as any,
       onSuccess: () => {
@@ -199,6 +201,9 @@ export function AccountForm({
         <h1 className="form-title">
           {mode === "create" ? t("forms.account.title_create") : t("forms.account.title_edit")}
         </h1>
+      )}
+      {variant === "page" && (
+        <p className="form-required-hint">{t("forms.common.required_hint")}</p>
       )}
 
       {/* Institution select */}

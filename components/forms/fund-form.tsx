@@ -13,6 +13,7 @@ import {
   updateFundAction,
 } from "@/app/(shell)/planning/funds/actions";
 import { useT } from "@/lib/i18n";
+import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { CurrencySelect, type CurrencyOption } from "./currency-select";
 import { TextField } from "./primitives/text-field";
 import { TextareaField } from "./primitives/textarea-field";
@@ -75,6 +76,7 @@ export function FundForm({
     {
       defaultValues: {
         kind: FundKind.OTHER,
+        currencyCode: DEFAULT_CURRENCY,
         ...initialValues,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any,
@@ -118,6 +120,9 @@ export function FundForm({
         <h1 className="form-title">
           {mode === "create" ? t("forms.fund.title_create") : t("forms.fund.title_edit")}
         </h1>
+      )}
+      {variant === "page" && (
+        <p className="form-required-hint">{t("forms.common.required_hint")}</p>
       )}
 
       {/* Kind */}

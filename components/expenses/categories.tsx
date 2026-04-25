@@ -1,3 +1,8 @@
+"use client";
+
+import Link from "next/link";
+import { useT } from "@/lib/i18n";
+
 export type ExpenseCategoryView = {
   id: string;
   name: string;
@@ -11,18 +16,25 @@ export type ExpenseCategoryView = {
 };
 
 export function ExpenseCategories({ categories }: { categories: ExpenseCategoryView[] }) {
+  const t = useT();
+
   return (
     <div className="section fade-in" style={{ animationDelay: "300ms" }}>
       <div className="section-hd">
         <div className="ttl mono">
-          <b>категории</b> <span className="dim">· текущий месяц</span>
+          <b>{t("expenses.category.section_title")}</b>{" "}
+          <span className="dim">· {t("expenses.category.section_meta")}</span>
         </div>
-        <div className="meta mono">по сумме</div>
+        <div className="meta mono">{t("expenses.category.section_sort")}</div>
       </div>
       <div className="section-body flush">
         <div className="cat-grid">
           {categories.map((c) => (
-            <div key={c.id} className="cat-card" tabIndex={0}>
+            <Link
+              key={c.id}
+              href={`/transactions?categoryId=${encodeURIComponent(c.id)}`}
+              className="cat-card"
+            >
               <div className="cat-top">
                 <div>
                   <div className="cat-name">{c.name}</div>
@@ -37,11 +49,14 @@ export function ExpenseCategories({ categories }: { categories: ExpenseCategoryV
                 <span>{c.usageLabel}</span>
                 <span>{c.total}</span>
               </div>
-            </div>
+            </Link>
           ))}
           {categories.length === 0 && (
-            <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
-              нет данных по категориям
+            <div
+              className="mono"
+              style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}
+            >
+              {t("expenses.category.empty")}
             </div>
           )}
         </div>

@@ -12,6 +12,7 @@ import {
   updateLongProjectAction,
 } from "@/app/(shell)/expenses/long-projects/actions";
 import { useT } from "@/lib/i18n";
+import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { CurrencySelect, type CurrencyOption } from "./currency-select";
 import { CategorySelect, type CategoryOption } from "./category-select";
 import { TextField } from "./primitives/text-field";
@@ -80,6 +81,7 @@ export function LongProjectForm({
     {
       defaultValues: {
         startDate: todayIso(),
+        currencyCode: DEFAULT_CURRENCY,
         ...initialValues,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any,
@@ -117,6 +119,9 @@ export function LongProjectForm({
             ? t("forms.long_project.title_create")
             : t("forms.long_project.title_edit")}
         </h1>
+      )}
+      {variant === "page" && (
+        <p className="form-required-hint">{t("forms.common.required_hint")}</p>
       )}
 
       {/* Name */}

@@ -305,6 +305,10 @@ export const enDict: RuDictShape = {
       usage_label: "{pct}% of total expenses",
       total_of: "of {total}",
       project_category: "category: {name}",
+      section_title: "categories",
+      section_meta: "current month",
+      section_sort: "by amount",
+      empty: "no category data",
     },
     badge: {
       personal: "Personal",
@@ -765,6 +769,7 @@ export const enDict: RuDictShape = {
       save: "Save",
       cancel: "Cancel",
       required: "Required field",
+      required_hint: "* — required fields",
       invalid_amount: "Invalid amount",
       invalid_date: "Invalid date",
       loading: "Loading...",
@@ -949,6 +954,8 @@ export const enDict: RuDictShape = {
         hours_per_month: "Hours per month",
         is_active: "Active",
         notes: "Notes",
+        freelance_mode: "Rate type",
+        fixed_amount: "Per-project amount",
       },
       kind: {
         employment: "Employment",
@@ -963,12 +970,18 @@ export const enDict: RuDictShape = {
         tax_rate: "6, 13...",
         hours_per_month: "160",
         notes: "Notes (optional)",
+        fixed_amount: "0",
       },
       hint: {
         hours_per_month: "Default 160 h/mo",
         tax_rate: "Hint only — manage taxes manually",
         base_amount_employment: "Net monthly salary",
         hourly_rate_freelance: "Hourly rate for calculations",
+        fixed_amount_freelance: "One-project cost, not broken down per hour",
+      },
+      freelance_mode: {
+        hourly: "Hourly",
+        fixed: "Fixed per project",
       },
     },
     tx_confirm: {

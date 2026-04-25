@@ -8,6 +8,7 @@ import { transactionCreateSchema } from "@/lib/validation/transaction";
 import type { TransactionCreateInput } from "@/lib/validation/transaction";
 import { createTransactionAction } from "@/app/(shell)/transactions/actions";
 import { useT } from "@/lib/i18n";
+import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { AccountSelect, type AccountOption } from "./account-select";
 import { CategorySelect, type CategoryOption } from "./category-select";
 import { CurrencySelect, type CurrencyOption } from "./currency-select";
@@ -95,6 +96,7 @@ export function TransactionForm({
     status: defaultStatus ?? TransactionStatus.DONE,
     occurredAt: todayIso(),
     scope: Scope.PERSONAL,
+    currencyCode: DEFAULT_CURRENCY,
     ...(defaultName ? { name: defaultName } : {}),
     ...initialValues,
   };
@@ -186,6 +188,9 @@ export function TransactionForm({
     <form onSubmit={submit} className="form-grid">
       {variant === "page" && (
         <h1 className="form-title">{title}</h1>
+      )}
+      {variant === "page" && (
+        <p className="form-required-hint">{t("forms.common.required_hint")}</p>
       )}
 
       {/* Kind — show when creating and no defaultKind */}

@@ -3,6 +3,7 @@ import type { HomePlanFactCell } from "@/lib/view/home";
 
 const BAR_COLOR = {
   pos:  "var(--pos)",
+  neg:  "var(--neg)",
   info: "var(--info)",
   acc:  "var(--accent)",
 } as const;
@@ -32,7 +33,7 @@ export function PlanFact({ cells }: { cells: HomePlanFactCell[] }) {
             return (
               <div className="pf-cell" key={cell.code}>
                 <div className={`code ${cell.kind} mono`}>{cell.code}</div>
-                <div className={`val ${cell.color} mono`}>
+                <div className="val mono" style={{ color: BAR_COLOR[cell.color] }}>
                   {cell.currency}{" "}
                   <CountUp to={cell.fact} />
                 </div>

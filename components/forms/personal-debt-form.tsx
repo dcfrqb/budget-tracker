@@ -12,6 +12,7 @@ import {
   updatePersonalDebtAction,
 } from "@/app/(shell)/transactions/personal-debts/actions";
 import { useT } from "@/lib/i18n";
+import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { CurrencySelect, type CurrencyOption } from "./currency-select";
 import { AccountSelect, type AccountOption } from "./account-select";
 import { TextField } from "./primitives/text-field";
@@ -82,6 +83,7 @@ export function PersonalDebtForm({
       defaultValues: {
         direction: "OUT",
         openedAt: todayIso(),
+        currencyCode: DEFAULT_CURRENCY,
         ...initialValues,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any,
@@ -124,6 +126,9 @@ export function PersonalDebtForm({
             ? t("forms.personal_debt.title_create")
             : t("forms.personal_debt.title_edit")}
         </h1>
+      )}
+      {variant === "page" && (
+        <p className="form-required-hint">{t("forms.common.required_hint")}</p>
       )}
 
       {/* Direction (create only) */}
