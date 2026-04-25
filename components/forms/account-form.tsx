@@ -420,7 +420,9 @@ export function AccountForm({
             {t("wallet.account.form.include_in_analytics.label")}
           </span>
         </label>
-        <div className="field-hint">{t("wallet.account.form.include_in_analytics.hint")}</div>
+        <InfoCallout tone="info" compact>
+          {t("wallet.account.form.include_in_analytics.hint")}
+        </InfoCallout>
       </div>
 
       <SubmitRow

@@ -3,6 +3,7 @@
 import React, { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n";
+import { InfoCallout } from "@/components/ui/info-callout";
 import { updateAccountAction, archiveAccountAction } from "@/app/(shell)/wallet/actions";
 
 export type CurrencyOption = { code: string; symbol: string };
@@ -126,7 +127,9 @@ export function CashEditForm({
               {t("wallet.account.form.include_in_analytics.label")}
             </span>
           </label>
-          <div className="field-hint">{t("wallet.account.form.include_in_analytics.hint")}</div>
+          <InfoCallout tone="info" compact>
+            {t("wallet.account.form.include_in_analytics.hint")}
+          </InfoCallout>
         </div>
 
         {error && (
