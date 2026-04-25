@@ -1,3 +1,6 @@
+import Link from "next/link";
+import { getT } from "@/lib/i18n/server";
+
 export type ExpectedRow = {
   id: string;
   date: string;
@@ -13,14 +16,25 @@ export type ExpectedRow = {
 
 const STATUS_CLASS = { confirmed: "st-confirmed", expected: "st-expected", await: "st-await" } as const;
 
-export function ExpectedIncome({ rows }: { rows: ExpectedRow[] }) {
+export async function ExpectedIncome({ rows }: { rows: ExpectedRow[] }) {
+  const t = await getT();
+
   return (
     <div className="section fade-in" style={{ animationDelay: "180ms" }}>
       <div className="section-hd">
         <div className="ttl mono">
-          <b>ожидаемые поступления</b> <span className="dim">· ближ. 90д</span>
+          <b>{t("income.expected.status_label").toLowerCase()}</b>{" "}
+          <span className="dim">· {t("income.expected.events_count", { vars: { count: String(rows.length) } })}</span>
         </div>
-        <div className="meta mono">{rows.length} событий</div>
+        <div className="meta mono">
+          <Link
+            href="/transactions/new?kind=INCOME&status=PLANNED"
+            className="btn primary"
+            style={{ padding: "3px 9px", fontSize: 10 }}
+          >
+            {t("income.expected.add")}
+          </Link>
+        </div>
       </div>
       <div className="section-body flush">
         {rows.map((e) => (
@@ -41,7 +55,7 @@ export function ExpectedIncome({ rows }: { rows: ExpectedRow[] }) {
         ))}
         {rows.length === 0 && (
           <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
-            нет запланированных поступлений
+            {t("income.expected.empty")}
           </div>
         )}
       </div>

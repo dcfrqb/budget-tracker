@@ -328,6 +328,12 @@ export const ruDict = {
     },
     subscriptions: {
       pageTitle: "подписки",
+      manage: "Управлять подписками",
+      totals: {
+        personal_label: "только ты",
+        split_label: "шеринг",
+        paid_for_others_label: "за других",
+      },
       summary: {
         activeCount: "{count} активно",
         monthly: "₽ {amount}/мес",
@@ -389,8 +395,27 @@ export const ruDict = {
       rate_sub_primary: "из основного источника",
       rate_sub_empty: "нет данных",
     },
+    work_sources: {
+      add: "+ Добавить источник",
+      empty: "Нет источников дохода — добавь работу или фриланс",
+    },
+    work: {
+      kind_label: {
+        employment: "Работа",
+        freelance: "Фриланс",
+        one_time: "Разовое",
+      },
+      tax: {
+        ndfl: "НДФЛ {pct}%",
+        szn: "Самозан. {pct}%",
+        none: "Без налога",
+      },
+    },
     expected: {
       status_label: "Ожидаемые",
+      empty: "Нет запланированных поступлений",
+      events_count: "{count} событий ближайших 90 дней",
+      add: "+ Запланировать поступление",
     },
     today: "сегодня",
     in_days: "+{n}д",
@@ -567,6 +592,10 @@ export const ruDict = {
 
   transactions: {
     debt_meta: "{count} активно · net",
+    toolbar: {
+      import_csv: "CSV Импорт",
+      import_csv_title: "Импорт транзакций из CSV",
+    },
     feed: {
       title: "лента",
       meta: "новые сверху",
@@ -640,6 +669,17 @@ export const ruDict = {
   },
 
   wallet: {
+    strip: {
+      group: "ГРУППА",
+      currency: "ВАЛЮТА",
+      group_all: "Все",
+      group_banks: "Банки",
+      group_crypto: "Крипто",
+      group_cash: "Наличка",
+      group_arch: "Архив",
+      currency_all: "Все",
+      day_progress: "д{day}/{days}",
+    },
     cash_meta: "{locations} локаций · {currencies} валют",
     add_account: {
       title: "Добавить новый счёт",
@@ -837,6 +877,7 @@ export const ruDict = {
         credit_limit_required: "Кредитный лимит обязателен",
         savings_rate_required: "Ставка обязательна для сберегательных счетов",
         cash_goes_through_cash_stash: "Наличка добавляется через раздел наличных, не через форму счёта",
+        balance_required: "Укажите начальный баланс",
       },
       field: {
         institution: "Банк / Организация",
@@ -844,6 +885,7 @@ export const ruDict = {
         kind: "Тип счёта",
         currency: "Валюта",
         balance: "Начальный баланс",
+        balance_required: "Стартовый баланс *",
         note: "Примечание",
       },
       kind: {
@@ -901,6 +943,9 @@ export const ruDict = {
     work: {
       title_create: "Новый источник дохода",
       title_edit: "Редактировать источник дохода",
+      delete: "Удалить источник",
+      delete_confirm: "Удалить этот источник дохода?",
+      delete_failed: "Не удалось удалить",
       field: {
         kind: "Тип",
         name: "Название / Работодатель",

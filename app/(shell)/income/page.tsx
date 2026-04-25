@@ -4,6 +4,7 @@ import { IncomeSignals } from "@/components/income/signals";
 import { IncomeStatusStrip } from "@/components/income/status-strip";
 import { OtherIncome } from "@/components/income/other-income";
 import { WorkSourcesSection } from "@/components/income/work-sources";
+import type { WorkSourceCardView } from "@/components/income/work-sources";
 import { DEFAULT_CURRENCY, HOURS_PER_MONTH_DEFAULT } from "@/lib/constants";
 import { getCurrentUserId } from "@/lib/api/auth";
 import { db } from "@/lib/db";
@@ -11,9 +12,20 @@ import { getActiveWorkSources } from "@/lib/data/work-sources";
 import { getLatestRatesMap, convertToBase } from "@/lib/data/wallet";
 import { getT } from "@/lib/i18n/server";
 import { Prisma, TransactionKind, TransactionStatus } from "@prisma/client";
-import { formatRubPrefix } from "@/lib/format/money";
+import { formatAmount, formatRubPrefix } from "@/lib/format/money";
 import type { ExpectedRow } from "@/components/income/expected";
 import type { OtherIncomeRow } from "@/components/income/other-income";
+
+const CCY_SHAPES: Record<string, { code: string; symbol: string; decimals: number }> = {
+  RUB: { code: "RUB", symbol: "₽", decimals: 2 },
+  USD: { code: "USD", symbol: "$", decimals: 2 },
+  EUR: { code: "EUR", symbol: "€", decimals: 2 },
+};
+
+function fmtWorkMoney(amount: Prisma.Decimal, ccy: string): string {
+  const shape = CCY_SHAPES[ccy] ?? { code: ccy, symbol: ccy, decimals: 2 };
+  return formatAmount(amount, shape);
+}
 
 export const dynamic = "force-dynamic";
 
@@ -133,6 +145,49 @@ export default async function IncomePage({
     }
   }
 
+  // Map WorkSource records → WorkSourceCardView
+  const workSourceViews: WorkSourceCardView[] = workSources.map(ws => {
+    const kindLabel =
+      ws.kind === "EMPLOYMENT"
+        ? t("income.work.kind_label.employment")
+        : ws.kind === "FREELANCE"
+        ? t("income.work.kind_label.freelance")
+        : t("income.work.kind_label.one_time");
+
+    let taxLabel: string | undefined;
+    if (ws.taxRatePct) {
+      const pct = new Prisma.Decimal(ws.taxRatePct).toFixed(0);
+      // Heuristic: 6% → self-employed / Самозанятый; 13% → NDFL; others → plain %
+      if (ws.taxRatePct.equals(6)) {
+        taxLabel = t("income.work.tax.szn", { vars: { pct } });
+      } else if (ws.taxRatePct.equals(13)) {
+        taxLabel = t("income.work.tax.ndfl", { vars: { pct } });
+      } else {
+        taxLabel = `${pct}%`;
+      }
+    } else {
+      taxLabel = t("income.work.tax.none");
+    }
+
+    return {
+      id: ws.id,
+      kind: ws.kind as WorkSourceCardView["kind"],
+      kindLabel,
+      name: ws.name,
+      sub: ws.note ?? undefined,
+      currencyCode: ws.currencyCode,
+      baseAmount: ws.baseAmount
+        ? fmtWorkMoney(new Prisma.Decimal(ws.baseAmount), ws.currencyCode)
+        : undefined,
+      hourlyRate: ws.hourlyRate
+        ? fmtWorkMoney(new Prisma.Decimal(ws.hourlyRate), ws.currencyCode) + "/h"
+        : undefined,
+      payDay: ws.payDay,
+      taxLabel,
+      isActive: ws.isActive,
+    };
+  });
+
   // Active sources count
   const sourceCount = workSources.length;
 
@@ -236,7 +291,7 @@ export default async function IncomePage({
     <>
       <IncomeStatusStrip />
       <IncomeKpiRow kpi={kpi} />
-      {(activeTab === "sources") && <WorkSourcesSection />}
+      {(activeTab === "sources") && <WorkSourcesSection items={workSourceViews} />}
       {(activeTab === "expected") && <ExpectedIncome rows={expectedRows} />}
       {(activeTab === "other") && <OtherIncome rows={otherIncomeRows} />}
       {(activeTab === "sources") && <IncomeSignals signals={[]} />}

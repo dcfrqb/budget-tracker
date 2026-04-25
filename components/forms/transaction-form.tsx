@@ -53,6 +53,7 @@ export interface TransactionFormProps {
   personalDebts?: SimpleOption[];
   plannedEvents?: SimpleOption[];
   defaultKind?: TransactionKind;
+  defaultStatus?: TransactionStatus;
   /** Pre-fill the Name/Description field (e.g. from one-liner quick input) */
   defaultName?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -78,6 +79,7 @@ export function TransactionForm({
   workSources,
   plannedEvents,
   defaultKind,
+  defaultStatus,
   defaultName,
   initialValues,
   onSuccess,
@@ -90,7 +92,7 @@ export function TransactionForm({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const defaultValues: Record<string, any> = {
     kind: effectiveKind,
-    status: TransactionStatus.DONE,
+    status: defaultStatus ?? TransactionStatus.DONE,
     occurredAt: todayIso(),
     scope: Scope.PERSONAL,
     ...(defaultName ? { name: defaultName } : {}),

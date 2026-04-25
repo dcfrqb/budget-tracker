@@ -1,114 +1,115 @@
-export function WorkSourcesSection() {
+import Link from "next/link";
+import { getT } from "@/lib/i18n/server";
+
+export interface WorkSourceCardView {
+  id: string;
+  kind: "EMPLOYMENT" | "FREELANCE" | "ONE_TIME";
+  kindLabel: string;
+  name: string;
+  sub?: string;
+  currencyCode: string;
+  baseAmount?: string;
+  hourlyRate?: string;
+  payDay?: number | null;
+  taxLabel?: string;
+  isActive: boolean;
+}
+
+const KIND_TAG_CLASS: Record<WorkSourceCardView["kind"], string> = {
+  EMPLOYMENT: "ws-tag emp",
+  FREELANCE:  "ws-tag fl",
+  ONE_TIME:   "ws-tag other",
+};
+
+interface WorkSourcesSectionProps {
+  items: WorkSourceCardView[];
+}
+
+export async function WorkSourcesSection({ items }: WorkSourcesSectionProps) {
+  const t = await getT();
+
   return (
     <div className="section fade-in" style={{ animationDelay: "120ms" }}>
       <div className="section-hd">
         <div className="ttl mono">
-          <b>источники дохода</b> <span className="dim">· работа + фриланс</span>
+          <b>{t("settings.work_sources_summary.section_title")}</b>
+          <span className="dim"> · {items.length}</span>
         </div>
         <div className="meta mono">
-          <button type="button" className="btn primary" style={{ padding: "3px 9px", fontSize: 10 }}>
-            + Добавить источник
-          </button>
+          <Link
+            href="/income/work-sources/new"
+            className="btn primary"
+            style={{ padding: "3px 9px", fontSize: 10 }}
+          >
+            {t("income.work_sources.add")}
+          </Link>
         </div>
       </div>
       <div className="section-body flush">
-        <div className="ws-grid">
-          <article className="ws-card" tabIndex={0}>
-            <div className="ws-top">
-              <span className="ws-tag emp">Работа</span>
-              <span className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>с 2023-09-01</span>
-            </div>
-            <div className="ws-title">
-              Acme Robotics ООО
-              <div className="sub">Старший продукт-дизайнер · зп 10-го</div>
-            </div>
-            <div className="ws-meta">
-              <div><div className="k">Чистая зп</div><div className="v pos">₽ 120 000 /мес</div></div>
-              <div><div className="k">Налог</div><div className="v">НДФЛ 13%</div></div>
-              <div><div className="k">Премии</div><div className="v">квартально · плав.</div></div>
-              <div><div className="k">Отпуск / больн.</div><div className="v">28д / опл.</div></div>
-            </div>
-            <div className="ws-footer">
-              <span className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>
-                след: <b style={{ color: "var(--text)" }}>10 мая · ₽ 120 000</b>
-              </span>
-              <span className="ws-amt pos">₽ 120 000</span>
-            </div>
-          </article>
-
-          <article className="ws-card" tabIndex={0}>
-            <div className="ws-top">
-              <span className="ws-tag fl">Фриланс</span>
-              <span className="mono" style={{ fontSize: 10, color: "var(--warn)" }}>активно · этап 2/3</span>
-            </div>
-            <div className="ws-title">
-              Hatch · редизайн онбординга
-              <div className="sub">проект-контракт · счета EUR</div>
-            </div>
-            <div className="ws-meta">
-              <div><div className="k">Сумма</div><div className="v">€ 3 600</div></div>
-              <div><div className="k">Налог</div><div className="v">Самозан. 6%</div></div>
-              <div><div className="k">В час ≈</div><div className="v">€ 60 / h</div></div>
-              <div><div className="k">Сдать до</div><div className="v">31 мая 2026</div></div>
-            </div>
-            <div className="stages">
-              <div className="stage done"><div className="n">Старт</div><div className="a">€ 1200</div></div>
-              <div className="stage active"><div className="n">Сред · частично</div><div className="a">€ 1200</div></div>
-              <div className="stage pending"><div className="n">Финал</div><div className="a">€ 1200</div></div>
-            </div>
-            <div className="ws-footer">
-              <span className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>
-                ожидает: <b style={{ color: "var(--warn)" }}>€ 1 200</b> · сред. этап
-              </span>
-              <span className="ws-amt acc">€ 1 200</span>
-            </div>
-          </article>
-
-          <article className="ws-card" tabIndex={0}>
-            <div className="ws-top">
-              <span className="ws-tag fl">Фриланс</span>
-              <span className="mono" style={{ fontSize: 10, color: "var(--pos)" }}>завершено · оплачено</span>
-            </div>
-            <div className="ws-title">
-              Acme Design Sprint
-              <div className="sub">фикс · один счёт</div>
-            </div>
-            <div className="ws-meta">
-              <div><div className="k">Сумма</div><div className="v">₽ 45 000</div></div>
-              <div><div className="k">Подск. налог</div><div className="v acc">₽ 2 700 · 6%</div></div>
-              <div><div className="k">Оплачено</div><div className="v">18 апр 2026</div></div>
-              <div><div className="k">Статус</div><div className="v pos">Выполнено</div></div>
-            </div>
-            <div className="ws-footer">
-              <span className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>
-                получено · налог не проводится авто
-              </span>
-              <span className="ws-amt pos">₽ 45 000</span>
-            </div>
-          </article>
-
-          <article className="ws-card add" tabIndex={0}>
-            <div>
-              <div className="plus">+</div>
-              <div className="mono" style={{ fontSize: 11, color: "var(--text)" }}>новый источник</div>
-              <div className="mono" style={{ fontSize: 10, color: "var(--dim)", marginTop: 4 }}>
-                работа · фриланс · разовый
+        {items.length === 0 ? (
+          <div className="ws-grid">
+            <article className="ws-card add" tabIndex={0} style={{ gridColumn: "1 / -1" }}>
+              <div style={{ textAlign: "center" }}>
+                <div className="plus">+</div>
+                <div className="mono" style={{ fontSize: 12, color: "var(--muted)", marginBottom: 8 }}>
+                  {t("income.work_sources.empty")}
+                </div>
+                <Link
+                  href="/income/work-sources/new"
+                  className="btn primary"
+                  style={{ fontSize: 11, padding: "5px 14px" }}
+                >
+                  {t("income.work_sources.add")}
+                </Link>
               </div>
-              <div style={{ display: "flex", gap: 6, marginTop: 12, justifyContent: "center" }}>
-                <button type="button" className="btn" style={{ fontSize: 10, padding: "4px 10px" }}>Работа</button>
-                <button type="button" className="btn" style={{ fontSize: 10, padding: "4px 10px" }}>Фриланс</button>
-              </div>
-            </div>
-          </article>
-        </div>
-      </div>
-      <div className="tax-hint">
-        <div className="l">
-          <div className="t">Подск. налог · self-employed 6% on April freelance income</div>
-          <div className="s">посч. с ₽ 188 400 · не транзакция · плати когда сдашь</div>
-        </div>
-        <div className="v">₽ 11 304 <span className="u">≈ 6%</span></div>
-        <button type="button" className="btn primary">Создать напоминание</button>
+            </article>
+          </div>
+        ) : (
+          <div className="ws-grid">
+            {items.map((src) => (
+              <Link
+                key={src.id}
+                href={`/income/work-sources/${src.id}/edit`}
+                className="ws-card"
+                tabIndex={0}
+                style={{ display: "flex", flexDirection: "column", gap: 10, textDecoration: "none" }}
+              >
+                <div className="ws-top" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span className={KIND_TAG_CLASS[src.kind]}>{src.kindLabel}</span>
+                  {src.payDay != null && (
+                    <span className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>
+                      {src.payDay}
+                    </span>
+                  )}
+                </div>
+                <div className="ws-title">
+                  {src.name}
+                  {src.sub && <div className="sub">{src.sub}</div>}
+                </div>
+                <div className="ws-meta">
+                  {src.baseAmount && (
+                    <div>
+                      <div className="k">{src.currencyCode}</div>
+                      <div className="v pos">{src.baseAmount}</div>
+                    </div>
+                  )}
+                  {src.hourlyRate && (
+                    <div>
+                      <div className="k">/h</div>
+                      <div className="v acc">{src.hourlyRate}</div>
+                    </div>
+                  )}
+                  {src.taxLabel && (
+                    <div>
+                      <div className="k">tax</div>
+                      <div className="v">{src.taxLabel}</div>
+                    </div>
+                  )}
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

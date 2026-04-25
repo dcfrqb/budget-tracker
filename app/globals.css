@@ -492,6 +492,34 @@ a { color: inherit; text-decoration: none; }
 }
 .signal .body b { color: var(--text); font-weight: 500; }
 
+/* ── INFO CALLOUT (§6.10 signals — soft hints) ─────────────────── */
+.info-callout {
+  display: flex; align-items: flex-start; gap: var(--sp-2, 8px);
+  padding: var(--sp-3, 12px) var(--sp-4, 16px);
+  background: var(--panel-2);
+  border-left: 2px solid var(--callout-accent, var(--info));
+}
+.info-callout[data-compact] {
+  padding: var(--sp-2, 8px) var(--sp-3, 12px);
+}
+.info-callout__icon {
+  flex-shrink: 0;
+  color: var(--callout-accent, var(--info));
+  font-size: 11px; line-height: 1.4;
+}
+.info-callout__body {
+  font-family: var(--mono-font), monospace;
+  font-size: 11px; line-height: 1.4;
+  color: var(--muted);
+}
+.info-callout__body b { color: var(--text); font-weight: 500; }
+
+/* tone variants via --callout-accent */
+.info-callout--info    { --callout-accent: var(--info); }
+.info-callout--tax     { --callout-accent: var(--tax); }
+.info-callout--warn    { --callout-accent: var(--warn); }
+.info-callout--neutral { --callout-accent: var(--dim); }
+
 /* ── SUMMARY RAIL ───────────────────────────────────────────────── */
 .summary-rail {
   background: var(--panel); border-left: 1px solid var(--border);

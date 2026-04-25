@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useLocale, useT } from "@/lib/i18n";
 import { QuickInput, type CategoryOption } from "@/components/transactions/quick-input";
 
@@ -126,6 +127,26 @@ export function TxnToolbar({
             {c.label}
           </button>
         ))}
+        {/* CSV Import link */}
+        <Link
+          href="/transactions/import"
+          className="btn"
+          title={t("transactions.toolbar.import_csv_title")}
+        >
+          <svg
+            viewBox="0 0 15 15"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M2 3h11v3H2z" />
+            <path d="M2 9h11v3H2z" />
+            <path d="M4.5 4.5h.01M4.5 10.5h.01" />
+          </svg>
+          {t("transactions.toolbar.import_csv")}
+        </Link>
         {/* Quick one-liner toggle */}
         <button
           type="button"

@@ -1,4 +1,4 @@
-import { TransactionKind } from "@prisma/client";
+import { TransactionKind, TransactionStatus } from "@prisma/client";
 import { getCurrentUserId } from "@/lib/api/auth";
 import { getCategories } from "@/lib/data/categories";
 import { getActiveWorkSources } from "@/lib/data/work-sources";
@@ -9,7 +9,7 @@ import { getT } from "@/lib/i18n/server";
 export const dynamic = "force-dynamic";
 
 interface Props {
-  searchParams: Promise<{ kind?: string; description?: string }>;
+  searchParams: Promise<{ kind?: string; description?: string; status?: string }>;
 }
 
 export default async function NewTransactionPage({ searchParams }: Props) {
@@ -22,6 +22,13 @@ export default async function NewTransactionPage({ searchParams }: Props) {
   const kind =
     rawKind && Object.values(TransactionKind).includes(rawKind as TransactionKind)
       ? (rawKind as TransactionKind)
+      : undefined;
+
+  // Resolve status from query param
+  const rawStatus = sp.status?.toUpperCase();
+  const status =
+    rawStatus && Object.values(TransactionStatus).includes(rawStatus as TransactionStatus)
+      ? (rawStatus as TransactionStatus)
       : undefined;
 
   // Pre-filled description from one-liner quick input
@@ -59,6 +66,7 @@ export default async function NewTransactionPage({ searchParams }: Props) {
         currencies={currencies.map((c) => ({ code: c.code, symbol: c.symbol }))}
         workSources={workSources.map((w) => ({ id: w.id, name: w.name }))}
         defaultKind={kind}
+        defaultStatus={status}
         defaultName={prefillDescription}
       />
     </div>

@@ -1,44 +1,72 @@
 "use client";
 
-import { useState } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Segmented } from "@/components/segmented";
+import { useT } from "@/lib/i18n";
 
-const RU_MONTHS_SHORT = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
-const now = new Date();
-const MONTH_LABEL = `${RU_MONTHS_SHORT[now.getMonth()]} ${now.getFullYear()}`;
-const MONTH_DAY = now.getDate();
-const MONTH_DAYS = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+export type WalletGroup = "all" | "banks" | "crypto" | "cash" | "arch";
 
-const GROUPS = [
-  { id: "all"    as const, label: "Все" },
-  { id: "banks"  as const, label: "Банки" },
-  { id: "crypto" as const, label: "Крипто" },
-  { id: "cash"   as const, label: "Наличка" },
-  { id: "arch"   as const, label: "Архив" },
-];
+export type WalletStripProps = {
+  /** Unique currency codes present across all user accounts (sorted). */
+  currencies: string[];
+  /** Month label e.g. "апр 2026" — computed server-side so it doesn't freeze on build. */
+  monthLabel: string;
+  /** Day-of-month progress string e.g. "д14/30" — pre-formatted server-side. */
+  dayProgress: string;
+};
 
-const CCY = [
-  { id: "all" as const, label: "Все" },
-  { id: "RUB" as const, label: "RUB" },
-  { id: "USD" as const, label: "USD" },
-  { id: "EUR" as const, label: "EUR" },
-];
+export function WalletStatusStrip({ currencies, monthLabel, dayProgress }: WalletStripProps) {
+  const t = useT();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
-type Group = (typeof GROUPS)[number]["id"];
-type Ccy = (typeof CCY)[number]["id"];
+  const currentGroup = (searchParams.get("group") ?? "all") as WalletGroup;
+  const currentCcy = searchParams.get("ccy") ?? "all";
 
-export function WalletStatusStrip() {
-  const [group, setGroup] = useState<Group>("all");
-  const [ccy, setCcy] = useState<Ccy>("all");
+  function setGroup(value: WalletGroup) {
+    const next = new URLSearchParams(searchParams.toString());
+    if (value === "all") {
+      next.delete("group");
+    } else {
+      next.set("group", value);
+    }
+    const qs = next.toString();
+    router.push(`${pathname}${qs ? `?${qs}` : ""}`);
+  }
+
+  function setCcy(value: string) {
+    const next = new URLSearchParams(searchParams.toString());
+    if (value === "all") {
+      next.delete("ccy");
+    } else {
+      next.set("ccy", value);
+    }
+    const qs = next.toString();
+    router.push(`${pathname}${qs ? `?${qs}` : ""}`);
+  }
+
+  const groupOptions = [
+    { id: "all" as const, label: t("wallet.strip.group_all") },
+    { id: "banks" as const, label: t("wallet.strip.group_banks") },
+    { id: "crypto" as const, label: t("wallet.strip.group_crypto") },
+    { id: "cash" as const, label: t("wallet.strip.group_cash") },
+    { id: "arch" as const, label: t("wallet.strip.group_arch") },
+  ];
+
+  const ccyOptions = [
+    { id: "all", label: t("wallet.strip.currency_all") },
+    ...currencies.map((code) => ({ id: code, label: code })),
+  ];
+
   return (
     <div className="status-strip fade-in" style={{ animationDelay: "0ms" }}>
-      <span className="lbl">ГРУППА</span>
-      <Segmented options={GROUPS} value={group} onChange={setGroup} />
-      <span className="lbl">ВАЛЮТА</span>
-      <Segmented options={CCY} value={ccy} onChange={setCcy} />
+      <span className="lbl">{t("wallet.strip.group")}</span>
+      <Segmented options={groupOptions} value={currentGroup} onChange={setGroup} />
+      <span className="lbl">{t("wallet.strip.currency")}</span>
+      <Segmented options={ccyOptions} value={currentCcy} onChange={setCcy} />
       <div className="clock-right">
-        <span>{MONTH_LABEL} · <b>д{MONTH_DAY}/{MONTH_DAYS}</b></span>
-        <span>синхр <b>2с назад</b></span>
+        <span>{monthLabel} · <b>{dayProgress}</b></span>
       </div>
     </div>
   );

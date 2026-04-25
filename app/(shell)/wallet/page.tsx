@@ -3,11 +3,11 @@ import { Archive } from "@/components/wallet/archive";
 import { CashStashSection } from "@/components/wallet/cash-stash";
 import { FxRates } from "@/components/wallet/fx-rates";
 import { Institutions } from "@/components/wallet/institutions";
-import { WalletStatusStrip } from "@/components/wallet/status-strip";
+import { WalletStatusStrip, type WalletGroup } from "@/components/wallet/status-strip";
 import { WalletTotals } from "@/components/wallet/totals";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { getCurrentUserId } from "@/lib/api/auth";
-import { getT } from "@/lib/i18n/server";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { db } from "@/lib/db";
 import {
   getArchivedAccounts,
@@ -16,6 +16,8 @@ import {
   getInstitutionsWithAccounts,
   getLatestRatesMap,
   getWalletTotals,
+  type InstitutionWithAccounts,
+  type AccountWithCurrency,
 } from "@/lib/data/wallet";
 import {
   toArchivedView,
@@ -28,8 +30,97 @@ import { fetchCbrRates, getCbrAvailableCodes } from "@/lib/fx/cbr-fetcher";
 
 export const dynamic = "force-dynamic";
 
-export default async function WalletPage() {
-  const [userId, t] = await Promise.all([getCurrentUserId(), getT()]);
+// ── Filter helpers ──────────────────────────────────────────────────────────
+
+function filterInstitutionsByGroup(
+  institutions: InstitutionWithAccounts[],
+  group: WalletGroup,
+): InstitutionWithAccounts[] {
+  if (group === "all" || group === "cash" || group === "arch") return institutions;
+  if (group === "banks") return institutions.filter((i) => i.kind === "BANK");
+  if (group === "crypto") return institutions.filter((i) => i.kind === "CRYPTO");
+  return institutions;
+}
+
+function filterAccountsByCcy<T extends { currencyCode: string }>(
+  accounts: T[],
+  ccy: string,
+): T[] {
+  if (ccy === "all") return accounts;
+  return accounts.filter((a) => a.currencyCode === ccy);
+}
+
+function filterInstitutionsByCcy(
+  institutions: InstitutionWithAccounts[],
+  ccy: string,
+): InstitutionWithAccounts[] {
+  if (ccy === "all") return institutions;
+  return institutions
+    .map((inst) => ({
+      ...inst,
+      accounts: inst.accounts.filter((a) => a.currencyCode === ccy),
+    }))
+    .filter((inst) => inst.accounts.length > 0);
+}
+
+// ── Collect unique currencies from all accounts ────────────────────────────
+
+function collectCurrencies(
+  institutions: InstitutionWithAccounts[],
+  cashAccounts: AccountWithCurrency[],
+  archivedAccounts: AccountWithCurrency[],
+): string[] {
+  const codes = new Set<string>();
+  for (const inst of institutions) {
+    for (const acc of inst.accounts) codes.add(acc.currencyCode);
+  }
+  for (const acc of cashAccounts) codes.add(acc.currencyCode);
+  for (const acc of archivedAccounts) codes.add(acc.currencyCode);
+  return [...codes].sort();
+}
+
+// ── Month / day progress helpers ───────────────────────────────────────────
+
+function buildMonthLabel(locale: string): string {
+  const now = new Date();
+  return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "ru-RU", {
+    month: "short",
+    year: "numeric",
+  }).format(now);
+}
+
+function buildDayProgress(dayKey: string): string {
+  const now = new Date();
+  const day = now.getDate();
+  const days = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  return dayKey.replace("{day}", String(day)).replace("{days}", String(days));
+}
+
+// ── Page ───────────────────────────────────────────────────────────────────
+
+export default async function WalletPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ group?: string; ccy?: string }>;
+}) {
+  const [userId, t, locale, params] = await Promise.all([
+    getCurrentUserId(),
+    getT(),
+    getLocale(),
+    searchParams,
+  ]);
+
+  // Parse filter params
+  const rawGroup = params.group;
+  const group: WalletGroup =
+    rawGroup === "banks" ||
+    rawGroup === "crypto" ||
+    rawGroup === "cash" ||
+    rawGroup === "arch"
+      ? rawGroup
+      : "all";
+  const ccy = typeof params.ccy === "string" && params.ccy !== "" ? params.ccy : "all";
+
   const [institutions, cashAccounts, archivedAccounts, totals, rates, currencies, budgetSettings] =
     await Promise.all([
       getInstitutionsWithAccounts(userId),
@@ -60,21 +151,40 @@ export default async function WalletPage() {
     cbrAvailableCodes = currencies.map((c) => c.code);
   }
 
+  // ── Build strip props (before filtering so currencies reflect full set) ──
+  const stripCurrencies = collectCurrencies(institutions, cashAccounts, archivedAccounts);
+  const monthLabel = buildMonthLabel(locale);
+  const dayProgress = buildDayProgress(t("wallet.strip.day_progress"));
+
+  // ── Apply filters ─────────────────────────────────────────────────────────
+  const filteredInstitutions = filterInstitutionsByCcy(
+    filterInstitutionsByGroup(institutions, group),
+    ccy,
+  );
+  const filteredCash = filterAccountsByCcy(cashAccounts, ccy);
+  const filteredArchived = filterAccountsByCcy(archivedAccounts, ccy);
+
+  // Decide visibility of sections based on group
+  const showInstitutions = group === "all" || group === "banks" || group === "crypto";
+  const showCash = group === "all" || group === "cash";
+  const showAddAccountCta = group === "all" || group === "banks" || group === "crypto";
+  const showArchive = group === "all" || group === "arch";
+
+  // ── Views ────────────────────────────────────────────────────────────────
   const totalsView = toWalletTotalsView(totals);
   const fxView = fxRows.map(toFxRateView);
-  const instViews = institutions.map((i) =>
+  const instViews = filteredInstitutions.map((i) =>
     toInstitutionView(i, rates, DEFAULT_CURRENCY, totals.net.valueBase),
   );
-
-  const cashView = cashAccounts.map((a) =>
+  const cashView = filteredCash.map((a) =>
     toCashStashView(a, rates, DEFAULT_CURRENCY),
   );
-  const archivedView = archivedAccounts.map(toArchivedView);
+  const archivedView = filteredArchived.map(toArchivedView);
 
-  const cashCcyCount = new Set(cashAccounts.map((a) => a.currencyCode)).size;
+  const cashCcyCount = new Set(filteredCash.map((a) => a.currencyCode)).size;
   const cashMeta = t("wallet.cash_meta", {
     vars: {
-      locations: String(cashAccounts.length),
+      locations: String(filteredCash.length),
       currencies: String(cashCcyCount),
     },
   });
@@ -83,22 +193,28 @@ export default async function WalletPage() {
 
   return (
     <>
-      <WalletStatusStrip />
+      <WalletStatusStrip
+        currencies={stripCurrencies}
+        monthLabel={monthLabel}
+        dayProgress={dayProgress}
+      />
       <WalletTotals totals={totalsView} />
       <FxRates
         rates={fxView}
         currencies={currencyOptions}
         cbrAvailableCodes={cbrAvailableCodes}
       />
-      <Institutions institutions={instViews} />
-      <AddAccountCta />
-      <CashStashSection
-        stash={cashView}
-        meta={cashMeta}
-        currencies={currencyOptions}
-        primaryCurrency={primaryCurrency}
-      />
-      <Archive items={archivedView} />
+      {showInstitutions && <Institutions institutions={instViews} />}
+      {showAddAccountCta && <AddAccountCta />}
+      {showCash && (
+        <CashStashSection
+          stash={cashView}
+          meta={cashMeta}
+          currencies={currencyOptions}
+          primaryCurrency={primaryCurrency}
+        />
+      )}
+      {showArchive && <Archive items={archivedView} />}
     </>
   );
 }

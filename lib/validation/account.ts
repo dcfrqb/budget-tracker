@@ -33,9 +33,31 @@ const baseAccountSchema = z.object({
 
 // ─────────────────────────────────────────────────────────────
 // Create schema with superRefine validation
+// (balance is required on create — not optional like in base)
 // ─────────────────────────────────────────────────────────────
 
-export const accountCreateSchema = baseAccountSchema.superRefine((data, ctx) => {
+// balance on create: accept any string so superRefine can emit the right error code
+// before zMoney's regex fires on empty input.
+const baseAccountCreateSchema = baseAccountSchema.extend({
+  balance: z.string(),
+});
+
+export const accountCreateSchema = baseAccountCreateSchema.superRefine((data, ctx) => {
+  const balStr = typeof data.balance === "string" ? data.balance.trim() : "";
+  if (!balStr) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "balance_required",
+      path: ["balance"],
+    });
+  } else if (!/^-?\d+(\.\d{1,8})?$/.test(balStr)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "invalid money value",
+      path: ["balance"],
+    });
+  }
+
   if (data.kind === AccountKind.CREDIT) {
     if (!data.creditRatePct) {
       ctx.addIssue({

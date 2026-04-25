@@ -15,6 +15,7 @@ import { SelectField } from "./primitives/select-field";
 import { SubmitRow } from "./primitives/submit-row";
 import { z } from "zod";
 import type { ActionResult } from "@/lib/actions/result";
+import { InfoCallout } from "@/components/ui/info-callout";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function errMsg(e: any): string | undefined {
@@ -29,6 +30,7 @@ const ACCOUNT_ERROR_CODES = new Set([
   "credit_limit_required",
   "savings_rate_required",
   "cash_goes_through_cash_stash",
+  "balance_required",
 ]);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -111,7 +113,7 @@ export function AccountForm({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       defaultValues: {
         kind: AccountKind.CARD,
-        balance: "0",
+        balance: "",
         includeInAnalytics: true,
         ...initialValues,
       } as any,
@@ -253,6 +255,17 @@ export function AccountForm({
         placeholder={t("forms.account.placeholder.name")}
       />
 
+      {/* Starting balance — only on create, full-width primary field */}
+      {mode === "create" && (
+        <MoneyInput
+          register={register("balance")}
+          label={t("forms.account.field.balance_required")}
+          error={accErrMsg(errors.balance)}
+          inputClassName="money-input--leading"
+          required
+        />
+      )}
+
       {/* Account kind */}
       <SelectField
         register={register("kind")}
@@ -271,27 +284,15 @@ export function AccountForm({
         required
       />
 
-      {/* Starting balance — only on create */}
-      {mode === "create" && (
-        <>
-          <MoneyInput
-            register={register("balance")}
-            label={t("forms.account.field.balance")}
-            error={errMsg(errors.balance)}
-            inputClassName="money-input--leading"
-          />
-          {isCredit && (
-            <p className="form-hint mono dim" style={{ fontSize: "var(--text-xs)", marginTop: "calc(-1 * var(--sp-2))" }}>
-              {t("forms.account.credit.balance_hint")}
-            </p>
-          )}
-        </>
-      )}
-
       {/* ── CREDIT conditional fields (D6) ── */}
       {isCredit && (
         <div className="form-indent">
           <p className="form-section-label">{t("forms.account.kind.credit")}</p>
+          {mode === "create" && (
+            <InfoCallout tone="info" compact>
+              {t("forms.account.credit.balance_hint")}
+            </InfoCallout>
+          )}
           <MoneyInput
             register={register("creditRatePct")}
             label={t("wallet.account.form.credit.rate")}

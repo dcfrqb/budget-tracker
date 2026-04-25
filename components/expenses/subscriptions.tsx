@@ -1,3 +1,6 @@
+import Link from "next/link";
+import { getT } from "@/lib/i18n/server";
+
 export type SubSummaryItem = {
   id: string;
   icon: string;
@@ -13,7 +16,6 @@ export type SubSummaryItem = {
   shareTone?: "muted" | "acc";
   next: string;
   nextTone: "warn" | "ok";
-  primaryLabel?: string;
 };
 
 export type SubsMonthlyTotals = {
@@ -23,30 +25,46 @@ export type SubsMonthlyTotals = {
   total: string;
 };
 
-export function Subscriptions({
+export async function Subscriptions({
   items,
   totals,
 }: {
   items: SubSummaryItem[];
   totals?: SubsMonthlyTotals;
 }) {
+  const t = await getT();
+
   return (
     <div className="section fade-in" style={{ animationDelay: "180ms" }}>
       <div className="section-hd">
         <div className="ttl mono">
-          <b>подписки</b> <span className="dim">· {items.length} активно</span>
+          <b>{t("expenses.subscriptions.pageTitle")}</b>{" "}
+          <span className="dim">· {items.length}</span>
         </div>
-        <div className="meta mono">
+        <div className="meta mono" style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {totals && (
             <>
-              <span style={{ color: "var(--muted)" }}>только ты {totals.personal}</span> ·{" "}
-              <span style={{ color: "var(--info)" }}>шеринг {totals.split}</span> ·{" "}
-              <span style={{ color: "var(--accent)" }}>за других {totals.paidForOthers}</span>
+              <span style={{ color: "var(--muted)" }}>
+                {t("expenses.subscriptions.totals.personal_label")} {totals.personal}
+              </span>
+              {" · "}
+              <span style={{ color: "var(--info)" }}>
+                {t("expenses.subscriptions.totals.split_label")} {totals.split}
+              </span>
+              {" · "}
+              <span style={{ color: "var(--accent)" }}>
+                {t("expenses.subscriptions.totals.paid_for_others_label")} {totals.paidForOthers}
+              </span>
+              {" · "}
             </>
           )}
-          <button type="button" className="btn primary" style={{ padding: "3px 9px", fontSize: 10, marginLeft: 10 }}>
-            + Добавить
-          </button>
+          <Link
+            href="/expenses/subscriptions"
+            className="btn"
+            style={{ padding: "3px 9px", fontSize: 10 }}
+          >
+            {t("expenses.subscriptions.manage")} →
+          </Link>
         </div>
       </div>
       <div className="section-body flush">
@@ -68,22 +86,26 @@ export function Subscriptions({
                 <span className="sub-amt">
                   {s.amount}
                   {s.share && (
-                    <span className="mono" style={{ color: s.shareTone === "acc" ? "var(--accent)" : "var(--muted)", fontSize: 11, fontWeight: 400, marginLeft: 5 }}>
+                    <span
+                      className="mono"
+                      style={{
+                        color: s.shareTone === "acc" ? "var(--accent)" : "var(--muted)",
+                        fontSize: 11,
+                        fontWeight: 400,
+                        marginLeft: 5,
+                      }}
+                    >
                       {s.share}
                     </span>
                   )}
                 </span>
                 <span className={`sub-next${s.nextTone === "ok" ? " ok" : ""}`}>{s.next}</span>
               </div>
-              <div className="sub-btns">
-                <button type="button" className="btn" style={{ flex: 1 }}>{s.primaryLabel ?? "Отметить"}</button>
-                <button type="button" className="btn">⋯</button>
-              </div>
             </article>
           ))}
           {items.length === 0 && (
             <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
-              нет активных подписок
+              {t("expenses.subscriptions.group.personal.empty")}
             </div>
           )}
         </div>

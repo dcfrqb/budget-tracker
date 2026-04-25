@@ -1,4 +1,3 @@
-import { ImportBar } from "@/components/transactions/import-bar";
 import { PeriodSummary } from "@/components/transactions/period-summary";
 import { PersonalDebts } from "@/components/transactions/personal-debts";
 import { TxnFeed } from "@/components/transactions/txn-feed";
@@ -144,7 +143,6 @@ export default async function TransactionsPage({
       <PeriodSummary summary={summaryView} />
       <TxnFeed days={days} totalCount={summary.totalCount} accounts={accounts} />
       <PersonalDebts debts={debtViews} metaLine={debtMeta} />
-      <ImportBar />
     </>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { WorkKind } from "@prisma/client";
 import { useServerActionForm } from "./use-server-action-form";
@@ -9,6 +9,7 @@ import type { WorkSourceCreateInput } from "@/lib/validation/work-source";
 import {
   createWorkSourceAction,
   updateWorkSourceAction,
+  deactivateWorkSourceAction,
 } from "@/app/(shell)/income/actions";
 import { useT } from "@/lib/i18n";
 import { CurrencySelect, type CurrencyOption } from "./currency-select";
@@ -49,6 +50,8 @@ export function WorkSourceForm({
 }: WorkSourceFormProps) {
   const t = useT();
   const router = useRouter();
+  const [isDeleting, startDelete] = useTransition();
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   type UpdateInput = z.infer<typeof workSourceUpdateSchema>;
 
@@ -114,6 +117,7 @@ export function WorkSourceForm({
       : null;
 
   return (
+    <>
     <form onSubmit={submit} className="form-grid">
       {variant === "page" && (
         <h1 className="form-title">
@@ -238,5 +242,35 @@ export function WorkSourceForm({
         formError={translatedErrorKey}
       />
     </form>
+
+    {mode === "edit" && workSourceId && (
+      <div style={{ marginTop: "var(--sp-4)" }}>
+        <button
+          type="button"
+          className="btn-ghost"
+          disabled={isDeleting || isPending}
+          onClick={() => {
+            if (!confirm(t("forms.work.delete_confirm"))) return;
+            setDeleteError(null);
+            startDelete(async () => {
+              const result = await deactivateWorkSourceAction(workSourceId);
+              if (!result.ok) {
+                setDeleteError(t("forms.work.delete_failed"));
+                return;
+              }
+              router.push("/income");
+            });
+          }}
+        >
+          {t("forms.work.delete")}
+        </button>
+        {deleteError && (
+          <div className="field-error" role="alert" style={{ marginTop: "var(--sp-2)" }}>
+            {deleteError}
+          </div>
+        )}
+      </div>
+    )}
+  </>
   );
 }

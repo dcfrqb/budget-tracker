@@ -320,6 +320,12 @@ export const enDict: RuDictShape = {
     },
     subscriptions: {
       pageTitle: "subscriptions",
+      manage: "Manage subscriptions",
+      totals: {
+        personal_label: "personal",
+        split_label: "split",
+        paid_for_others_label: "paid for others",
+      },
       summary: {
         activeCount: "{count} active",
         monthly: "₽ {amount}/mo",
@@ -381,8 +387,27 @@ export const enDict: RuDictShape = {
       rate_sub_primary: "from primary source",
       rate_sub_empty: "no data",
     },
+    work_sources: {
+      add: "+ Add source",
+      empty: "No sources yet — add a job or freelance source",
+    },
+    work: {
+      kind_label: {
+        employment: "Job",
+        freelance: "Freelance",
+        one_time: "One-time",
+      },
+      tax: {
+        ndfl: "NDFL {pct}%",
+        szn: "Self-emp. {pct}%",
+        none: "No tax",
+      },
+    },
     expected: {
       status_label: "Expected",
+      empty: "No planned inflows yet",
+      events_count: "{count} events in the next 90 days",
+      add: "+ Plan inflow",
     },
     today: "today",
     in_days: "+{n}d",
@@ -559,6 +584,10 @@ export const enDict: RuDictShape = {
 
   transactions: {
     debt_meta: "{count} active · net",
+    toolbar: {
+      import_csv: "CSV Import",
+      import_csv_title: "Import transactions from CSV",
+    },
     feed: {
       title: "feed",
       meta: "newest first",
@@ -632,6 +661,17 @@ export const enDict: RuDictShape = {
   },
 
   wallet: {
+    strip: {
+      group: "GROUP",
+      currency: "CURRENCY",
+      group_all: "All",
+      group_banks: "Banks",
+      group_crypto: "Crypto",
+      group_cash: "Cash",
+      group_arch: "Archive",
+      currency_all: "All",
+      day_progress: "d{day}/{days}",
+    },
     cash_meta: "{locations} locations · {currencies} currencies",
     add_account: {
       title: "Add new account",
@@ -829,6 +869,7 @@ export const enDict: RuDictShape = {
         credit_limit_required: "Credit limit is required",
         savings_rate_required: "Rate is required for savings accounts",
         cash_goes_through_cash_stash: "Cash is added via the cash section, not through the account form",
+        balance_required: "Starting balance is required",
       },
       field: {
         institution: "Bank / Institution",
@@ -836,6 +877,7 @@ export const enDict: RuDictShape = {
         kind: "Account type",
         currency: "Currency",
         balance: "Starting balance",
+        balance_required: "Starting balance *",
         note: "Note",
       },
       kind: {
@@ -893,6 +935,9 @@ export const enDict: RuDictShape = {
     work: {
       title_create: "New income source",
       title_edit: "Edit income source",
+      delete: "Delete source",
+      delete_confirm: "Delete this income source?",
+      delete_failed: "Delete failed",
       field: {
         kind: "Type",
         name: "Name / Employer",
