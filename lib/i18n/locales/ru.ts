@@ -712,7 +712,8 @@ export const ruDict = {
       },
       credit: {
         debt: "Долг",
-        available: "Доступно: {amount}",
+        debt_inline: "Долг: {amount}",
+        available: "Доступно",
         no_limit: "Лимит не задан",
       },
       form: {

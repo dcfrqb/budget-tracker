@@ -51,14 +51,20 @@ export function Institutions({ institutions }: Props) {
                 <div className="acc-val-wrap">
                   {a.creditDebt !== undefined ? (
                     <>
-                      <span className="acc-updated dim">{t("wallet.account.credit.debt")}</span>
-                      <span className="acc-val neg">{a.creditDebt}</span>
                       {a.creditNoLimit ? (
-                        <span className="acc-updated dim">{t("wallet.account.credit.no_limit")}</span>
+                        <>
+                          <span className="acc-updated dim">{t("wallet.account.credit.debt")}</span>
+                          <span className="acc-val neg">{a.creditDebt}</span>
+                          <span className="acc-updated dim">{t("wallet.account.credit.no_limit")}</span>
+                        </>
                       ) : (
-                        <span className="acc-updated dim">
-                          {t("wallet.account.credit.available", { vars: { amount: a.creditAvailable ?? "" } })}
-                        </span>
+                        <>
+                          <span className="acc-updated dim">{t("wallet.account.credit.available")}</span>
+                          <span className="acc-val pos">{a.creditAvailable}</span>
+                          <span className="acc-updated dim">
+                            {t("wallet.account.credit.debt_inline", { vars: { amount: a.creditDebt } })}
+                          </span>
+                        </>
                       )}
                     </>
                   ) : (
