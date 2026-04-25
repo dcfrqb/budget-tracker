@@ -490,6 +490,45 @@ export const ruDict = {
       limit_normal: "стандарт",
       limit_free: "расширен",
     },
+    weather: {
+      title: "финансовая погода",
+      subtitle: "здоровье финансов",
+      meta: "пересчёт раз в час · ведущий индикатор",
+      status_label: "статус",
+      scale_label: "шкала состояния",
+      classification_label: "классификация",
+      kind: {
+        sun: "Солнечно",
+        cloud: "Облачно",
+        rain: "Дождь",
+        storm: "Шторм",
+      },
+      reserve: "запас прочности — {n}/10",
+      alert_level: "уровень тревоги — {score}/10",
+      matches: "соответствует «{label}»",
+      formula: "Погода считается из нормы накоплений и баланса доходов/расходов за последние 3 месяца.",
+      reason_prefix: "Причина оценки: {hint}.",
+      reason: {
+        outflow_gt_inflow_3_months: "расход превышает доход три месяца подряд",
+        savings_rate_lt_5pct: "норма накоплений ниже 5%",
+        savings_rate_5_to_20pct: "норма накоплений 5–20%",
+        savings_rate_gt_20pct: "норма накоплений выше 20%",
+      },
+      savings_rate: {
+        line: "норма накоплений {value}% за прошлый месяц",
+        no_data: "недостаточно данных за последний месяц",
+      },
+      classification: {
+        sun: "полный запас",
+        cloud: "всё норм, мелкие сигналы",
+        rain: "один из факторов проседает",
+        storm: "кризис",
+        sun_threshold: "норма > 20%",
+        cloud_threshold: "5–20%",
+        rain_threshold: "< 5%",
+        storm_threshold: "расход > доход 3 мес",
+      },
+    },
   },
 
   family: {
@@ -550,6 +589,54 @@ export const ruDict = {
       period_90d: "90д",
       period_1y: "1г",
     },
+    period: {
+      title: "сводка периода",
+      range: "· 30д",
+      txn_short: "транз.",
+      avg: "ср",
+      net_forecast: "прогноз {amount}",
+      net_deficit: "дефицит {amount}",
+      net_zero: "нетто 0",
+      planned_count: "{n} план",
+      partial_count: "{n} частично",
+      column: {
+        inflow: "ПРИТОК",
+        outflow: "ОТТОК",
+        xfr: "ПЕРЕВОДЫ",
+        net: "НЕТТО",
+      },
+    },
+    status: {
+      planned: "Запланир.",
+      partial: "Частично",
+      done: "Выполнено",
+      missed: "Пропущ.",
+      cancel: "Отменено",
+    },
+    weekday: {
+      sun: "вс",
+      mon: "пн",
+      tue: "вт",
+      wed: "ср",
+      thu: "чт",
+      fri: "пт",
+      sat: "сб",
+    },
+    day: {
+      today: "· сегодня",
+      inflow: "приток",
+      outflow: "отток",
+      planned: "план",
+      expected: "{n} ожидается",
+      cancelled: "{n} отменено",
+    },
+    reimbursement: {
+      prefix: "компенс.",
+      received: "получ.",
+      received_partial: "получ. {rec} из {exp}",
+      received_no_exp: "получ. {rec}",
+      expected: "ожид. {amount}",
+    },
   },
 
   wallet: {
@@ -564,6 +651,10 @@ export const ruDict = {
     account: {
       badge: {
         not_in_analytics: "не в аналитике",
+      },
+      edit: {
+        archive: "Архивировать",
+        archive_failed: "Не удалось архивировать счёт",
       },
       form: {
         include_in_analytics: {
@@ -602,6 +693,13 @@ export const ruDict = {
         placeholder_location: "Название локации (напр. «сейф дома»)",
         placeholder_balance: "Начальный остаток",
         submit: "Добавить",
+        cancel: "Отмена",
+      },
+      edit: {
+        title: "Редактировать локацию",
+        archive: "Архивировать",
+        archive_failed: "Не удалось архивировать счёт",
+        save: "Сохранить",
         cancel: "Отмена",
       },
     },
@@ -1125,19 +1223,19 @@ export const ruDict = {
       title: "быстрые действия",
       hotkey_hint: "хоткеи активны · Q",
       income: {
-        label: "+Доход",
+        label: "Доход",
         aria: "добавить доход",
       },
       expense: {
-        label: "−Расход",
+        label: "Расход",
         aria: "добавить расход",
       },
       transfer: {
-        label: "↔ Перевод",
+        label: "Перевод",
         aria: "создать перевод",
       },
       transaction: {
-        label: "+Транзакция",
+        label: "Транзакция",
         aria: "добавить транзакцию",
       },
       shortcut_hint: "I / E / T для быстрых действий",

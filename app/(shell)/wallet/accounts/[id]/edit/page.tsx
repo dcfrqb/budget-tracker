@@ -25,6 +25,20 @@ export default async function EditAccountPage({ params }: Props) {
         balance: true,
         sub: true,
         sortOrder: true,
+        includeInAnalytics: true,
+        subtype: true,
+        customPillLabel: true,
+        // CREDIT fields
+        creditRatePct: true,
+        creditLimit: true,
+        gracePeriodDays: true,
+        statementDay: true,
+        minPaymentPercent: true,
+        minPaymentFixed: true,
+        // SAVINGS fields
+        annualRatePct: true,
+        savingsCapitalization: true,
+        withdrawalLimit: true,
       },
     }),
     db.institution.findMany({
@@ -57,6 +71,18 @@ export default async function EditAccountPage({ params }: Props) {
           balance: account.balance.toString(),
           sub: account.sub ?? undefined,
           sortOrder: account.sortOrder,
+          includeInAnalytics: account.includeInAnalytics,
+          // CREDIT fields
+          creditRatePct: account.creditRatePct?.toString() ?? undefined,
+          creditLimit: account.creditLimit?.toString() ?? undefined,
+          gracePeriodDays: account.gracePeriodDays ?? undefined,
+          statementDay: account.statementDay ?? undefined,
+          minPaymentPercent: account.minPaymentPercent?.toString() ?? undefined,
+          minPaymentFixed: account.minPaymentFixed?.toString() ?? undefined,
+          // SAVINGS fields
+          annualRatePct: account.annualRatePct?.toString() ?? undefined,
+          savingsCapitalization: account.savingsCapitalization ?? undefined,
+          withdrawalLimit: account.withdrawalLimit?.toString() ?? undefined,
         }}
       />
     </div>

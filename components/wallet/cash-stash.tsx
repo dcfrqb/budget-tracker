@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useTransition } from "react";
+import Link from "next/link";
 import { useT } from "@/lib/i18n";
 import { createCashLocationAction } from "@/app/(shell)/wallet/actions";
 import type { CashStashView } from "@/lib/view/wallet";
@@ -68,14 +69,14 @@ export function CashStashSection({ stash, meta, currencies, primaryCurrency }: P
       <div className="section-body flush">
         <div className="cash-grid">
           {stash.map((c) => (
-            <div key={c.id} className="cash-cell" tabIndex={0}>
+            <Link key={c.id} href={`/wallet/cash/${c.id}/edit`} className="cash-cell">
               <div className="top">
                 <span className="sym mono">{c.sym}</span>
                 <span className="loc mono">{c.loc}</span>
               </div>
               <div className="v">{c.value}</div>
               <div className="s">{c.sub}</div>
-            </div>
+            </Link>
           ))}
           {!showForm && (
             <div

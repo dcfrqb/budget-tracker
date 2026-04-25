@@ -109,7 +109,7 @@ export default async function TransactionsPage({
 
   const today = new Date();
   const days = rawDays.map((r) =>
-    toTxnDayView(r, today, rates, DEFAULT_CURRENCY),
+    toTxnDayView(r, today, rates, DEFAULT_CURRENCY, t),
   );
   const summaryView = toPeriodSummaryView(summary);
   const debtViews = debts.map(toDebtView);

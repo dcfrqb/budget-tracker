@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useT } from "@/lib/i18n";
 import type { InstitutionView } from "@/lib/view/wallet";
 
@@ -28,7 +29,7 @@ export function Institutions({ institutions }: Props) {
               </div>
             </div>
             {inst.accounts.map((a) => (
-              <div key={a.id} className="acc-row" tabIndex={0}>
+              <Link key={a.id} href={`/wallet/accounts/${a.id}/edit`} className="acc-row">
                 <div className={`acc-ico ${a.kind} mono`}>{a.icon}</div>
                 <div className="acc-main">
                   <div className="n">{a.name}</div>
@@ -51,11 +52,7 @@ export function Institutions({ institutions }: Props) {
                   <span className="acc-val">{a.value}</span>
                   <span className="acc-updated">{a.updated}</span>
                 </div>
-                <div className="acc-actions">
-                  <button type="button" title="+">+</button>
-                  <button type="button" title="↔">↔</button>
-                </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>

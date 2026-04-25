@@ -753,6 +753,8 @@ a { color: inherit; text-decoration: none; }
 .period-cell .val.outflow { color: var(--info); }
 .period-cell .val.xfr     { color: var(--warn); }
 .period-cell .val.net     { color: var(--accent); }
+.period-cell .val.net-pos { color: var(--pos); }
+.period-cell .val.net-neg { color: var(--neg); }
 .period-cell .meta {
   font-family: var(--mono-font), monospace; font-size: 11px; color: var(--muted); margin-top: 3px;
 }
@@ -1716,7 +1718,7 @@ a { color: inherit; text-decoration: none; }
 .inst-total .rub { color: var(--muted); font-size: 11px; font-weight: 500; margin-left: 8px; }
 
 .acc-row {
-  display: grid; grid-template-columns: 32px 1fr 120px 100px 150px 90px;
+  display: grid; grid-template-columns: 32px 1fr 120px 100px 150px;
   gap: 14px; align-items: center;
   padding: 12px 20px;
   border-bottom: 1px solid var(--grid);

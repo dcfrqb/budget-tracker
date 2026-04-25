@@ -1,4 +1,7 @@
+"use client";
+
 import type { ReactNode } from "react";
+import { useT } from "@/lib/i18n";
 
 export type WeatherKind = "sun" | "cloud" | "rain" | "storm";
 
@@ -9,17 +12,17 @@ export interface WeatherProps {
 }
 
 type KindConfig = {
-  label: string;
   colorVar: string;
-  score: number; // 1..10 — выше = хуже
+  score: number;      // 1..10 — higher = worse (alert level)
+  filledOutOf10: number; // resilience filled cells (higher = better)
   icon: ReactNode;
 };
 
 const KIND_CONFIG: Record<WeatherKind, KindConfig> = {
   sun: {
-    label: "Солнечно",
     colorVar: "var(--accent)",
     score: 2,
+    filledOutOf10: 10,
     icon: (
       <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="50" cy="50" r="16" fill="rgba(88,211,163,.12)" stroke="currentColor" />
@@ -35,9 +38,9 @@ const KIND_CONFIG: Record<WeatherKind, KindConfig> = {
     ),
   },
   cloud: {
-    label: "Облачно",
     colorVar: "var(--pos)",
     score: 4,
+    filledOutOf10: 9,
     icon: (
       <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M30 68 Q18 68 18 56 Q18 46 28 44 Q30 32 44 32 Q58 32 62 44 Q76 44 76 56 Q76 68 64 68 Z" fill="rgba(63,185,80,.10)" />
@@ -45,9 +48,9 @@ const KIND_CONFIG: Record<WeatherKind, KindConfig> = {
     ),
   },
   rain: {
-    label: "Дождь",
     colorVar: "var(--warn)",
     score: 7,
+    filledOutOf10: 5,
     icon: (
       <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M30 56 Q18 56 18 44 Q18 34 28 32 Q30 20 44 20 Q58 20 62 32 Q76 32 76 44 Q76 56 64 56 Z" fill="rgba(210,153,34,.10)" />
@@ -58,9 +61,9 @@ const KIND_CONFIG: Record<WeatherKind, KindConfig> = {
     ),
   },
   storm: {
-    label: "Шторм",
     colorVar: "var(--neg)",
     score: 9,
+    filledOutOf10: 2,
     icon: (
       <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M30 56 Q18 56 18 44 Q18 34 28 32 Q30 20 44 20 Q58 20 62 32 Q76 32 76 44 Q76 56 64 56 Z" fill="rgba(248,81,73,.10)" />
@@ -70,60 +73,115 @@ const KIND_CONFIG: Record<WeatherKind, KindConfig> = {
   },
 };
 
-const REASON_HINT: Record<string, string> = {
-  outflow_gt_inflow_3_months: "расход превышает доход три месяца подряд",
-  savings_rate_lt_5pct: "норма накоплений ниже 5%",
-  savings_rate_5_to_20pct: "норма накоплений 5–20%",
-  savings_rate_gt_20pct: "норма накоплений выше 20%",
+const REASON_KEYS: Record<string, string> = {
+  outflow_gt_inflow_3_months: "analytics.weather.reason.outflow_gt_inflow_3_months",
+  savings_rate_lt_5pct: "analytics.weather.reason.savings_rate_lt_5pct",
+  savings_rate_5_to_20pct: "analytics.weather.reason.savings_rate_5_to_20pct",
+  savings_rate_gt_20pct: "analytics.weather.reason.savings_rate_gt_20pct",
 };
 
 export function Weather({ kind, savingsRatePct, reason }: WeatherProps) {
+  const t = useT();
   const cfg = KIND_CONFIG[kind];
+  const kindLabel = t(`analytics.weather.kind.${kind}` as Parameters<typeof t>[0]);
 
   const srText =
     savingsRatePct === null
-      ? "недостаточно данных за последний месяц"
-      : `норма накоплений ${savingsRatePct >= 0 ? "+" : ""}${savingsRatePct.toFixed(1)}% за прошлый месяц`;
+      ? t("analytics.weather.savings_rate.no_data")
+      : t("analytics.weather.savings_rate.line", {
+          vars: { value: `${savingsRatePct >= 0 ? "+" : ""}${savingsRatePct.toFixed(1)}` },
+        });
 
-  const reasonText = REASON_HINT[reason] ?? "";
+  const reasonKey = REASON_KEYS[reason];
+  const reasonHint = reasonKey ? t(reasonKey as Parameters<typeof t>[0]) : "";
 
   return (
     <div className="section fade-in" style={{ animationDelay: "60ms" }}>
       <div className="section-hd">
-        <div className="ttl mono"><b>финансовая погода</b> <span className="dim">· здоровье финансов</span></div>
-        <div className="meta mono">пересчёт раз в час · ведущий индикатор</div>
+        <div className="ttl mono">
+          <b>{t("analytics.weather.title")}</b>{" "}
+          <span className="dim">&middot; {t("analytics.weather.subtitle")}</span>
+        </div>
+        <div className="meta mono">{t("analytics.weather.meta")}</div>
       </div>
       <div className="weather">
         <div className="wx-hero">
-          <div className="wx-label">статус</div>
+          <div className="wx-label">{t("analytics.weather.status_label")}</div>
           <div className="wx-icon" aria-hidden style={{ color: cfg.colorVar }}>
             {cfg.icon}
           </div>
-          <div className="wx-status" style={{ color: cfg.colorVar }}>{cfg.label}</div>
+          <div className="wx-status" style={{ color: cfg.colorVar }}>{kindLabel}</div>
           <div className="wx-sub mono">{srText}</div>
         </div>
 
         <div className="wx-cells">
-          <div className="k">шкала состояния</div>
+          <div className="k">{t("analytics.weather.scale_label")}</div>
           <div className="wx-gauge" aria-label="gauge">
             {Array.from({ length: 10 }).map((_, i) => (
-              <span key={i} className={i < cfg.score ? "on" : ""} />
+              <span
+                key={i}
+                className={i < cfg.filledOutOf10 ? "on" : ""}
+                style={i < cfg.filledOutOf10 ? { background: cfg.colorVar } : undefined}
+              />
             ))}
           </div>
           <div className="wx-explain">
-            Погода считается из нормы накоплений и баланса доходов/расходов за последние 3 месяца.
-            {reasonText ? <> Причина оценки: <b>{reasonText}</b>.</> : null}
-            {" "}Текущая оценка — <b className="acc" style={{ color: cfg.colorVar }}>{cfg.score}/10</b>, соответствует «{cfg.label}».
+            {t("analytics.weather.formula")}
+            {reasonHint ? (
+              <>{" "}{t("analytics.weather.reason_prefix", { vars: { hint: reasonHint } })}</>
+            ) : null}
+            {" "}
+            <b style={{ color: cfg.colorVar }}>
+              {t("analytics.weather.reserve", { vars: { n: String(cfg.filledOutOf10) } })}
+            </b>
+            {". "}
+            <b style={{ color: cfg.colorVar }}>
+              {t("analytics.weather.alert_level", { vars: { score: String(cfg.score) } })}
+            </b>
+            {". "}
+            {t("analytics.weather.matches", { vars: { label: kindLabel } })}
           </div>
         </div>
 
         <div className="wx-cells">
-          <div className="k">классификация</div>
+          <div className="k">{t("analytics.weather.classification_label")}</div>
           <div className="mono" style={{ fontSize: 11, lineHeight: 1.9, color: "var(--muted)" }}>
-            <div>☀︎ <b style={{ color: "var(--accent)" }}>Солнечно</b> · норма &gt; 20%<br />&nbsp;&nbsp;&nbsp;полный запас</div>
-            <div>⛅ <b style={{ color: "var(--pos)" }}>Облачно</b> · 5–20%<br />&nbsp;&nbsp;&nbsp;всё норм, мелкие сигналы</div>
-            <div>🌧 <b style={{ color: "var(--warn)" }}>Дождь</b> · &lt; 5%<br />&nbsp;&nbsp;&nbsp;один из факторов проседает</div>
-            <div>⛈ <b style={{ color: "var(--neg)" }}>Шторм</b> · расход &gt; доход 3 мес<br />&nbsp;&nbsp;&nbsp;кризис</div>
+            <div>
+              <b style={{ color: "var(--accent)" }}>
+                {t("analytics.weather.kind.sun")}
+              </b>
+              {" · "}
+              {t("analytics.weather.classification.sun_threshold")}
+              {" · "}
+              {t("analytics.weather.classification.sun")}
+            </div>
+            <div>
+              <b style={{ color: "var(--pos)" }}>
+                {t("analytics.weather.kind.cloud")}
+              </b>
+              {" · "}
+              {t("analytics.weather.classification.cloud_threshold")}
+              {" · "}
+              {t("analytics.weather.classification.cloud")}
+            </div>
+            <div>
+              <b style={{ color: "var(--warn)" }}>
+                {t("analytics.weather.kind.rain")}
+              </b>
+              {" · "}
+              {t("analytics.weather.classification.rain_threshold")}
+              {" · "}
+              {t("analytics.weather.classification.rain")}
+            </div>
+            <div>
+              <b style={{ color: "var(--neg)" }}>
+                {t("analytics.weather.kind.storm")}
+              </b>
+              {" · "}
+              {t("analytics.weather.classification.storm_threshold")}
+              {" · "}
+              {t("analytics.weather.classification.storm")}
+            </div>
           </div>
         </div>
       </div>

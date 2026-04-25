@@ -6,9 +6,10 @@ import type {
   TxnDayRaw,
   TxnWithJoins,
 } from "@/lib/data/transactions";
+import type { TKey } from "@/lib/i18n/t";
 
 // ─────────────────────────────────────────────
-// TYPES (совместимы с mock-transactions)
+// TYPES (compatible with mock-transactions)
 // ─────────────────────────────────────────────
 
 export type TxnKind = "inc" | "exp" | "xfr" | "loan";
@@ -40,19 +41,27 @@ export type TxnDayTotal = {
 
 export type TxnDayView = {
   date: string;       // "21.04"
-  weekday: string;    // "пн · сегодня" | "вс"
+  weekday: string;    // "Mon · today" | "Sun"
   totals: TxnDayTotal[];
-  hasConvertedAmounts: boolean;   // true если в дне была конверсия из foreign ccy
+  hasConvertedAmounts: boolean;   // true if the day had amounts converted from foreign ccy
   txns: TxnView[];
 };
 
 export type PeriodSummaryView = {
-  inflow:    { value: number; count: number; avg: string };
-  outflow:   { value: number; count: number; avg: string };
-  transfers: { value: number; count: number; avg: string };
-  net:       { value: number; note: string };
-  metaLine:  string;
+  inflow:    { value: number; count: number; avgAmount: string };
+  outflow:   { value: number; count: number; avgAmount: string };
+  transfers: { value: number; count: number };
+  net:       { value: number; tone: "pos" | "neg" | "zero"; noteAmount: string };
+  totalCount: number;
+  plannedCount: number;
+  partialCount: number;
 };
+
+// ─────────────────────────────────────────────
+// t() helper type — passed as parameter
+// ─────────────────────────────────────────────
+
+type TFn = (key: TKey, options?: { vars?: Record<string, string | number> }) => string;
 
 // ─────────────────────────────────────────────
 // MAPS
@@ -66,12 +75,14 @@ const STATUS_SHORT: Record<TransactionStatus, TxnShortStatus> = {
   CANCELLED: "cancel",
 };
 
-const STATUS_LABEL: Record<TransactionStatus, string> = {
-  PLANNED: "Запланир.",
-  PARTIAL: "Частично",
-  DONE: "Выполнено",
-  MISSED: "Пропущ.",
-  CANCELLED: "Отменено",
+const WEEKDAY_KEYS: Record<number, TKey> = {
+  0: "transactions.weekday.sun",
+  1: "transactions.weekday.mon",
+  2: "transactions.weekday.tue",
+  3: "transactions.weekday.wed",
+  4: "transactions.weekday.thu",
+  5: "transactions.weekday.fri",
+  6: "transactions.weekday.sat",
 };
 
 function kindShort(k: TransactionKind): TxnKind {
@@ -94,25 +105,24 @@ function kindShort(k: TransactionKind): TxnKind {
 // FORMAT HELPERS
 // ─────────────────────────────────────────────
 
-const WEEKDAYS_RU = ["вс", "пн", "вт", "ср", "чт", "пт", "сб"];
-
 function pad2(n: number): string {
   return n < 10 ? "0" + n : String(n);
 }
 
-// "21.04" из UTC компонент даты — мы всё храним в UTC, избегаем local-TZ дрейфа.
+// "21.04" from UTC date components — all dates stored in UTC to avoid local-TZ drift.
 export function formatDateRu(d: Date): string {
   return `${pad2(d.getUTCDate())}.${pad2(d.getUTCMonth() + 1)}`;
 }
 
-// "пн · сегодня" / "вс" / "вт".
-export function formatWeekdayRu(d: Date, today: Date): string {
-  const weekday = WEEKDAYS_RU[d.getUTCDay()];
+// "Mon · today" / "Sun" / "Tue" — locale-aware via t().
+export function formatWeekdayRu(d: Date, today: Date, t: TFn): string {
+  const weekdayKey = WEEKDAY_KEYS[d.getUTCDay()];
+  const weekday = t(weekdayKey);
   const sameDay =
     d.getUTCFullYear() === today.getUTCFullYear() &&
     d.getUTCMonth() === today.getUTCMonth() &&
     d.getUTCDate() === today.getUTCDate();
-  return sameDay ? `${weekday} · сегодня` : weekday;
+  return sameDay ? `${weekday} ${t("transactions.day.today")}` : weekday;
 }
 
 export function formatTime(d: Date): string {
@@ -120,8 +130,8 @@ export function formatTime(d: Date): string {
 }
 
 // "+₽ 120 000" / "−₽ 1 860" / "₽ 20 000" (transfer) / "+$ 45 000".
-// sign="-" даёт Unicode minus (U+2212), не ASCII hyphen, для консистентности
-// с day-totals и моком.
+// sign="-" yields Unicode minus (U+2212), not ASCII hyphen, for consistency
+// with day-totals and mock data.
 function signedAmount(
   amount: Prisma.Decimal | string,
   currency: { code: string; symbol: string; decimals: number },
@@ -183,79 +193,83 @@ function resolveAccountLabel(t: TxnWithJoins): string {
 }
 
 function resolveNote(
-  t: TxnWithJoins,
+  txn: TxnWithJoins,
+  t: TFn,
 ): { note?: string; noteTone?: "acc" | "info" | "warn" } {
-  if (t.isReimbursable && t.reimbursementFromName) {
-    const received = t.reimbursements.reduce(
+  if (txn.isReimbursable && txn.reimbursementFromName) {
+    const received = txn.reimbursements.reduce(
       (acc, r) => acc.plus(r.amount),
       new Prisma.Decimal(0),
     );
-    const expected = t.expectedReimbursement
-      ? new Prisma.Decimal(t.expectedReimbursement)
+    const expected = txn.expectedReimbursement
+      ? new Prisma.Decimal(txn.expectedReimbursement)
       : null;
 
-    // Полностью компенсировано → "pos" tone, "получ." без "из".
+    const prefix = t("transactions.reimbursement.prefix");
+
+    // Fully reimbursed → "acc" tone, "received" without "of".
     if (expected && !received.isZero() && received.gte(expected)) {
+      const recStr = reverseSymbol(formatAmount(received, txn.currency));
       return {
-        note: `компенс. · ${t.reimbursementFromName} · получ. ${reverseSymbol(formatAmount(received, t.currency))}`,
+        note: `${prefix} · ${txn.reimbursementFromName} · ${t("transactions.reimbursement.received")} ${recStr}`,
         noteTone: "acc",
       };
     }
-    // Частично компенсировано → "warn" tone, "получ. X из Y".
+    // Partially reimbursed → "warn" tone, "received X of Y".
     if (!received.isZero()) {
-      const recStr = reverseSymbol(formatAmount(received, t.currency));
+      const recStr = reverseSymbol(formatAmount(received, txn.currency));
       if (expected) {
-        const expStr = reverseSymbol(formatAmount(expected, t.currency));
+        const expStr = reverseSymbol(formatAmount(expected, txn.currency));
         return {
-          note: `компенс. · ${t.reimbursementFromName} · получ. ${recStr} из ${expStr}`,
+          note: `${prefix} · ${txn.reimbursementFromName} · ${t("transactions.reimbursement.received_partial", { vars: { rec: recStr, exp: expStr } })}`,
           noteTone: "warn",
         };
       }
       return {
-        note: `компенс. · ${t.reimbursementFromName} · получ. ${recStr}`,
+        note: `${prefix} · ${txn.reimbursementFromName} · ${t("transactions.reimbursement.received_no_exp", { vars: { rec: recStr } })}`,
         noteTone: "warn",
       };
     }
-    // Ничего не получено — ожидаемая сумма.
+    // Nothing received yet — show expected amount.
     const expectedSuffix = expected
-      ? ` · ожид. ${reverseSymbol(formatAmount(expected, t.currency))}`
+      ? ` · ${t("transactions.reimbursement.expected", { vars: { amount: reverseSymbol(formatAmount(expected, txn.currency)) } })}`
       : "";
     return {
-      note: `компенс. · ${t.reimbursementFromName}${expectedSuffix}`,
+      note: `${prefix} · ${txn.reimbursementFromName}${expectedSuffix}`,
       noteTone: "warn",
     };
   }
-  if (t.note) {
-    return { note: t.note };
+  if (txn.note) {
+    return { note: txn.note };
   }
   return {};
 }
 
-// "3 000 ₽" → "₽ 3 000" (для встраивания после "ожид. ").
+// "3 000 ₽" → "₽ 3 000" (for embedding after "expected").
 function reverseSymbol(formatted: string): string {
   const [num, sym] = splitTail(formatted);
   return `${sym} ${num}`;
 }
 
-export function toTxnView(t: TxnWithJoins): TxnView {
-  const { tone, sign, strike } = amountToneAndPrefix(t);
-  const { note, noteTone } = resolveNote(t);
+export function toTxnView(txn: TxnWithJoins, t: TFn): TxnView {
+  const { tone, sign, strike } = amountToneAndPrefix(txn);
+  const { note, noteTone } = resolveNote(txn, t);
 
   return {
-    id: t.id,
-    kind: kindShort(t.kind),
-    time: formatTime(t.occurredAt),
-    name: t.name,
-    cat: t.category?.name ?? "—",
+    id: txn.id,
+    kind: kindShort(txn.kind),
+    time: formatTime(txn.occurredAt),
+    name: txn.name,
+    cat: txn.category?.name ?? "—",
     ...(note ? { note } : {}),
     ...(noteTone ? { noteTone } : {}),
-    account: resolveAccountLabel(t),
-    status: STATUS_SHORT[t.status],
-    statusLabel: STATUS_LABEL[t.status],
-    amount: signedAmount(t.amount, t.currency, sign),
+    account: resolveAccountLabel(txn),
+    status: STATUS_SHORT[txn.status],
+    statusLabel: t(`transactions.status.${STATUS_SHORT[txn.status]}` as TKey),
+    amount: signedAmount(txn.amount, txn.currency, sign),
     amountTone: tone,
     ...(strike ? { amountStrike: true } : {}),
-    ...(t.isReimbursable ? { reimbursable: true } : {}),
+    ...(txn.isReimbursable ? { reimbursable: true } : {}),
   };
 }
 
@@ -269,6 +283,7 @@ function dayTotalsFromTxns(
   txns: TxnWithJoins[],
   rates: Map<string, Prisma.Decimal>,
   baseCcy: string,
+  t: TFn,
 ): { totals: TxnDayTotal[]; hasConvertedAmounts: boolean } {
   let inflowTotal = new Prisma.Decimal(0);
   let outflowTotal = new Prisma.Decimal(0);
@@ -276,72 +291,72 @@ function dayTotalsFromTxns(
   let cancelledCount = 0;
   let hasConverted = false;
 
-  for (const t of txns) {
-    if (t.status === TransactionStatus.PLANNED) plannedCount += 1;
-    if (t.status === TransactionStatus.CANCELLED) {
+  for (const txn of txns) {
+    if (txn.status === TransactionStatus.PLANNED) plannedCount += 1;
+    if (txn.status === TransactionStatus.CANCELLED) {
       cancelledCount += 1;
       continue;
     }
-    const amt = new Prisma.Decimal(t.amount);
+    const amt = new Prisma.Decimal(txn.amount);
     const isInflow =
-      t.kind === TransactionKind.INCOME ||
-      t.kind === TransactionKind.REIMBURSEMENT ||
-      t.kind === TransactionKind.DEBT_IN;
+      txn.kind === TransactionKind.INCOME ||
+      txn.kind === TransactionKind.REIMBURSEMENT ||
+      txn.kind === TransactionKind.DEBT_IN;
     const isOutflow =
-      t.kind === TransactionKind.EXPENSE ||
-      t.kind === TransactionKind.LOAN_PAYMENT ||
-      t.kind === TransactionKind.DEBT_OUT;
+      txn.kind === TransactionKind.EXPENSE ||
+      txn.kind === TransactionKind.LOAN_PAYMENT ||
+      txn.kind === TransactionKind.DEBT_OUT;
     if (!isInflow && !isOutflow) continue;
-    if (t.status !== TransactionStatus.DONE && t.status !== TransactionStatus.PARTIAL) {
+    if (txn.status !== TransactionStatus.DONE && txn.status !== TransactionStatus.PARTIAL) {
       continue;
     }
     const actual =
-      t.status === TransactionStatus.PARTIAL
-        ? t.facts.reduce((a, f) => a.plus(f.amount), new Prisma.Decimal(0))
+      txn.status === TransactionStatus.PARTIAL
+        ? txn.facts.reduce((a, f) => a.plus(f.amount), new Prisma.Decimal(0))
         : amt;
-    const inBase = convertToBase(actual, t.currencyCode, baseCcy, rates);
+    const inBase = convertToBase(actual, txn.currencyCode, baseCcy, rates);
     if (!inBase) {
-      console.warn(`[day-totals] skip tx ${t.id}: no rate ${t.currencyCode}→${baseCcy}`);
+      console.warn(`[day-totals] skip tx ${txn.id}: no rate ${txn.currencyCode}→${baseCcy}`);
       continue;
     }
-    if (t.currencyCode !== baseCcy) hasConverted = true;
+    if (txn.currencyCode !== baseCcy) hasConverted = true;
     if (isInflow) inflowTotal = inflowTotal.plus(inBase);
     else outflowTotal = outflowTotal.plus(inBase);
   }
 
   const totals: TxnDayTotal[] = [];
   const hasInflowKind = txns.some(
-    (t) =>
-      t.kind === TransactionKind.INCOME ||
-      t.kind === TransactionKind.REIMBURSEMENT ||
-      t.kind === TransactionKind.DEBT_IN,
+    (txn) =>
+      txn.kind === TransactionKind.INCOME ||
+      txn.kind === TransactionKind.REIMBURSEMENT ||
+      txn.kind === TransactionKind.DEBT_IN,
   );
   const prefix = hasConverted ? "≈ " : "";
   if (!inflowTotal.isZero() || plannedCount > 0 || hasInflowKind) {
     totals.push({
-      label: "приток",
+      label: t("transactions.day.inflow"),
       value: `${prefix}+${formatRub(inflowTotal)}`,
       tone: "pos",
     });
   }
   if (!outflowTotal.isZero()) {
     totals.push({
-      label: "отток",
+      label: t("transactions.day.outflow"),
       value: `${prefix}−${formatRub(outflowTotal)}`,
       tone: "info",
     });
   }
   if (plannedCount > 0) {
     totals.push({
-      label: "план",
-      value: `${plannedCount} ожидается`,
+      label: t("transactions.day.planned"),
+      value: t("transactions.day.expected", { vars: { n: String(plannedCount) } }),
       tone: "mut",
     });
   }
   if (cancelledCount > 0) {
     totals.push({
       label: "",
-      value: `${cancelledCount} отменено`,
+      value: t("transactions.day.cancelled", { vars: { n: String(cancelledCount) } }),
       tone: "mut",
     });
   }
@@ -359,15 +374,16 @@ export function toTxnDayView(
   today: Date,
   rates: Map<string, Prisma.Decimal>,
   baseCcy: string,
+  t: TFn,
 ): TxnDayView {
   const d = new Date(raw.date + "T00:00:00Z");
-  const { totals, hasConvertedAmounts } = dayTotalsFromTxns(raw.txns, rates, baseCcy);
+  const { totals, hasConvertedAmounts } = dayTotalsFromTxns(raw.txns, rates, baseCcy, t);
   return {
     date: formatDateRu(d),
-    weekday: formatWeekdayRu(d, today),
+    weekday: formatWeekdayRu(d, today, t),
     totals,
     hasConvertedAmounts,
-    txns: raw.txns.map(toTxnView),
+    txns: raw.txns.map((txn) => toTxnView(txn, t)),
   };
 }
 
@@ -376,39 +392,36 @@ export function toTxnDayView(
 // ─────────────────────────────────────────────
 
 export function toPeriodSummaryView(s: PeriodSummary): PeriodSummaryView {
-  const avg = (total: Prisma.Decimal, count: number) =>
+  const avgAmount = (total: Prisma.Decimal, count: number) =>
     count > 0
       ? formatRub(total.div(count).toDecimalPlaces(0))
       : formatRub(new Prisma.Decimal(0));
+
+  const netValue = Number(s.net.toFixed(0));
+  const netTone: "pos" | "neg" | "zero" = s.net.gt(0) ? "pos" : s.net.lt(0) ? "neg" : "zero";
 
   return {
     inflow: {
       value: Number(s.inflow.value.toFixed(0)),
       count: s.inflow.count,
-      avg: `ср ${avg(s.inflow.value, s.inflow.count)}`,
+      avgAmount: avgAmount(s.inflow.value, s.inflow.count),
     },
     outflow: {
       value: Number(s.outflow.value.toFixed(0)),
       count: s.outflow.count,
-      avg: `ср ${avg(s.outflow.value, s.outflow.count)}`,
+      avgAmount: avgAmount(s.outflow.value, s.outflow.count),
     },
     transfers: {
       value: Number(s.transfers.value.toFixed(0)),
       count: s.transfers.count,
-      avg: `${s.transfers.count} операций`,
     },
     net: {
-      value: Number(s.net.toFixed(0)),
-      note: s.net.isPositive()
-        ? `прогноз месяца +${formatRub(s.net)}`
-        : `дефицит ${formatRub(s.net.abs())}`,
+      value: netValue,
+      tone: netTone,
+      noteAmount: formatRub(s.net.abs()),
     },
-    metaLine: [
-      `${s.totalCount} транз.`,
-      s.planned.count > 0 ? `${s.planned.count} план` : null,
-      s.partial.count > 0 ? `${s.partial.count} частично` : null,
-    ]
-      .filter(Boolean)
-      .join(" · "),
+    totalCount: s.totalCount,
+    plannedCount: s.planned.count,
+    partialCount: s.partial.count,
   };
 }

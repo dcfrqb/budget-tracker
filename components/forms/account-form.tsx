@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AccountKind, InstitutionKind, SavingsCapitalization } from "@prisma/client";
 import { useServerActionForm } from "./use-server-action-form";
 import { accountCreateSchema, accountUpdateSchema } from "@/lib/validation/account";
-import { createAccountAction, updateAccountAction } from "@/app/(shell)/wallet/actions";
+import { createAccountAction, updateAccountAction, archiveAccountAction } from "@/app/(shell)/wallet/actions";
 import { useT } from "@/lib/i18n";
 import { CurrencySelect, type CurrencyOption } from "./currency-select";
 import { TextField } from "./primitives/text-field";
@@ -86,6 +86,8 @@ export function AccountForm({
   const accErrMsg = useAccountErrMsg(t);
   const router = useRouter();
   const [showNewInstitution, setShowNewInstitution] = useState(false);
+  const [isArchiving, startArchive] = useTransition();
+  const [archiveError, setArchiveError] = useState<string | null>(null);
 
   // Build action based on mode
   const action = React.useMemo(() => {
@@ -189,6 +191,7 @@ export function AccountForm({
   const payType = minPaymentType;
 
   return (
+    <>
     <form onSubmit={submit} className="form-grid">
       {variant === "page" && (
         <h1 className="form-title">
@@ -431,5 +434,34 @@ export function AccountForm({
         formError={translatedErrorKey}
       />
     </form>
+
+    {mode === "edit" && accountId && (
+      <div style={{ marginTop: "var(--sp-4)" }}>
+        <button
+          type="button"
+          className="btn-ghost"
+          disabled={isArchiving || isPending}
+          onClick={() => {
+            setArchiveError(null);
+            startArchive(async () => {
+              const result = await archiveAccountAction(accountId);
+              if (!result.ok) {
+                setArchiveError(t("wallet.account.edit.archive_failed"));
+                return;
+              }
+              router.push("/wallet");
+            });
+          }}
+        >
+          {t("wallet.account.edit.archive")}
+        </button>
+        {archiveError && (
+          <div className="field-error" role="alert" style={{ marginTop: "var(--sp-2)" }}>
+            {archiveError}
+          </div>
+        )}
+      </div>
+    )}
+    </>
   );
 }

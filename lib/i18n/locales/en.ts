@@ -482,6 +482,45 @@ export const enDict: RuDictShape = {
       limit_normal: "standard",
       limit_free: "expanded",
     },
+    weather: {
+      title: "financial weather",
+      subtitle: "financial health",
+      meta: "recalculated hourly · leading indicator",
+      status_label: "status",
+      scale_label: "health scale",
+      classification_label: "classification",
+      kind: {
+        sun: "Sunny",
+        cloud: "Cloudy",
+        rain: "Rain",
+        storm: "Storm",
+      },
+      reserve: "resilience — {n}/10",
+      alert_level: "alert level — {score}/10",
+      matches: "corresponds to «{label}»",
+      formula: "Weather is calculated from savings rate and income/expense balance over the last 3 months.",
+      reason_prefix: "Assessment reason: {hint}.",
+      reason: {
+        outflow_gt_inflow_3_months: "expenses exceed income for three months in a row",
+        savings_rate_lt_5pct: "savings rate below 5%",
+        savings_rate_5_to_20pct: "savings rate 5–20%",
+        savings_rate_gt_20pct: "savings rate above 20%",
+      },
+      savings_rate: {
+        line: "savings rate {value}% last month",
+        no_data: "insufficient data for last month",
+      },
+      classification: {
+        sun: "full resilience",
+        cloud: "all good, minor signals",
+        rain: "one factor is dipping",
+        storm: "crisis",
+        sun_threshold: "rate > 20%",
+        cloud_threshold: "5–20%",
+        rain_threshold: "< 5%",
+        storm_threshold: "expenses > income 3 months",
+      },
+    },
   },
 
   family: {
@@ -542,6 +581,54 @@ export const enDict: RuDictShape = {
       period_90d: "90d",
       period_1y: "1y",
     },
+    period: {
+      title: "period summary",
+      range: "· 30d",
+      txn_short: "txn.",
+      avg: "avg",
+      net_forecast: "forecast {amount}",
+      net_deficit: "deficit {amount}",
+      net_zero: "net 0",
+      planned_count: "{n} planned",
+      partial_count: "{n} partial",
+      column: {
+        inflow: "INFLOW",
+        outflow: "OUTFLOW",
+        xfr: "TRANSFERS",
+        net: "NET",
+      },
+    },
+    status: {
+      planned: "Planned",
+      partial: "Partial",
+      done: "Done",
+      missed: "Missed",
+      cancel: "Cancelled",
+    },
+    weekday: {
+      sun: "Sun",
+      mon: "Mon",
+      tue: "Tue",
+      wed: "Wed",
+      thu: "Thu",
+      fri: "Fri",
+      sat: "Sat",
+    },
+    day: {
+      today: "· today",
+      inflow: "inflow",
+      outflow: "outflow",
+      planned: "planned",
+      expected: "{n} expected",
+      cancelled: "{n} cancelled",
+    },
+    reimbursement: {
+      prefix: "reimb.",
+      received: "received",
+      received_partial: "received {rec} of {exp}",
+      received_no_exp: "received {rec}",
+      expected: "expected {amount}",
+    },
   },
 
   wallet: {
@@ -556,6 +643,10 @@ export const enDict: RuDictShape = {
     account: {
       badge: {
         not_in_analytics: "not in analytics",
+      },
+      edit: {
+        archive: "Archive",
+        archive_failed: "Failed to archive account",
       },
       form: {
         include_in_analytics: {
@@ -594,6 +685,13 @@ export const enDict: RuDictShape = {
         placeholder_location: "Location name (e.g. «home safe»)",
         placeholder_balance: "Starting balance",
         submit: "Add",
+        cancel: "Cancel",
+      },
+      edit: {
+        title: "Edit cash location",
+        archive: "Archive",
+        archive_failed: "Failed to archive account",
+        save: "Save",
         cancel: "Cancel",
       },
     },
@@ -1117,19 +1215,19 @@ export const enDict: RuDictShape = {
       title: "quick actions",
       hotkey_hint: "hotkeys active · Q",
       income: {
-        label: "+Income",
+        label: "Income",
         aria: "add income",
       },
       expense: {
-        label: "−Expense",
+        label: "Expense",
         aria: "add expense",
       },
       transfer: {
-        label: "↔ Transfer",
+        label: "Transfer",
         aria: "create transfer",
       },
       transaction: {
-        label: "+Transaction",
+        label: "Transaction",
         aria: "add transaction",
       },
       shortcut_hint: "I / E / T for quick actions",
