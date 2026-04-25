@@ -888,7 +888,7 @@ export const enDict: RuDictShape = {
       title_create: "New account",
       title_edit: "Edit account",
       credit: {
-        balance_hint: "Enter the current debt on the credit card (positive number)",
+        balance_hint: "Enter the available balance (how much you can still spend). Debt is computed automatically: limit − available.",
       },
       errors: {
         credit_rate_required: "Rate is required for credit accounts",
@@ -905,7 +905,7 @@ export const enDict: RuDictShape = {
         currency: "Currency",
         balance: "Starting balance",
         balance_required: "Starting balance *",
-        balance_label_credit: "Current credit card debt",
+        balance_label_credit: "Available balance on card",
         note: "Note",
       },
       kind: {

@@ -896,7 +896,7 @@ export const ruDict = {
       title_create: "Новый счёт",
       title_edit: "Редактировать счёт",
       credit: {
-        balance_hint: "Введите текущий долг по кредитке (положительное число)",
+        balance_hint: "Введите остаток на карте (сколько ещё можно потратить). Долг рассчитается автоматически: лимит − остаток.",
       },
       errors: {
         credit_rate_required: "Ставка обязательна для кредитных счетов",
@@ -913,7 +913,7 @@ export const ruDict = {
         currency: "Валюта",
         balance: "Начальный баланс",
         balance_required: "Стартовый баланс *",
-        balance_label_credit: "Текущий долг по карте",
+        balance_label_credit: "Остаток на карте (доступно)",
         note: "Примечание",
       },
       kind: {

@@ -74,9 +74,9 @@ export default async function EditAccountPage({ params }: Props) {
           kind: account.kind,
           name: account.name,
           currencyCode: account.currencyCode,
-          // Credit card: balance stored as negative → show positive (debt amount) in edit form.
-          balance: account.kind === "CREDIT"
-            ? account.balance.abs().toString()
+          // Credit card: stored balance = available − creditLimit. Show available in edit form.
+          balance: account.kind === "CREDIT" && account.creditLimit != null
+            ? account.creditLimit.plus(account.balance).toString()
             : account.balance.toString(),
           sub: account.sub ?? undefined,
           sortOrder: account.sortOrder,

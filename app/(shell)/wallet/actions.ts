@@ -7,7 +7,7 @@ import { getCurrentUserId } from "@/lib/api/auth";
 import { accountCreateSchema, accountUpdateSchema, type AccountCreateInput } from "@/lib/validation/account";
 import { z } from "zod";
 import { zMoney, zCurrencyCode } from "@/lib/validation/shared";
-import { AccountKind, InstitutionKind } from "@prisma/client";
+import { AccountKind, InstitutionKind, Prisma } from "@prisma/client";
 import {
   createAccount,
   updateAccount,
@@ -97,12 +97,16 @@ export async function createAccountAction(rawInput: unknown) {
 
     const { newInstitutionName: _a, newInstitutionKind: _b, ...accountData } = input;
 
-    // Credit card: user enters debt as positive number → store as negative balance.
-    if (accountData.kind === AccountKind.CREDIT && accountData.balance) {
-      const raw = parseFloat(String(accountData.balance));
-      if (!isNaN(raw) && raw > 0) {
-        accountData.balance = String(-raw);
-      }
+    // Credit card: user enters available balance (остаток / сколько можно потратить).
+    // Store as `available - creditLimit` so negative balance = debt, positive = overpayment.
+    if (
+      accountData.kind === AccountKind.CREDIT &&
+      accountData.balance != null &&
+      accountData.creditLimit != null
+    ) {
+      const available = new Prisma.Decimal(String(accountData.balance));
+      const limit = new Prisma.Decimal(String(accountData.creditLimit));
+      accountData.balance = available.minus(limit).toString();
     }
 
     const cleaned = stripOrphanFields({ ...accountData, institutionId });
@@ -137,17 +141,21 @@ export async function updateAccountAction(id: string, rawData: unknown) {
   try {
     let data = parsed.data;
 
-    // Credit card: user enters debt as positive number → store as negative balance.
-    // If kind is not in update payload, fetch current kind from DB.
+    // Credit card: user enters available balance (остаток).
+    // Store as `available - creditLimit`. Need both balance AND creditLimit:
+    // pull missing pieces from the DB row.
     if (data.balance !== undefined) {
-      const effectiveKind = data.kind ?? (await db.account.findUnique({
+      const existing = await db.account.findUnique({
         where: { id },
-        select: { kind: true },
-      }))?.kind;
+        select: { kind: true, creditLimit: true },
+      });
+      const effectiveKind = data.kind ?? existing?.kind;
       if (effectiveKind === AccountKind.CREDIT) {
-        const raw = parseFloat(String(data.balance));
-        if (!isNaN(raw) && raw > 0) {
-          data = { ...data, balance: String(-raw) };
+        const limitSrc = data.creditLimit ?? existing?.creditLimit;
+        if (limitSrc != null) {
+          const available = new Prisma.Decimal(String(data.balance));
+          const limit = new Prisma.Decimal(String(limitSrc));
+          data = { ...data, balance: available.minus(limit).toString() };
         }
       }
     }
