@@ -66,9 +66,21 @@ const createAccountWithInstitutionSchema = accountCreateSchema.extend({
   newInstitutionKind: z.nativeEnum(InstitutionKind).optional(),
 });
 
-export const createAccountAction = withUserAction(
-  createAccountWithInstitutionSchema,
-  async (userId, input) => {
+export async function createAccountAction(rawInput: unknown) {
+  const userId = await getCurrentUserId();
+  const parsed = createAccountWithInstitutionSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    const fieldErrors: Record<string, string[]> = {};
+    for (const issue of parsed.error.issues) {
+      const key = issue.path.join(".");
+      if (!fieldErrors[key]) fieldErrors[key] = [];
+      fieldErrors[key].push(issue.message);
+    }
+    return { ok: false as const, fieldErrors };
+  }
+
+  try {
+    const input = parsed.data;
     let institutionId = input.institutionId;
 
     // If a new institution is being created inline
@@ -89,9 +101,13 @@ export const createAccountAction = withUserAction(
     revalidateTag("accounts", "default");
     revalidateTag("institutions", "default");
     revalidatePath("/", "layout");
-    return account;
-  },
-);
+    return actionOk(account);
+  } catch (e) {
+    const err = e as { code?: string };
+    if (err.code === "CARD_LAST4_CONFLICT") return actionError("card_last4_already_bound");
+    return actionError("internal_error");
+  }
+}
 
 // ─────────────────────────────────────────────────────────────
 // Update
@@ -118,6 +134,7 @@ export async function updateAccountAction(id: string, rawData: unknown) {
   } catch (e) {
     const err = e as { code?: string };
     if (err.code === "NOT_FOUND") return actionError("not_found");
+    if (err.code === "CARD_LAST4_CONFLICT") return actionError("card_last4_already_bound");
     return actionError("internal_error");
   }
 }

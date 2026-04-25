@@ -146,6 +146,8 @@ model Account {
   customPillLabel  String?
   // Обновляется ТОЛЬКО при ручной правке balance. null = баланс с момента создания не трогали.
   balanceUpdatedAt DateTime?
+  // Последние 4 цифры карты(и) (для трекинга при интеграции/импорте). PostgreSQL native string array.
+  cardLast4        String[]    @default([])
 
   // ── CREDIT (кредитные карты с лимитом/грейсом) ────────────────
   creditRatePct     Decimal? @db.Decimal(6, 3) // % годовых

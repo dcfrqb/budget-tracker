@@ -14,6 +14,7 @@ import { TextareaField } from "./primitives/textarea-field";
 import { MoneyInput } from "./primitives/money-input";
 import { SelectField } from "./primitives/select-field";
 import { SubmitRow } from "./primitives/submit-row";
+import { CardLast4Input } from "./primitives/card-last4-input";
 import { z } from "zod";
 import type { ActionResult } from "@/lib/actions/result";
 import { InfoCallout } from "@/components/ui/info-callout";
@@ -32,6 +33,7 @@ const ACCOUNT_ERROR_CODES = new Set([
   "savings_rate_required",
   "cash_goes_through_cash_stash",
   "balance_required",
+  "card_last4_already_bound",
 ]);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -140,6 +142,21 @@ export function AccountForm({
   const selectedKind = watch("kind") as AccountKind;
   const [minPaymentType, setMinPaymentType] = React.useState<"percent" | "fixed">("percent");
 
+  // cardLast4 chips — local state kept in sync with RHF via setValue
+  const watchedCardLast4 = watch("cardLast4") as string[] | undefined;
+  const [chips, setChips] = React.useState<string[]>(() => watchedCardLast4 ?? []);
+
+  function handleChipsChange(next: string[]) {
+    setChips(next);
+    setValue(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      "cardLast4" as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      next as any,
+      { shouldDirty: true },
+    );
+  }
+
   // Handle institution select change
   const handleInstitutionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     if (e.target.value === NEW_INSTITUTION_VALUE) {
@@ -186,6 +203,8 @@ export function AccountForm({
       ? t("forms.common.form_error.not_found")
       : formError === "conflict"
       ? t("forms.common.form_error.conflict")
+      : formError === "card_last4_already_bound"
+      ? t("forms.account.errors.card_last4_already_bound")
       : formError
       ? t("forms.common.form_error.internal")
       : null;
@@ -413,6 +432,9 @@ export function AccountForm({
         error={errMsg(errors.sub)}
         placeholder={t("forms.account.placeholder.note")}
       />
+
+      {/* cardLast4 chip input */}
+      <CardLast4Input chips={chips} onChange={handleChipsChange} />
 
       {/* includeInAnalytics checkbox (D7) */}
       <div className="field">

@@ -9,6 +9,22 @@ import type {
 // ─────────────────────────────────────────────────────────────
 
 export async function createAccount(userId: string, input: AccountCreateInput) {
+  if (input.cardLast4 && input.cardLast4.length > 0) {
+    const conflict = await db.account.findFirst({
+      where: { userId, deletedAt: null, cardLast4: { hasSome: input.cardLast4 } },
+      select: { id: true, cardLast4: true },
+    });
+    if (conflict) {
+      const duplicates = (conflict.cardLast4 as string[]).filter((d) =>
+        input.cardLast4!.includes(d),
+      );
+      throw Object.assign(new Error("card already bound to another account"), {
+        code: "CARD_LAST4_CONFLICT",
+        duplicates,
+      });
+    }
+  }
+
   return db.account.create({
     data: { ...input, userId },
   });
@@ -24,6 +40,27 @@ export async function updateAccount(
     select: { id: true },
   });
   if (!existing) throw Object.assign(new Error("account not found"), { code: "NOT_FOUND" });
+
+  if (input.cardLast4 && input.cardLast4.length > 0) {
+    const conflict = await db.account.findFirst({
+      where: {
+        userId,
+        deletedAt: null,
+        id: { not: id },
+        cardLast4: { hasSome: input.cardLast4 },
+      },
+      select: { id: true, cardLast4: true },
+    });
+    if (conflict) {
+      const duplicates = (conflict.cardLast4 as string[]).filter((d) =>
+        input.cardLast4!.includes(d),
+      );
+      throw Object.assign(new Error("card already bound to another account"), {
+        code: "CARD_LAST4_CONFLICT",
+        duplicates,
+      });
+    }
+  }
 
   return db.account.update({ where: { id }, data: input });
 }

@@ -29,6 +29,9 @@ const baseAccountSchema = z.object({
   statementDay: z.number().int().min(1).max(31).nullish(),
   minPaymentPercent: zMoney.nullish(),
   minPaymentFixed: zMoney.nullish(),
+
+  // Card linking — last 4 digits for CSV import matching
+  cardLast4: z.array(z.string().regex(/^\d{4}$/)).max(20).default([]),
 });
 
 // ─────────────────────────────────────────────────────────────

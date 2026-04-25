@@ -14,6 +14,26 @@ const COL_AMOUNT = "Сумма операции";
 const COL_CURRENCY = "Валюта операции";
 const COL_CATEGORY = "Категория";
 const COL_DESCRIPTION = "Описание";
+const COL_CARD = "Номер карты";
+
+/**
+ * Extracts the last 4 digits from a Tinkoff card column value.
+ * Input can look like "*1234", "*123456781234", or "1234".
+ * Returns a 4-digit string or undefined if not parseable.
+ */
+function extractCardLast4(raw: string): string | undefined {
+  const trimmed = raw.trim();
+  if (!trimmed) return undefined;
+  // Strip leading asterisk(s) if present
+  const stripped = trimmed.replace(/^\*+/, "");
+  // Keep only digits
+  const digits = stripped.replace(/\D/g, "");
+  if (digits.length < 4) return undefined;
+  const last4 = digits.slice(-4);
+  // Validate exactly 4 digits
+  if (!/^\d{4}$/.test(last4)) return undefined;
+  return last4;
+}
 
 /**
  * Parses a Tinkoff bank CSV statement string into ImportRow[].
@@ -77,10 +97,19 @@ export function parseTinkoff(
       : amountNum >= 0
         ? "INCOME"
         : "EXPENSE";
+
+    const direction: "in" | "out" = amountNum >= 0 ? "in" : "out";
+
     const description = raw[COL_DESCRIPTION] ?? undefined;
 
+    // Extract card number (last 4 digits)
+    const cardRaw = (raw[COL_CARD] ?? "").trim();
+    const cardLast4 = extractCardLast4(cardRaw);
+
     const descForId = (description ?? "").substring(0, 32);
-    const externalId = `tinkoff:${occurredAt}:${amountStr}:${descForId}`;
+    // Include cardLast4 in externalId to avoid dedupe collisions when two cards
+    // share the same account and have same-amount same-timestamp transactions.
+    const externalId = `tinkoff:${occurredAt}:${amountStr}:${descForId}:${cardLast4 ?? ""}`;
 
     rows.push({
       externalId,
@@ -88,6 +117,8 @@ export function parseTinkoff(
       amount: amountStr,
       currencyCode,
       kind,
+      direction,
+      cardLast4,
       rawCategory: rawCategory || undefined,
       description: description || undefined,
       raw,

@@ -66,6 +66,9 @@ export function parseGeneric(
       : amountNum >= 0
         ? "INCOME"
         : "EXPENSE";
+
+    const direction: "in" | "out" = amountNum >= 0 ? "in" : "out";
+
     const description = mapping.description ? (raw[mapping.description] ?? undefined) : undefined;
 
     rows.push({
@@ -73,6 +76,8 @@ export function parseGeneric(
       amount: amountStr,
       currencyCode,
       kind,
+      direction,
+      // Generic parser has no card column by default
       rawCategory: rawCategory || undefined,
       description: description || undefined,
       raw,
