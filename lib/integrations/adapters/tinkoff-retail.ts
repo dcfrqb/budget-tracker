@@ -12,6 +12,10 @@
 /// WARNING: Reverse-engineering Tinkoff's non-public mobile API likely violates their
 /// Terms of Service. Use only with explicit understanding of associated risks.
 
+// SECURITY: all outbound HTTP MUST go through `httpFetch` from "@/lib/integrations/http"
+// to enforce HTTPS, realistic User-Agent, and timeout.
+// Do NOT call fetch() directly in this file.
+
 import type { BankAdapter, AdapterContext } from "@/lib/integrations/types";
 import type { ImportRow } from "@/lib/import/types";
 

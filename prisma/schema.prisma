@@ -713,6 +713,7 @@ model IntegrationCredential {
   encryptedPayload String /// JSON.stringify(secrets) → AES-256-GCM ciphertext base64
   encryptionIv     String /// IV для GCM в base64
   encryptionTag    String /// Auth tag GCM в base64
+  keyVersion       Int               @default(1) /// Версия INTEGRATIONS_ENC_KEY при шифровании
   status           IntegrationStatus @default(DISCONNECTED)
   lastSyncAt       DateTime?
   lastErrorAt      DateTime?
@@ -720,8 +721,28 @@ model IntegrationCredential {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user     User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  syncLogs IntegrationSyncLog[]
 
   @@index([userId, adapterId])
   @@index([userId, status])
+}
+
+// История sync-попыток: для debug, compliance, детекции аномалий.
+// Поля намеренно не содержат payload/requests/responses (security by design).
+model IntegrationSyncLog {
+  id           String                @id @default(cuid())
+  credentialId String
+  credential   IntegrationCredential @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+
+  startedAt   DateTime  @default(now())
+  finishedAt  DateTime?
+  durationMs  Int?
+  status      String // "RUNNING" | "OK" | "ERROR" | "RATE_LIMITED" | "CIRCUIT_OPEN"
+  rowsCreated Int       @default(0)
+  rowsSkipped Int       @default(0)
+  errorClass  String? // короткий безопасный класс ошибки — "fetch_timeout", "401", "decrypt_failure", etc.
+
+  @@index([credentialId, startedAt])
+  @@index([startedAt])
 }

@@ -1,6 +1,7 @@
 import { getCurrentUserId } from "@/lib/api/auth";
 import { ok, err, serverError } from "@/lib/api/response";
 import { syncCredential } from "@/lib/data/_mutations/integrations";
+import { syncBodySchema } from "@/lib/validation/integrations";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,7 @@ export const dynamic = "force-dynamic";
  * Guarded by assertAdminIntegrations (called inside syncCredential).
  *
  * Optional JSON body: { accountId?: string, from?: string, to?: string }
+ * Validated via syncBodySchema: max 90-day window, valid ISO datetime strings.
  */
 export async function POST(
   req: Request,
@@ -20,23 +22,31 @@ export async function POST(
     const { credentialId } = await params;
     const userId = await getCurrentUserId();
 
+    // Body is fully optional — treat missing / empty body as {}.
     let accountId: string | undefined;
     let range: { from: Date; to: Date } | undefined;
 
-    try {
-      const body = await req.json().catch(() => ({}));
-      if (body && typeof body === "object") {
-        if (typeof body.accountId === "string") accountId = body.accountId;
-        if (typeof body.from === "string" && typeof body.to === "string") {
-          const from = new Date(body.from);
-          const to = new Date(body.to);
-          if (!isNaN(from.getTime()) && !isNaN(to.getTime())) {
-            range = { from, to };
-          }
-        }
+    const rawText = await req.text();
+    if (rawText.trim()) {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(rawText);
+      } catch {
+        return err("invalid JSON body", 400);
       }
-    } catch {
-      // ignore body parse errors — all fields optional
+
+      const result = syncBodySchema.safeParse(parsed);
+      if (!result.success) {
+        return err("validation_failed", 400, {
+          issues: result.error.issues.map((i) => i.path.join(".")),
+        });
+      }
+
+      const body = result.data;
+      if (body.accountId) accountId = body.accountId;
+      if (body.from && body.to) {
+        range = { from: new Date(body.from), to: new Date(body.to) };
+      }
     }
 
     const result = await syncCredential(userId, credentialId, {
