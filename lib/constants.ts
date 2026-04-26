@@ -1,5 +1,12 @@
 export const DEFAULT_USER_ID = "usr_default_single";
 
+// Default timezone used for day-boundary calculations (grouping, labels).
+// TODO: replace DEFAULT_TZ with User.timezone when user-level timezone is added.
+export const DEFAULT_TZ = "Europe/Moscow";
+
+// Name of the auto-created CASH institution (DB value, not localized).
+export const CASH_INSTITUTION_NAME = "Наличные";
+
 // ── Onboarding cookie ────────────────────────────────────────────────────────
 // Single source of truth — used by middleware.ts, actions.ts, and the
 // /api/onboarding/heal route handler. Never duplicate these values.

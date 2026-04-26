@@ -8,6 +8,7 @@ import { accountCreateSchema, accountUpdateSchema, type AccountCreateInput } fro
 import { z } from "zod";
 import { zMoney, zCurrencyCode } from "@/lib/validation/shared";
 import { AccountKind, InstitutionKind, Prisma } from "@prisma/client";
+import { CASH_INSTITUTION_NAME } from "@/lib/constants";
 import {
   createAccount,
   updateAccount,
@@ -245,7 +246,7 @@ export const createCashLocationAction = withUserAction(
     });
     if (!cashInstitution) {
       cashInstitution = await db.institution.create({
-        data: { userId, name: "Наличные", kind: InstitutionKind.CASH },
+        data: { userId, name: CASH_INSTITUTION_NAME, kind: InstitutionKind.CASH },
       });
     }
     const account = await db.account.create({

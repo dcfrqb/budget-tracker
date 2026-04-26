@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_ITEM_HEIGHT, NAV_TABS, NAV_TOP_PADDING, SETTINGS_TAB } from "@/lib/nav";
+import { useT } from "@/lib/i18n";
 
 function activeIndex(pathname: string): number | null {
   // Pick the longest matching href (so /transactions beats /). Root ('/') only
@@ -44,13 +45,14 @@ function SettingsIcon({ size = 16 }: { size?: number }) {
 }
 
 export function NavRail() {
+  const t = useT();
   const pathname = usePathname() ?? "/";
   const active = activeIndex(pathname);
   const indicatorTop = active === null ? -100 : NAV_TOP_PADDING + active * NAV_ITEM_HEIGHT;
   const settingsActive = pathname.startsWith(SETTINGS_TAB.href);
 
   return (
-    <nav className="nav-rail" aria-label="Основная навигация">
+    <nav className="nav-rail" aria-label={t("shell.nav.aria")}>
       <span
         className="indicator"
         style={{ top: indicatorTop, opacity: active === null ? 0 : 1 }}
@@ -64,9 +66,9 @@ export function NavRail() {
           aria-current={i === active ? "page" : undefined}
         >
           <span className="icon">{tab.icon}</span>
-          <span className="code">{tab.code}</span>
-          <span className="label-full mono">{tab.label}</span>
-          <span className="tip">{tab.label}</span>
+          <span className="code">{t(tab.codeKey)}</span>
+          <span className="label-full mono">{t(tab.labelKey)}</span>
+          <span className="tip">{t(tab.labelKey)}</span>
         </Link>
       ))}
 
@@ -78,9 +80,9 @@ export function NavRail() {
         aria-current={settingsActive ? "page" : undefined}
       >
         <span className="icon"><SettingsIcon /></span>
-        <span className="code">НАС</span>
-        <span className="label-full mono">{SETTINGS_TAB.label}</span>
-        <span className="tip">{SETTINGS_TAB.label}</span>
+        <span className="code">{t(SETTINGS_TAB.codeKey)}</span>
+        <span className="label-full mono">{t(SETTINGS_TAB.labelKey)}</span>
+        <span className="tip">{t(SETTINGS_TAB.labelKey)}</span>
       </Link>
     </nav>
   );

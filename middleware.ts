@@ -9,12 +9,16 @@ export function middleware(req: NextRequest) {
 
   // If not onboarded and not already on /onboarding, redirect there
   if (!isOnboarded && pathname !== "/onboarding") {
-    return NextResponse.redirect(new URL("/onboarding", req.url));
+    const url = req.nextUrl.clone();
+    url.pathname = "/onboarding";
+    return NextResponse.redirect(url);
   }
 
   // If already onboarded and visiting /onboarding, send to root
   if (isOnboarded && pathname === "/onboarding") {
-    return NextResponse.redirect(new URL("/", req.url));
+    const url = req.nextUrl.clone();
+    url.pathname = "/";
+    return NextResponse.redirect(url);
   }
 
   return NextResponse.next();

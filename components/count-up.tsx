@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { formatPlainNumber } from "@/lib/format/money";
 
 type Props = {
   to: number;
@@ -15,7 +16,7 @@ const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 
 function format(value: number, kind: "spaced" | "int"): string {
   if (kind === "int") return String(Math.round(value));
-  return Math.round(value).toLocaleString("en-US").replace(/,/g, " ");
+  return formatPlainNumber(Math.round(value));
 }
 
 export function CountUp({ to, format: fmt = "spaced", durationMs = 800, fallback }: Props) {

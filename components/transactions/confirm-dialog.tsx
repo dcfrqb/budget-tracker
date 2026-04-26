@@ -107,15 +107,21 @@ export function ConfirmDialog({
               <span className="form-label-hint"> ({t("forms.tx_confirm.partial")}: {remainingAmount})</span>
             )}
           </label>
+          {/* TODO: migrate to MoneyInput primitive when this dialog adopts RHF */}
           <input
             id="confirm-amount"
-            type="number"
-            step="0.01"
-            min="0.01"
+            type="text"
+            inputMode="decimal"
+            pattern="[0-9]+([.,][0-9]+)?"
             className="form-input"
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder={remainingAmountRaw ?? ""}
+            onChange={(e) => {
+              // Allow only digits, dot, comma; normalise comma → dot
+              const raw = e.target.value.replace(/[^0-9.,]/g, "").replace(",", ".");
+              setAmount(raw);
+            }}
+            onBlur={(e) => setAmount(e.target.value.trim())}
+            placeholder={remainingAmountRaw ?? "0.00"}
           />
         </div>
 

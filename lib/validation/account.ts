@@ -103,9 +103,21 @@ export const accountCreateSchema = baseAccountCreateSchema.superRefine((data, ct
   }
 });
 
-export const accountUpdateSchema = baseAccountSchema.partial().extend({
-  isArchived: z.boolean().optional(),
-});
+export const accountUpdateSchema = baseAccountSchema
+  .partial()
+  .extend({
+    isArchived: z.boolean().optional(),
+  })
+  .superRefine((data, ctx) => {
+    // If kind is being explicitly changed to CREDIT, creditLimit must be provided.
+    if (data.kind === AccountKind.CREDIT && !data.creditLimit) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "credit_limit_required",
+        path: ["creditLimit"],
+      });
+    }
+  });
 
 export const accountReorderSchema = z
   .array(z.object({ id: zCuid, sortOrder: z.number().int().nonnegative() }))

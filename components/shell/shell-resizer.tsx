@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useT } from "@/lib/i18n";
 
 const LS_RAIL    = "bdg:rail-w";
 const LS_SUMMARY = "bdg:summary-w";
@@ -18,6 +19,8 @@ function clamp(v: number, min: number, max: number) {
 }
 
 export function ShellResizer({ children }: { children: React.ReactNode }) {
+  const t = useT();
+
   // State only used for initial render value and persistence.
   // During drag, CSS vars are written directly to the DOM element.
   const [railW, setRailW] = useState(DEFAULT_RAIL);
@@ -144,6 +147,8 @@ export function ShellResizer({ children }: { children: React.ReactNode }) {
     try { localStorage.setItem(LS_SUMMARY, String(DEFAULT_SUM)); } catch {}
   }, []);
 
+  const resizeTitle = t("shell.resize.title");
+
   return (
     <div
       ref={shellRef}
@@ -158,18 +163,18 @@ export function ShellResizer({ children }: { children: React.ReactNode }) {
       <div
         className="resize-handle rail-handle"
         role="separator"
-        aria-label="Ширина навигации"
+        aria-label={t("shell.resize.aria_rail")}
         aria-orientation="vertical"
-        title="Тащи чтобы растянуть · двойной клик — сброс"
+        title={resizeTitle}
         onPointerDown={startDrag("rail")}
         onDoubleClick={resetRail}
       />
       <div
         className="resize-handle summary-handle"
         role="separator"
-        aria-label="Ширина сводки"
+        aria-label={t("shell.resize.aria_summary")}
         aria-orientation="vertical"
-        title="Тащи чтобы растянуть · двойной клик — сброс"
+        title={resizeTitle}
         onPointerDown={startDrag("sum")}
         onDoubleClick={resetSum}
       />

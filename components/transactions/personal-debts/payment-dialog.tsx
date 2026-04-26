@@ -69,15 +69,22 @@ export function DebtPaymentDialog({
           <label className="form-label" htmlFor="debt-pay-amount">
             {t("forms.personal_debt.payment_dialog.field_amount")}
           </label>
+          {/* TODO: migrate to MoneyInput primitive when this dialog adopts RHF */}
           <input
             id="debt-pay-amount"
-            type="number"
-            step="0.01"
-            min="0.01"
+            type="text"
+            inputMode="decimal"
+            pattern="[0-9]+([.,][0-9]+)?"
             required
             className="form-input"
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            onChange={(e) => {
+              // Allow only digits, dot, comma; normalise comma → dot
+              const raw = e.target.value.replace(/[^0-9.,]/g, "").replace(",", ".");
+              setAmount(raw);
+            }}
+            onBlur={(e) => setAmount(e.target.value.trim())}
+            placeholder="0.00"
           />
         </div>
 

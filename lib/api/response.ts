@@ -43,6 +43,6 @@ export function validation(zerr: ZodError): Response {
 }
 
 export function serverError(e: unknown): Response {
-  const message = e instanceof Error ? e.message : String(e);
-  return err(message, 500);
+  console.error(e);
+  return err("internal_server_error", 500);
 }

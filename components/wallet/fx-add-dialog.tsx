@@ -90,7 +90,7 @@ export function FxAddDialog({ currencies, cbrAvailableCodes, onClose }: Props) {
           </select>
         </div>
         {error && (
-          <div className="fx-add-dialog__error mono" style={{ color: "var(--col-neg)" }}>
+          <div className="fx-add-dialog__error mono" style={{ color: "var(--neg)" }}>
             {error}
           </div>
         )}

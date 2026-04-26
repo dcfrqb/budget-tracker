@@ -2,8 +2,9 @@
 
 import React, { useState, useCallback, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useT } from "@/lib/i18n";
+import { useT, useLocale } from "@/lib/i18n";
 import type { TKey, TOptions } from "@/lib/i18n";
+import { formatDate } from "@/lib/format/date";
 import type { ImportPreview, ImportPreviewRow, ImportSource } from "@/lib/import/types";
 import type { GenericMapping } from "@/lib/import/types";
 import { getCsvHeaders, getCsvPreviewRows, guessGenericMapping } from "@/lib/import/parsers/generic";
@@ -59,6 +60,7 @@ function estimateRowCount(csv: string): number {
 
 export function ImportWizard({ accounts, categories }: ImportWizardProps) {
   const t = useT();
+  const locale = useLocale();
   const router = useRouter();
 
   const [step, setStep] = useState<Step>("files");
@@ -509,7 +511,7 @@ export function ImportWizard({ accounts, categories }: ImportWizardProps) {
                   <tbody>
                     {intraSkippedRows.map((row, ri) => {
                       const dateStr = row.occurredAt
-                        ? new Date(row.occurredAt).toLocaleDateString("ru-RU")
+                        ? formatDate(new Date(row.occurredAt), locale)
                         : "—";
                       const name = row.description ?? row.rawCategory ?? "—";
                       return (
@@ -562,7 +564,7 @@ export function ImportWizard({ accounts, categories }: ImportWizardProps) {
                 </tr>
               </thead>
               <tbody>
-                {renderMainRows(mainRows, rowStates, categories, setRowStates, t)}
+                {renderMainRows(mainRows, rowStates, categories, setRowStates, t, locale)}
               </tbody>
             </table>
             {preview.rows.length > 500 && (
@@ -678,6 +680,7 @@ function renderMainRows(
     React.SetStateAction<Array<{ included: boolean; selectedCategoryId: string | null }>>
   >,
   t: (key: TKey, opts?: TOptions) => string,
+  locale: import("@/lib/i18n/types").Locale,
 ) {
   const rendered: React.ReactNode[] = [];
   const seen = new Set<number>();
@@ -719,6 +722,7 @@ function renderMainRows(
               }
               onCategoryChange={() => {}}
               t={t}
+              locale={locale}
             />
             <PreviewRow
               row={partnerEntry.row}
@@ -737,6 +741,7 @@ function renderMainRows(
               }
               onCategoryChange={() => {}}
               t={t}
+              locale={locale}
             />
           </tbody>,
         );
@@ -771,6 +776,7 @@ function renderMainRows(
             )
           }
           t={t}
+          locale={locale}
         />
       </tbody>,
     );
@@ -902,6 +908,7 @@ function PreviewRow({
   onToggle,
   onCategoryChange,
   t,
+  locale,
 }: {
   row: ImportPreviewRow;
   index: number;
@@ -913,9 +920,10 @@ function PreviewRow({
   onToggle: (idx: number) => void;
   onCategoryChange: (idx: number, catId: string | null) => void;
   t: (key: TKey, opts?: TOptions) => string;
+  locale: import("@/lib/i18n/types").Locale;
 }) {
   const dateStr = row.occurredAt
-    ? new Date(row.occurredAt).toLocaleDateString("ru-RU")
+    ? formatDate(new Date(row.occurredAt), locale)
     : "—";
   const name = row.description ?? row.rawCategory ?? "—";
 

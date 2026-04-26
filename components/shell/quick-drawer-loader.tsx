@@ -1,6 +1,7 @@
 import { getCurrentUserId } from "@/lib/api/auth";
 import { getCategories } from "@/lib/data/categories";
-import { db } from "@/lib/db";
+import { listAccountsForQuickDrawer } from "@/lib/data/wallet";
+import { listAllCurrencies } from "@/lib/data/currencies";
 import { QuickDrawer } from "./quick-drawer";
 
 // ─────────────────────────────────────────────────────────────
@@ -14,13 +15,9 @@ export async function QuickDrawerLoader() {
   const userId = await getCurrentUserId();
 
   const [accounts, categories, currencies] = await Promise.all([
-    db.account.findMany({
-      where: { userId, deletedAt: null, isArchived: false },
-      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-      select: { id: true, name: true, currencyCode: true },
-    }),
+    listAccountsForQuickDrawer(userId),
     getCategories(userId),
-    db.currency.findMany({ orderBy: { code: "asc" } }),
+    listAllCurrencies(),
   ]);
 
   return (
