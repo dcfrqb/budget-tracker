@@ -27,7 +27,7 @@ export type PairResult = Map<
   }
 >;
 
-const PAIR_WINDOW_MS = 10_000; // ±10 seconds
+const PAIR_WINDOW_MS = 60_000; // ±60 seconds — bank CSV exports can have up to ~1 min skew between legs
 
 /**
  * Builds a map from candidate index → pair metadata for all matched pairs.

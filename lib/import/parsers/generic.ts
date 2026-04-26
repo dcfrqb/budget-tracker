@@ -158,19 +158,35 @@ function parseGenericDate(dateStr: string): string | null {
     if (!isNaN(d.getTime())) return d.toISOString();
   }
 
-  // Try dd.MM.yyyy or dd/MM/yyyy
-  const dmyMatch = dateStr.match(/^(\d{1,2})[.\-\/](\d{1,2})[.\-\/](\d{4})/);
+  // Try dd.MM.yyyy or dd/MM/yyyy with optional time component
+  const dmyMatch = dateStr.match(
+    /^(\d{1,2})[.\-\/](\d{1,2})[.\-\/](\d{4})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?/,
+  );
   if (dmyMatch) {
-    const [, dd, mm, yyyy] = dmyMatch;
-    const d = new Date(`${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}T12:00:00`);
+    const [, dd, mm, yyyy, hh, mi, ss] = dmyMatch;
+    const time =
+      hh !== undefined
+        ? `${hh}:${mi}:${ss !== undefined ? ss : "00"}`
+        : "12:00:00";
+    const d = new Date(
+      `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}T${time}`,
+    );
     if (!isNaN(d.getTime())) return d.toISOString();
   }
 
-  // Try MM/dd/yyyy (US format)
-  const mdyMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  // Try MM/dd/yyyy (US format) with optional time component
+  const mdyMatch = dateStr.match(
+    /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?/,
+  );
   if (mdyMatch) {
-    const [, mm, dd, yyyy] = mdyMatch;
-    const d = new Date(`${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}T12:00:00`);
+    const [, mm, dd, yyyy, hh, mi, ss] = mdyMatch;
+    const time =
+      hh !== undefined
+        ? `${hh}:${mi}:${ss !== undefined ? ss : "00"}`
+        : "12:00:00";
+    const d = new Date(
+      `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}T${time}`,
+    );
     if (!isNaN(d.getTime())) return d.toISOString();
   }
 

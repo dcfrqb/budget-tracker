@@ -110,11 +110,30 @@ export function ImportWizard({ accounts, categories }: ImportWizardProps) {
         const guessedEncoding: "utf-8" | "windows-1251" = "utf-8";
         const text = await readFileAsText(file, guessedEncoding);
         const guessedDelimiter: ";" | "," = text.includes(";") ? ";" : ",";
-        const guessedSource: ImportSource = file.name.toLowerCase().includes("tinkoff")
-          ? "tinkoff"
-          : "generic";
 
         const headers = getCsvHeaders(text, guessedDelimiter);
+
+        // Detect Tinkoff by column headers first (most reliable),
+        // then fall back to filename heuristics.
+        const TINKOFF_HEADER_SIGNALS = [
+          "Дата операции",
+          "Сумма операции",
+          "Валюта операции",
+          "Категория",
+          "MCC",
+          "Кэшбэк",
+        ];
+        const matchedSignals = TINKOFF_HEADER_SIGNALS.filter((h) =>
+          headers.includes(h),
+        ).length;
+        const lowerName = file.name.toLowerCase();
+        const guessedSource: ImportSource =
+          matchedSignals >= 2
+            ? "tinkoff"
+            : lowerName.includes("tinkoff") || lowerName.startsWith("operations")
+              ? "tinkoff"
+              : "generic";
+
         const mapping = guessGenericMapping(headers);
 
         newEntries.push({

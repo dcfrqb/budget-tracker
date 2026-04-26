@@ -109,7 +109,10 @@ function pad2(n: number): string {
   return n < 10 ? "0" + n : String(n);
 }
 
-// "21.04" from UTC date components — all dates stored in UTC to avoid local-TZ drift.
+// "21.04" from UTC date components — must stay UTC to stay consistent with the
+// day-grouping key (toISOString().slice(0,10) in getTransactionsGroupedByDay).
+// TODO: if day-boundary shifts become a user complaint (e.g. midnight MSK = 21:00 UTC →
+// previous day label), align both the key and this label to local TZ.
 export function formatDateRu(d: Date): string {
   return `${pad2(d.getUTCDate())}.${pad2(d.getUTCMonth() + 1)}`;
 }
@@ -126,7 +129,9 @@ export function formatWeekdayRu(d: Date, today: Date, t: TFn): string {
 }
 
 export function formatTime(d: Date): string {
-  return `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`;
+  // Use local time so displayed HH:MM matches what the user sees in their bank app.
+  // Requires TZ env var to be set correctly on the server (e.g. TZ=Europe/Moscow).
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 }
 
 // "+₽ 120 000" / "−₽ 1 860" / "₽ 20 000" (transfer) / "+$ 45 000".
