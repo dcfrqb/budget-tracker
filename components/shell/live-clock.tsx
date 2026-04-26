@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useEffect, useState } from "react";
+import { useT } from "@/lib/i18n";
 
 function fmt(d: Date) {
   const hh = String(d.getHours()).padStart(2, "0");
@@ -10,6 +11,7 @@ function fmt(d: Date) {
 }
 
 export const LiveClock = memo(function LiveClock() {
+  const t = useT();
   const [now, setNow] = useState<string | null>(null);
 
   useEffect(() => {
@@ -19,8 +21,8 @@ export const LiveClock = memo(function LiveClock() {
   }, []);
 
   return (
-    <span className="clock mono">
-      обн <b>{now ?? "--:--:--"}</b>
+    <span className="clock mono" title={t("shell.clock.tooltip")}>
+      {t("shell.clock.updated")} <b>{now ?? "--:--:--"}</b>
     </span>
   );
 });

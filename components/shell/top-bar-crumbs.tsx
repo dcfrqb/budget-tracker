@@ -1,37 +1,50 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { NAV_TABS } from "@/lib/nav";
-
-function activeTab(pathname: string) {
-  return (
-    NAV_TABS.find((t) => (t.href === "/" ? pathname === "/" : pathname.startsWith(t.href))) ??
-    NAV_TABS[0]
-  );
-}
-
-const SECONDARY: Record<string, string> = {
-  home: "обзор",
-  txn:  "лента",
-  inc:  "источники",
-  exp:  "обязательства",
-  plan: "календарь",
-  anl:  "погода",
-  wal:  "счета",
-  fam:  "группа",
-};
+import { findTabForPath } from "@/lib/nav";
+import { useT } from "@/lib/i18n";
 
 export function TopBarCrumbs() {
+  const t = useT();
   const pathname = usePathname() ?? "/";
-  const tab = activeTab(pathname);
+  const tab = findTabForPath(pathname);
+
+  const SECONDARY: Record<string, string> = {
+    home: t("shell.crumbs.home"),
+    txn:  t("shell.crumbs.txn"),
+    inc:  t("shell.crumbs.inc"),
+    exp:  t("shell.crumbs.exp"),
+    plan: t("shell.crumbs.plan"),
+    anl:  t("shell.crumbs.anl"),
+    wal:  t("shell.crumbs.wal"),
+    fam:  t("shell.crumbs.fam"),
+    settings: t("shell.crumbs.settings"),
+  };
+
+  // Deeper sub-paths within sections that need a third crumb
+  const SECONDARY_BY_PATH: Record<string, string> = {
+    "/settings/categories":   t("shell.crumbs.settings_sub.categories"),
+    "/settings/integrations": t("shell.crumbs.settings_sub.integrations"),
+  };
+
+  const tabLabel = tab ? t(tab.labelKey).toLowerCase() : "—";
+  const secondaryCrumb = tab ? (SECONDARY[tab.id] ?? "—") : "—";
+
+  // Third crumb: only show on home page (date) or when a deeper sub-path matches
+  const subPathCrumb = SECONDARY_BY_PATH[pathname] ?? null;
+  const thirdCrumb = pathname === "/" ? new Date().toISOString().slice(0, 10) : subPathCrumb;
 
   return (
     <span className="path mono">
-      <b>{tab.label.toLowerCase()}</b>
+      <b>{tabLabel}</b>
       <span className="sep">/</span>
-      {SECONDARY[tab.id] ?? "—"}
-      <span className="sep">/</span>
-      {new Date().toISOString().slice(0, 10)}
+      {secondaryCrumb}
+      {thirdCrumb && (
+        <>
+          <span className="sep">/</span>
+          {thirdCrumb}
+        </>
+      )}
     </span>
   );
 }

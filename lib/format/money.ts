@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import type { Locale } from "@/lib/i18n/types";
 
 type CurrencyShape = { code: string; symbol: string; decimals: number };
 
@@ -44,7 +45,26 @@ export function formatRubPrefix(value: Prisma.Decimal | string | number): string
   return `₽ ${formatNumber(amount, fd)}`;
 }
 
+// Hero displays use 0 decimals; body tables may show 2.
+export function formatRubPrefixRounded(value: Prisma.Decimal | string | number): string {
+  return `₽ ${formatNumber(toDecimal(value), 0)}`;
+}
+
 // "92.10" для пары USD-RUB в rates-row (всегда 2 decimals).
 export function formatRate(value: Prisma.Decimal | string | number): string {
   return formatNumber(toDecimal(value), 2);
+}
+
+/**
+ * Formats a plain number with space-grouped thousands, no currency symbol.
+ * The locale parameter is accepted for signature consistency but the
+ * internal formatter always groups with spaces (universally readable).
+ * Examples: 142680 → "142 680", 1234567 → "1 234 567"
+ */
+export function formatPlainNumber(
+  value: number,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _locale?: Locale,
+): string {
+  return formatNumber(new Prisma.Decimal(Math.round(value)), 0);
 }

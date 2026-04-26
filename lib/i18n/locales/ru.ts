@@ -37,7 +37,30 @@ export const ruDict = {
         oct: "окт",
         nov: "ноя",
         dec: "дек",
+        "1":  "янв",
+        "2":  "фев",
+        "3":  "мар",
+        "4":  "апр",
+        "5":  "май",
+        "6":  "июн",
+        "7":  "июл",
+        "8":  "авг",
+        "9":  "сен",
+        "10": "окт",
+        "11": "ноя",
+        "12": "дек",
       },
+    },
+    period: {
+      "7d":  "7д",
+      "30d": "30д",
+      "90d": "90д",
+      "1y":  "1г",
+      "1m":  "1м",
+      "3m":  "3м",
+      "6m":  "6м",
+      "12m": "12м",
+      ytd:   "YTD",
     },
     weekday: {
       short: {
@@ -160,7 +183,7 @@ export const ruDict = {
       dialog_title: "Подтверждение удаления",
       dialog_body: "Это удалит все ваши транзакции, счета, кредиты, подписки, фонды, источники дохода и другие данные. Действие необратимо.",
       confirm_label: "Введите «{phrase}» для подтверждения",
-      confirm_phrase: "стереть всё",
+      confirm_phrase: "УДАЛИТЬ",
       confirm_button: "Удалить все данные",
       cancel_button: "Отмена",
       error_wipe: "Ошибка при удалении данных",
@@ -184,6 +207,11 @@ export const ruDict = {
       mode_economy: "эконом",
       mode_normal: "норма",
       mode_free: "свобода",
+      // === wave-1+2 shell ===
+      cashflow: {
+        delta_pos: "+{amount} к пред. неделе",
+        delta_neg: "−{amount} к пред. неделе",
+      },
     },
     transactions: {
       filter_label: "фильтр",
@@ -199,6 +227,8 @@ export const ruDict = {
       pending_key: "ожидание",
       pending_val: "{count} плановых",
       pending_none: "нет",
+      // === wave-1+2 shell ===
+      pending_tooltip: "Плановые транзакции ожидают подтверждения",
     },
     income: {
       month_label: "доход в этом мес",
@@ -408,6 +438,10 @@ export const ruDict = {
       sources_label: "АКТИВНЫХ ИСТОЧНИКОВ",
       tax_label: "НАЛОГ НАЧИСЛЕНО",
       rate_label: "ЧАСОВАЯ СТАВКА",
+      // === wave-3 polish ===
+      empty_cta_title: "Добавь источник дохода",
+      empty_cta_body: "Чтобы видеть налоги, ставку в час и расчёт «сколько часов до покупки».",
+      empty_cta_button: "+ Добавить источник",
     },
     work_sources: {
       add: "+ Добавить источник",
@@ -494,6 +528,21 @@ export const ruDict = {
     },
     deadline_none: "без срока",
     hours_rate_label: "ставка {rate}",
+    // === wave-3 polish ===
+    hours_calc: {
+      title: "калькулятор часов",
+      subtitle: "сколько работы стоит покупка",
+      source_meta: "источник: {name} · {rate} / ч (чистая)",
+      price_label: "цена покупки",
+      price_hint: "введи сумму и валюту",
+      rate_label: "ставка / час (чистая)",
+      rate_sub: "{name} · {hpm} ч/мес · {tax}",
+      hours_label: "чистые часы работы",
+      hours_sub: "≈ {weeks} нед при твоём графике",
+      empty_title: "ставка не задана",
+      empty_body: "Добавь источник дохода, чтобы видеть стоимость покупки в часах работы.",
+      empty_cta: "+ Добавить источник",
+    },
   },
 
   analytics: {
@@ -508,6 +557,10 @@ export const ruDict = {
       net_sub_neg: "отрицательный",
       savings_rate: "норма {pct}%",
       no_data: "нет данных",
+      // === wave-1+2 shell ===
+      title: "ключевые метрики",
+      title_period: "· 3 мес",
+      period_default: "текущий период",
     },
     forecast: {
       income: "ОЖИД. ДОХОД",
@@ -528,6 +581,39 @@ export const ruDict = {
       limit_lean: "урезан",
       limit_normal: "стандарт",
       limit_free: "расширен",
+    },
+    runway: {
+      title: "до какого числа прожить",
+      until: "до {date}",
+      days_remaining: "{n} дней", // TODO: добавить полный plural
+      empty: {
+        no_limits: "лимиты не заданы для этого режима",
+        cta_set_limits: "задать лимиты",
+      },
+      breakdown: {
+        top_categories: "топ категорий",
+      },
+    },
+    trends: {
+      title: "тренд",
+      subtitle: "доход / расход / нетто",
+      empty: "Нет данных за период",
+      legend: {
+        income:  "доход",
+        expense: "расход",
+        net:     "нетто",
+      },
+      y_axis_label: "тыс.",
+    },
+    status_strip: {
+      period_label:  "ПЕРИОД",
+      compare_label: "СРАВНИТЬ С",
+      cmp: {
+        prev: "пред. периодом",
+        yoy:  "год назад",
+        none: "нет",
+      },
+      sync: "синхр {sec}с назад",
     },
     weather: {
       title: "финансовая погода",
@@ -609,6 +695,8 @@ export const ruDict = {
     toolbar: {
       import_csv: "CSV Импорт",
       import_csv_title: "Импорт транзакций из CSV",
+      // === wave-3 polish ===
+      search_placeholder: "поиск по описанию",
     },
     feed: {
       title: "лента",
@@ -683,6 +771,17 @@ export const ruDict = {
   },
 
   wallet: {
+    // === wave-2 parser+wallet+breadcrumbs ===
+    totals: {
+      net_label:         "чистая сумма",
+      net_sub:           "всего по {n} счетам",
+      banks_crypto_label: "счета и крипто",
+      banks_crypto_sub:  "доступно в банках и крипто",
+      savings_label:     "подушка / вклады",
+      savings_sub:       "{n} накопительных",
+      cash_label:        "наличка",
+      cash_sub:          "{n} локаций",
+    },
     strip: {
       group: "ГРУППА",
       currency: "ВАЛЮТА",
@@ -1079,6 +1178,9 @@ export const ruDict = {
       are_you_sure: "Вы уверены?",
       yes_miss: "Да, пропустить",
       yes_cancel: "Да, отменить",
+      // === wave-3 polish ===
+      delete_confirm_body: "Транзакция будет удалена. Действие необратимо.",
+      yes_delete: "Да, удалить",
     },
     sub: {
       title_create: "Новая подписка",
@@ -1326,7 +1428,7 @@ export const ruDict = {
   drawer: {
     close: "Закрыть",
     placeholder_title: "Форма появится здесь",
-    placeholder_body: "Implementation in progress",
+    placeholder_body: "В разработке",
   },
 
   signals: {
@@ -1337,6 +1439,33 @@ export const ruDict = {
   },
 
   home: {
+    top_categories: {
+      title:       "топ-категорий",
+      delta_label: "vs прош. месяц",
+      meta:        "топ {count} · по убыв.",
+      empty:       "нет данных о расходах по категориям",
+      // === wave-3 polish ===
+      delta_new: "новое",
+    },
+    plan_fact: {
+      title: "план-факт",
+      meta:  "текущий месяц",
+      // === wave-3 polish ===
+      no_plan: "нет плана",
+    },
+    status_strip: {
+      mode_label:   "РЕЖИМ",
+      period_label: "ПЕРИОД",
+      modes: {
+        econom: "Эконом",
+        normal: "Норма",
+        free:   "Свобода",
+      },
+      sync:       "синхр {sec}с",
+      day_prefix: "д",
+      // === wave-3 polish ===
+      sync_tooltip: "Возраст данных: {sec} сек назад",
+    },
     quick: {
       title: "быстрые действия",
       hotkey_hint: "хоткеи активны · Q",
@@ -1434,6 +1563,102 @@ export const ruDict = {
     },
     submit: "Начать",
     error_save: "Ошибка сохранения. Попробуйте ещё раз.",
+  },
+
+  shell: {
+    status: {
+      stable: "СТАБИЛЬНО",
+      warning: "ВНИМАНИЕ",
+      crisis: "КРИЗИС",
+    },
+    crumbs: {
+      home: "обзор",
+      txn:  "лента",
+      inc:  "источники",
+      exp:  "обязательства",
+      plan: "календарь",
+      anl:  "погода",
+      wal:  "счета",
+      fam:  "группа",
+      // === wave-2 parser+wallet+breadcrumbs ===
+      settings: "настройки",
+      settings_sub: {
+        categories:   "категории",
+        integrations: "интеграции",
+      },
+    },
+    nav: {
+      tabs: {
+        home:     "Главная",
+        txn:      "Транзакции",
+        inc:      "Доходы",
+        exp:      "Расходы",
+        plan:     "Планирование",
+        anl:      "Аналитика",
+        wal:      "Кошелёк",
+        fam:      "Семья",
+        settings: "Настройки",
+      },
+      codes: {
+        home:     "ГЛВ",
+        txn:      "ТРН",
+        inc:      "ДХД",
+        exp:      "РСХ",
+        plan:     "ПЛН",
+        anl:      "АНЛ",
+        wal:      "КШЛ",
+        fam:      "СЕМ",
+        settings: "НАС",
+      },
+      aria: "Основная навигация",
+    },
+    resize: {
+      aria_rail:    "Ширина навигации",
+      aria_summary: "Ширина сводки",
+      title:        "Тащи чтобы растянуть · двойной клик — сброс",
+    },
+    clock: {
+      updated: "обн",
+      // === wave-3 polish ===
+      tooltip: "Локальное время",
+    },
+    summary: {
+      aria: "Сводка",
+      safe: {
+        label:       "безопасно до",
+        zero_income: "@ нулевой доход",
+        days:        "дней",
+      },
+      avail: {
+        label:    "доступно сейчас",
+        total:    "всего",
+        reserved: "резерв",
+      },
+      balances: {
+        label:    "балансы",
+        empty:    "нет данных",
+        accounts: "{count} счёта",
+      },
+      session: {
+        label:  "состояние сессии",
+        online: "онлайн",
+        status: "статус",
+      },
+      quick: {
+        label:       "быстро",
+        income:      "+ Доход",
+        expense:     "+ Расход",
+        txn:         "+ Транз",
+        tip_income:  "Доход (I)",
+        tip_expense: "Расход (E)",
+        tip_txn:     "Транзакция (T)",
+      },
+      cashflow: {
+        title:          "денежный поток 30д",
+        period_label:   "текущий период",
+        empty:          "нет данных",
+      },
+    },
   },
 
   import: {

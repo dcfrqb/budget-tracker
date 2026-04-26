@@ -91,6 +91,7 @@ export function TxnRowActions({ txn, accounts }: TxnRowActionsProps) {
   const [reimbOpen, setReimbOpen] = useState(false);
   const [missOpen, setMissOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   // Optimistic status update for confirm
   const [optimisticStatus, setOptimisticStatus] = useOptimistic(txn.status);
@@ -116,6 +117,7 @@ export function TxnRowActions({ txn, accounts }: TxnRowActionsProps) {
   }
 
   function handleDelete() {
+    setDeleteOpen(false);
     startTransition(async () => {
       const result = await deleteTransactionAction(txn.id);
       if (!result.ok) {
@@ -194,7 +196,7 @@ export function TxnRowActions({ txn, accounts }: TxnRowActionsProps) {
           type="button"
           className="btn"
           style={{ fontSize: "10px", padding: "3px 8px", color: "var(--neg)" }}
-          onClick={handleDelete}
+          onClick={() => setDeleteOpen(true)}
           disabled={isPending}
         >
           {t("forms.tx_row.delete")}
@@ -239,6 +241,17 @@ export function TxnRowActions({ txn, accounts }: TxnRowActionsProps) {
         message={t("forms.tx_row.are_you_sure")}
         confirmLabel={t("forms.tx_row.yes_cancel")}
         onConfirm={handleCancel}
+        isPending={isPending}
+      />
+
+      {/* Delete confirm */}
+      <DangerDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title={t("forms.tx_row.delete")}
+        message={t("forms.tx_row.delete_confirm_body")}
+        confirmLabel={t("forms.tx_row.yes_delete")}
+        onConfirm={handleDelete}
         isPending={isPending}
       />
     </>

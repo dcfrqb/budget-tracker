@@ -29,7 +29,30 @@ export const enDict: RuDictShape = {
         oct: "Oct",
         nov: "Nov",
         dec: "Dec",
+        "1":  "jan",
+        "2":  "feb",
+        "3":  "mar",
+        "4":  "apr",
+        "5":  "may",
+        "6":  "jun",
+        "7":  "jul",
+        "8":  "aug",
+        "9":  "sep",
+        "10": "oct",
+        "11": "nov",
+        "12": "dec",
       },
+    },
+    period: {
+      "7d":  "7d",
+      "30d": "30d",
+      "90d": "90d",
+      "1y":  "1y",
+      "1m":  "1m",
+      "3m":  "3m",
+      "6m":  "6m",
+      "12m": "12m",
+      ytd:   "YTD",
     },
     weekday: {
       short: {
@@ -152,7 +175,7 @@ export const enDict: RuDictShape = {
       dialog_title: "Confirm deletion",
       dialog_body: "This will delete all your transactions, accounts, loans, subscriptions, funds, income sources and other data. This action is irreversible.",
       confirm_label: "Type \"{phrase}\" to confirm",
-      confirm_phrase: "delete everything",
+      confirm_phrase: "DELETE",
       confirm_button: "Delete all data",
       cancel_button: "Cancel",
       error_wipe: "Error deleting data",
@@ -176,6 +199,11 @@ export const enDict: RuDictShape = {
       mode_economy: "economy",
       mode_normal: "normal",
       mode_free: "free",
+      // === wave-1+2 shell ===
+      cashflow: {
+        delta_pos: "+{amount} vs prev week",
+        delta_neg: "−{amount} vs prev week",
+      },
     },
     transactions: {
       filter_label: "filter",
@@ -191,6 +219,8 @@ export const enDict: RuDictShape = {
       pending_key: "pending",
       pending_val: "{count} planned",
       pending_none: "none",
+      // === wave-1+2 shell ===
+      pending_tooltip: "Planned transactions awaiting confirmation",
     },
     income: {
       month_label: "income this month",
@@ -400,6 +430,10 @@ export const enDict: RuDictShape = {
       sources_label: "ACTIVE SOURCES",
       tax_label: "TAX ACCRUED",
       rate_label: "HOURLY RATE",
+      // === wave-3 polish ===
+      empty_cta_title: "Add a work source",
+      empty_cta_body: "To see tax, hourly rate, and the hours-to-purchase calculation.",
+      empty_cta_button: "+ Add work source",
     },
     work_sources: {
       add: "+ Add source",
@@ -486,6 +520,21 @@ export const enDict: RuDictShape = {
     },
     deadline_none: "no deadline",
     hours_rate_label: "rate {rate}",
+    // === wave-3 polish ===
+    hours_calc: {
+      title: "hours calculator",
+      subtitle: "how much work a purchase costs",
+      source_meta: "source: {name} · {rate}/h (net)",
+      price_label: "purchase price",
+      price_hint: "enter amount and currency",
+      rate_label: "rate / hour (net)",
+      rate_sub: "{name} · {hpm} h/mo · {tax}",
+      hours_label: "net hours of work",
+      hours_sub: "≈ {weeks} weeks at your schedule",
+      empty_title: "no rate set",
+      empty_body: "Add a work source to see how many hours a purchase costs.",
+      empty_cta: "+ Add work source",
+    },
   },
 
   analytics: {
@@ -500,6 +549,10 @@ export const enDict: RuDictShape = {
       net_sub_neg: "negative",
       savings_rate: "rate {pct}%",
       no_data: "no data",
+      // === wave-1+2 shell ===
+      title: "key metrics",
+      title_period: "· 3 mo",
+      period_default: "current period",
     },
     forecast: {
       income: "EXP. INCOME",
@@ -520,6 +573,39 @@ export const enDict: RuDictShape = {
       limit_lean: "reduced",
       limit_normal: "standard",
       limit_free: "expanded",
+    },
+    runway: {
+      title: "runway by mode",
+      until: "until {date}",
+      days_remaining: "{n} days", // TODO: add full plural
+      empty: {
+        no_limits: "no limits set for this mode",
+        cta_set_limits: "set limits",
+      },
+      breakdown: {
+        top_categories: "top categories",
+      },
+    },
+    trends: {
+      title: "trend",
+      subtitle: "income / expense / net",
+      empty: "No data for period",
+      legend: {
+        income:  "income",
+        expense: "expense",
+        net:     "net",
+      },
+      y_axis_label: "k",
+    },
+    status_strip: {
+      period_label:  "PERIOD",
+      compare_label: "COMPARE TO",
+      cmp: {
+        prev: "prev. period",
+        yoy:  "year ago",
+        none: "none",
+      },
+      sync: "synced {sec}s ago",
     },
     weather: {
       title: "financial weather",
@@ -601,6 +687,8 @@ export const enDict: RuDictShape = {
     toolbar: {
       import_csv: "CSV Import",
       import_csv_title: "Import transactions from CSV",
+      // === wave-3 polish ===
+      search_placeholder: "search by description",
     },
     feed: {
       title: "feed",
@@ -675,6 +763,17 @@ export const enDict: RuDictShape = {
   },
 
   wallet: {
+    // === wave-2 parser+wallet+breadcrumbs ===
+    totals: {
+      net_label:         "net total",
+      net_sub:           "across {n} accounts",
+      banks_crypto_label: "accounts & crypto",
+      banks_crypto_sub:  "available in banks and crypto",
+      savings_label:     "buffer / savings",
+      savings_sub:       "{n} savings accounts",
+      cash_label:        "cash",
+      cash_sub:          "{n} locations",
+    },
     strip: {
       group: "GROUP",
       currency: "CURRENCY",
@@ -1071,6 +1170,8 @@ export const enDict: RuDictShape = {
       are_you_sure: "Are you sure?",
       yes_miss: "Yes, miss it",
       yes_cancel: "Yes, cancel it",
+      delete_confirm_body: "Transaction will be deleted. This action cannot be undone.",
+      yes_delete: "Yes, delete",
     },
     sub: {
       title_create: "New subscription",
@@ -1329,6 +1430,33 @@ export const enDict: RuDictShape = {
   },
 
   home: {
+    top_categories: {
+      title:       "top categories",
+      delta_label: "vs prev month",
+      meta:        "top {count} · desc",
+      empty:       "no category spending data",
+      // === wave-3 polish ===
+      delta_new: "new",
+    },
+    plan_fact: {
+      title: "plan-fact",
+      meta:  "current month",
+      // === wave-3 polish ===
+      no_plan: "no plan set",
+    },
+    status_strip: {
+      mode_label:   "MODE",
+      period_label: "PERIOD",
+      modes: {
+        econom: "Econom",
+        normal: "Normal",
+        free:   "Free",
+      },
+      sync:       "sync {sec}s",
+      day_prefix: "d",
+      // === wave-3 polish ===
+      sync_tooltip: "Data age: {sec}s ago",
+    },
     quick: {
       title: "quick actions",
       hotkey_hint: "hotkeys active · Q",
@@ -1426,6 +1554,102 @@ export const enDict: RuDictShape = {
     },
     submit: "Get started",
     error_save: "Save error. Please try again.",
+  },
+
+  shell: {
+    status: {
+      stable:  "STABLE",
+      warning: "WARNING",
+      crisis:  "CRISIS",
+    },
+    crumbs: {
+      home: "overview",
+      txn:  "feed",
+      inc:  "sources",
+      exp:  "obligations",
+      plan: "calendar",
+      anl:  "weather",
+      wal:  "accounts",
+      fam:  "group",
+      // === wave-2 parser+wallet+breadcrumbs ===
+      settings: "settings",
+      settings_sub: {
+        categories:   "categories",
+        integrations: "integrations",
+      },
+    },
+    nav: {
+      tabs: {
+        home:     "Home",
+        txn:      "Transactions",
+        inc:      "Income",
+        exp:      "Expenses",
+        plan:     "Planning",
+        anl:      "Analytics",
+        wal:      "Wallet",
+        fam:      "Family",
+        settings: "Settings",
+      },
+      codes: {
+        home:     "HOM",
+        txn:      "TXN",
+        inc:      "INC",
+        exp:      "EXP",
+        plan:     "PLN",
+        anl:      "ANL",
+        wal:      "WAL",
+        fam:      "FAM",
+        settings: "SET",
+      },
+      aria: "Primary navigation",
+    },
+    resize: {
+      aria_rail:    "Navigation width",
+      aria_summary: "Summary width",
+      title:        "Drag to resize · double-click to reset",
+    },
+    clock: {
+      updated: "upd",
+      // === wave-3 polish ===
+      tooltip: "Local time",
+    },
+    summary: {
+      aria: "Summary",
+      safe: {
+        label:       "safe until",
+        zero_income: "@ zero income",
+        days:        "days",
+      },
+      avail: {
+        label:    "available now",
+        total:    "total",
+        reserved: "reserved",
+      },
+      balances: {
+        label:    "balances",
+        empty:    "no data",
+        accounts: "{count} accounts",
+      },
+      session: {
+        label:  "session state",
+        online: "online",
+        status: "status",
+      },
+      quick: {
+        label:       "quick",
+        income:      "+ Income",
+        expense:     "+ Expense",
+        txn:         "+ Tx",
+        tip_income:  "Income (I)",
+        tip_expense: "Expense (E)",
+        tip_txn:     "Transaction (T)",
+      },
+      cashflow: {
+        title:          "cash flow 30d",
+        period_label:   "current period",
+        empty:          "no data",
+      },
+    },
   },
 
   import: {

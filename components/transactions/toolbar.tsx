@@ -110,7 +110,7 @@ export function TxnToolbar({
           </svg>
           <input
             ref={inputRef}
-            placeholder={t("import.mapping.description") + "…"}
+            placeholder={t("transactions.toolbar.search_placeholder")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />

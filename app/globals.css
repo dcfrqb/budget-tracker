@@ -32,6 +32,10 @@
   --util: var(--warn);
   --tax:  var(--accent);
 
+  /* chart fill tokens — transparent variants for area fills */
+  --pos-fill: color-mix(in srgb, var(--pos) 8%, transparent);
+  --neg-fill: color-mix(in srgb, var(--neg) 6%, transparent);
+
   /* chart palette (extends --accent/--info/--pos/--warn/--neg as chart-1..5) */
   --chart-5: #7D9EAA;
   --chart-6: #A0B4C0;
@@ -40,6 +44,20 @@
   /* fonts — next/font injects --ui-font / --mono-font at html scope */
   --ui:   var(--ui-font),   'Inter', system-ui, -apple-system, sans-serif;
   --mono: var(--mono-font), 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* spacing scale (base 4px) */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+
+  /* typography scale */
+  --text-xs:  11px;
+  --text-sm:  12px;
+  --text-md:  13px;
+  --text-lg:  15px;
 
   /* geometry */
   --rail-w:    60px;
@@ -3236,6 +3254,97 @@ input[type="checkbox"]:disabled {
   color: var(--dim);
   margin-top: var(--sp-1);
 }
+
+/* ── runway-by-mode ─────────────────────────────────────────────── */
+.runway-section { margin-bottom: 1px; }
+.runway-seg-wrap { padding: 12px 20px 0; }
+.runway-body { padding: 16px 20px; }
+
+.runway-hero { margin-bottom: 12px; }
+.runway-until {
+  font-family: var(--mono-font), monospace;
+  font-size: 28px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  transition: opacity var(--d-med) var(--e-out-cubic);
+}
+.runway-days {
+  font-family: var(--mono-font), monospace;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  margin-top: 4px;
+  transition: opacity var(--d-med) var(--e-out-cubic);
+}
+
+.runway-breakdown { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 4px; }
+.runway-breakdown-ttl {
+  font-family: var(--mono-font), monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.runway-breakdown-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.runway-breakdown-row { display: flex; justify-content: space-between; align-items: baseline; }
+.runway-cat-name {
+  font-family: var(--mono-font), monospace;
+  font-size: 12px;
+  color: var(--text);
+}
+.runway-cat-limit {
+  font-family: var(--mono-font), monospace;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.runway-empty { display: flex; flex-direction: column; gap: 10px; }
+.runway-empty-msg {
+  font-family: var(--mono-font), monospace;
+  font-size: 12px;
+  color: var(--muted);
+}
+.runway-empty-cta {
+  font-family: var(--mono-font), monospace;
+  font-size: 11px;
+  color: var(--accent);
+  text-decoration: none;
+  letter-spacing: .04em;
+}
+.runway-empty-cta:hover { text-decoration: underline; }
+
+/* ── SETTINGS · CATEGORIES PAGE ────────────────────────────────── */
+.page-header { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+.page-title { font-family: var(--mono-font), monospace; font-size: 14px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text); margin: 0; }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.categories-manager { display: flex; flex-direction: column; gap: 14px; }
+.segmented-control[role="tablist"] { display: inline-flex; gap: 1px; background: var(--border); padding: 1px; border-radius: 3px; align-self: flex-start; }
+.seg-btn { padding: 6px 14px; font-family: var(--mono-font), monospace; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: var(--panel); border: 0; cursor: pointer; transition: color var(--d-fast), background var(--d-fast); }
+.seg-btn:hover { color: var(--text); }
+.seg-btn.active { color: var(--accent); background: var(--panel-2); }
+.categories-list { display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--border); border-radius: 3px; }
+.categories-empty { padding: 18px 16px; font-family: var(--mono-font), monospace; font-size: 12px; color: var(--muted); }
+.category-row { display: grid; grid-template-columns: 28px minmax(180px,1fr) 90px 220px 90px; gap: 14px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--grid); }
+.category-row:last-child { border-bottom: 0; }
+.category-row:hover { background: var(--panel-2); }
+.category-row--archived { opacity: .55; }
+.category-row-icon { width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; background: var(--panel-2); border-radius: 3px; font-family: var(--mono-font), monospace; font-size: 12px; font-weight: 700; color: var(--accent); }
+.category-row-name { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text); min-width: 0; }
+.category-row-kind { font-family: var(--mono-font), monospace; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.category-row-limits { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; font-family: var(--mono-font), monospace; font-size: 11px; color: var(--muted); }
+.category-row-actions { display: flex; justify-content: flex-end; }
+.editable-cell { cursor: pointer; padding: 2px 4px; border-radius: 2px; transition: background var(--d-fast); }
+.editable-cell:hover { background: var(--panel-3); }
+.inline-edit-input { background: var(--bg); border: 1px solid var(--accent); color: var(--text); font-family: var(--mono-font), monospace; font-size: 12px; padding: 3px 6px; border-radius: 2px; outline: none; }
+.categories-add-btn { width: 100%; justify-content: center; padding: 12px; }
+.categories-add-form { padding: 16px; background: var(--panel); border: 1px solid var(--border); border-radius: 3px; display: grid; gap: 14px; }
+.form-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+.badge { display: inline-flex; padding: 1px 6px; font-family: var(--mono-font), monospace; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; border-radius: 2px; }
+.badge-muted { color: var(--muted); background: var(--panel-2); }
 
 /* ── REDUCED MOTION ─────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {

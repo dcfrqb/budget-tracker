@@ -1,9 +1,10 @@
 import { AnalyticsKpiRow } from "@/components/analytics/kpi-row";
-import { AnalyticsStatusStrip } from "@/components/analytics/status-strip";
+import { AnalyticsStatusStrip, parseAnalyticsPeriod, DEFAULT_ANALYTICS_PERIOD } from "@/components/analytics/status-strip";
 import { CategoryPie } from "@/components/analytics/category-pie";
 import { Compare } from "@/components/analytics/compare";
 import { Forecast } from "@/components/analytics/forecast";
 import { ModesReference } from "@/components/analytics/modes-reference";
+import { RunwayByMode } from "@/components/analytics/runway-by-mode";
 import { TrendCharts } from "@/components/analytics/trend";
 import { Weather } from "@/components/analytics/weather";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
@@ -15,7 +16,10 @@ import {
   getPeriodCompare,
   getForecastMonth,
   getWeather,
+  getTrendPoints,
 } from "@/lib/data/analytics";
+import { getRunwayByMode } from "@/lib/data/analytics-runway";
+import { getHomeDashboard } from "@/lib/data/dashboard";
 import { getT } from "@/lib/i18n/server";
 import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
@@ -35,8 +39,35 @@ const BAR_COLORS = [
   "var(--pos)", "var(--neg)", "var(--chart-7)", "var(--chart-6)", "var(--chart-5)",
 ];
 
-export default async function AnalyticsPage() {
+// Period → days mapping for resolveRange.
+// Granularity: 1m uses weekly buckets (more detail), others use monthly.
+function trendGranularity(period: string): "weekly" | "monthly" {
+  return period === "1m" ? "weekly" : "monthly";
+}
+
+function periodToResolvable(period: string): "1m" | "3m" | "6m" | "12m" {
+  if (period === "1m") return "1m";
+  if (period === "6m") return "6m";
+  if (period === "12m") return "12m";
+  // TODO: add native YTD support in resolveRange (currently aliased to 12m which is incorrect for January-March)
+  if (period === "ytd") return "12m";
+  return "3m"; // default for "3m" and unknown
+}
+
+type SearchParams = Promise<{ p?: string }>;
+
+export default async function AnalyticsPage({
+  searchParams,
+}: {
+  searchParams?: SearchParams;
+}) {
   const [userId, t] = await Promise.all([getCurrentUserId(), getT()]);
+
+  const sp = searchParams ? await searchParams : {};
+  const trendPeriodRaw = sp.p ?? DEFAULT_ANALYTICS_PERIOD;
+  const trendPeriod = parseAnalyticsPeriod(trendPeriodRaw);
+  const trendRange = resolveRange(periodToResolvable(trendPeriod));
+  const granularity = trendGranularity(trendPeriod);
 
   const monthShort = MONTH_KEYS.map(k => t(`common.month.short.${k}` as Parameters<typeof t>[0]));
 
@@ -48,14 +79,19 @@ export default async function AnalyticsPage() {
   const prevMonthDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
   const prevMonthLabel = `${monthShort[prevMonthDate.getUTCMonth()]} ${prevMonthDate.getUTCFullYear()}`;
 
-  const [kpis3m, pie1m, compare1m, forecast, weather, budgetSettings] = await Promise.all([
+  const [kpis3m, pie1m, compare1m, forecast, weather, budgetSettings, runwayDashboard, trendPoints, homeDash] = await Promise.all([
     getPeriodKpis(userId, range3m, DEFAULT_CURRENCY),
     getCategoryPie(userId, range1m, DEFAULT_CURRENCY),
     getPeriodCompare(userId, range1m, DEFAULT_CURRENCY),
     getForecastMonth(userId, DEFAULT_CURRENCY),
     getWeather(userId, DEFAULT_CURRENCY),
     db.budgetSettings.findUnique({ where: { userId } }),
+    getRunwayByMode(userId, DEFAULT_CURRENCY),
+    getTrendPoints(userId, trendRange, DEFAULT_CURRENCY, granularity),
+    getHomeDashboard(userId, DEFAULT_CURRENCY),
   ]);
+
+  const safeUntilDays = homeDash.safeUntilDays;
 
   // ── KPI items ────────────────────────────────────────────────
   const inflow3m = new Prisma.Decimal(kpis3m.inflowBase);
@@ -91,7 +127,7 @@ export default async function AnalyticsPage() {
     {
       k: t("analytics.kpi.net_3m"),
       v: Math.abs(Number(net3m.toFixed(0))),
-      vFormat: net3m.gte(0) ? "money-pos" : "money",
+      vFormat: net3m.gte(0) ? "money-pos" : "money-neg",
       delta: net3m.gte(0) ? t("analytics.kpi.net_sub_pos") : t("analytics.kpi.net_sub_neg"),
       deltaTone: net3m.gte(0) ? "pos" : "neg",
       s: t("analytics.kpi.net_sub"),
@@ -210,7 +246,7 @@ export default async function AnalyticsPage() {
         reason={weather.reason}
       />
       <AnalyticsKpiRow items={kpiItems} periodLabel={periodFromLabel} />
-      <TrendCharts />
+      <TrendCharts points={trendPoints} granularity={granularity} safeUntilDaysNow={safeUntilDays} />
       <CategoryPie
         slices={pieSlices}
         totalLabel={formatRubPrefix(pieTotal)}
@@ -222,6 +258,7 @@ export default async function AnalyticsPage() {
         previousPeriodLabel={prevMonthLabel}
       />
       <Forecast cells={forecastCells} />
+      <RunwayByMode data={runwayDashboard} defaultMode={activeMode} />
       <ModesReference modes={STATIC_MODES} activeMode={activeModeLabel} />
     </>
   );

@@ -20,6 +20,7 @@ export type HomePlanFactCell = {
   currency: string;   // "₽" / "+₽"
   sub: string;
   color: "pos" | "neg" | "info" | "acc";
+  noPlan?: boolean;
 };
 
 export type HomeObligationView = {
@@ -39,7 +40,7 @@ export type HomeTopCategoryView = {
   sub: string;
   amount: string;      // "₽ 32 140"
   delta: string;       // "▲ 18.3%" | "▼ 6.1%"
-  deltaDir: "up" | "down" | "same";
+  deltaDir: "up" | "down" | "same" | "new";
 };
 
 export type HomeBalanceView = {
@@ -130,7 +131,7 @@ function toTopCategoryView(cat: TopCategoryDelta, rank: number): HomeTopCategory
   const current = new Prisma.Decimal(cat.currentMonthBase);
   const pct = cat.deltaPct;
   let delta = "—";
-  let deltaDir: "up" | "down" | "same" = "same";
+  let deltaDir: "up" | "down" | "same" | "new" = "same";
 
   if (pct !== null) {
     if (pct > 0) {
@@ -142,6 +143,10 @@ function toTopCategoryView(cat: TopCategoryDelta, rank: number): HomeTopCategory
     } else {
       delta = "0.0%";
     }
+  } else if (current.gt(0)) {
+    // Category appeared this month (no prior data) — signal via deltaDir
+    delta = "";
+    deltaDir = "new";
   }
 
   return {
@@ -170,6 +175,9 @@ export function toHomeView(dashboard: HomeDashboard): HomeView {
   const netFact = inflowFact - outflowFact;
   const netPlan = inflowPlan - outflowPlan;
 
+  const hasInflowPlan = dashboard.planFactMonth.hasInflowPlan;
+  const hasOutflowPlan = dashboard.planFactMonth.hasOutflowPlan;
+
   // TODO Фаза 9: сверить с компонентом plan-fact.tsx — он ожидает пары code/kind/fact/plan/currency/sub/color
   const planFact: HomePlanFactCell[] = [
     {
@@ -178,9 +186,10 @@ export function toHomeView(dashboard: HomeDashboard): HomeView {
       fact: inflowFact,
       plan: inflowPlan,
       currency: "₽",
-      sub: inflowPlan > 0
+      sub: hasInflowPlan
         ? `из ${formatRubPrefix(new Prisma.Decimal(inflowPlan))} · ${Math.round((inflowFact / inflowPlan) * 100)}%`
-        : "план не задан",
+        : "",
+      noPlan: !hasInflowPlan,
       color: "pos",
     },
     {
@@ -189,9 +198,10 @@ export function toHomeView(dashboard: HomeDashboard): HomeView {
       fact: outflowFact,
       plan: outflowPlan,
       currency: "₽",
-      sub: outflowPlan > 0
+      sub: hasOutflowPlan
         ? `из ${formatRubPrefix(new Prisma.Decimal(outflowPlan))} · ${Math.round((outflowFact / outflowPlan) * 100)}%`
-        : "план не задан",
+        : "",
+      noPlan: !hasOutflowPlan,
       color: "info",
     },
     {
@@ -203,6 +213,7 @@ export function toHomeView(dashboard: HomeDashboard): HomeView {
       sub: netPlan !== 0
         ? `кон. мес ≈ ${netPlan >= 0 ? "+" : "−"}${formatRubPrefix(new Prisma.Decimal(Math.abs(netPlan)))}`
         : "",
+      noPlan: !hasInflowPlan && !hasOutflowPlan,
       color: netFact > 0 ? "pos" : netFact < 0 ? "neg" : "acc",
     },
   ];

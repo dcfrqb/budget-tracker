@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { Prisma } from "@prisma/client";
 import type { Account, Currency, ExchangeRate, Institution } from "@prisma/client";
 import { db } from "@/lib/db";
@@ -7,6 +8,18 @@ import { persistRates } from "@/lib/fx/persist";
 export type AccountWithCurrency = Account & { currency: Currency };
 export type InstitutionWithAccounts = Institution & { accounts: AccountWithCurrency[] };
 export type FxRateRow = ExchangeRate & { delta24hPct: Prisma.Decimal | null };
+
+// Minimal account projection for QuickDrawer forms (id, name, currencyCode).
+// Excludes archived and deleted accounts.
+export async function listAccountsForQuickDrawer(
+  userId: string,
+): Promise<{ id: string; name: string; currencyCode: string }[]> {
+  return db.account.findMany({
+    where: { userId, deletedAt: null, isArchived: false },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    select: { id: true, name: true, currencyCode: true },
+  });
+}
 
 // Институции с non-архивными счетами, отсортировано по sortOrder.
 // CASH-институция исключена — cash рендерится отдельной секцией.
@@ -112,14 +125,12 @@ export async function getFxRates(shownFxPairs: string[] = []): Promise<FxRateRow
   try {
     cbrRates = await fetchCbrRates();
     // Persist all CBR rates (FROM/RUB) for history and fallback.
-    // Fire-and-forget: don't block rendering on persist errors.
+    // Awaited so getLatestRatesMap() reads fresh data immediately after.
     const rubRates: Record<string, number> = {};
     for (const [code, entry] of Object.entries(cbrRates)) {
       rubRates[code] = entry.rate;
     }
-    persistRates(rubRates).catch((e) =>
-      console.warn("[getFxRates] persist failed:", e),
-    );
+    await persistRates(rubRates);
   } catch (e) {
     console.warn("[getFxRates] CBR fetch failed, using DB fallback:", e);
   }
@@ -267,4 +278,59 @@ export async function getWalletTotals(
   }
 
   return totals;
+}
+
+// Single-request freshness guard: checks latest USD-RUB recordedAt.
+// If older than 10 min, fetches CBR and persists (awaited). Wrapped in
+// React cache() so multiple callers in one request share one DB check.
+const FRESH_WINDOW_MS = 10 * 60 * 1000;
+
+export const ensureFreshRates = cache(async (): Promise<void> => {
+  const latest = await db.exchangeRate.findFirst({
+    where: { fromCcy: "USD", toCcy: "RUB" },
+    orderBy: { recordedAt: "desc" },
+    select: { recordedAt: true },
+  });
+
+  const age = latest ? Date.now() - latest.recordedAt.getTime() : Infinity;
+  if (age < FRESH_WINDOW_MS) return;
+
+  try {
+    const cbrRates = await fetchCbrRates();
+    const rubRates: Record<string, number> = {};
+    for (const [code, entry] of Object.entries(cbrRates)) {
+      rubRates[code] = entry.rate;
+    }
+    await persistRates(rubRates);
+  } catch (e) {
+    console.warn("[ensureFreshRates] CBR fetch/persist failed:", e);
+  }
+});
+
+// Per-currency raw balances for wallet summary rail.
+// Same filtering rules as getWalletTotals: excludes LOAN, excludes
+// includeInAnalytics=false. CREDIT accounts contribute negative balance.
+export async function getBalancesByCurrency(
+  userId: string,
+): Promise<Map<string, Prisma.Decimal>> {
+  const accounts = await db.account.findMany({
+    where: { userId, deletedAt: null, isArchived: false, includeInAnalytics: true },
+    select: { kind: true, currencyCode: true, balance: true },
+  });
+
+  const map = new Map<string, Prisma.Decimal>();
+
+  for (const a of accounts) {
+    if (a.kind === "LOAN") continue;
+
+    const prev = map.get(a.currencyCode) ?? new Prisma.Decimal(0);
+    if (a.kind === "CREDIT") {
+      // CREDIT balance = current debt (positive = owed). Subtract as liability.
+      map.set(a.currencyCode, prev.minus(new Prisma.Decimal(a.balance)));
+    } else {
+      map.set(a.currencyCode, prev.plus(new Prisma.Decimal(a.balance)));
+    }
+  }
+
+  return map;
 }

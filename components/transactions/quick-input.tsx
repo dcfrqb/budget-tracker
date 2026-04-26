@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useT, useLocale } from "@/lib/i18n";
+import { formatPlainNumber } from "@/lib/format/money";
 import {
   parseOneLiner,
   type ParsedTransaction,
@@ -29,16 +30,36 @@ export interface QuickInputProps {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Format helpers (inline, no external dep)
+// Format helpers
 // ─────────────────────────────────────────────────────────────
 
-function formatAmount(amountStr: string): string {
+function formatAmountStr(amountStr: string): string {
   const n = parseFloat(amountStr);
   if (isNaN(n)) return amountStr;
-  return n.toLocaleString("ru-RU", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  });
+  return formatPlainNumber(n);
+}
+
+// Build /transactions/new href passing all parsed params so the full form
+// is pre-filled with whatever the one-liner already understood.
+function buildFullFormHref(
+  parsed: ParsedTransaction | null,
+  input: string,
+): string {
+  const params = new URLSearchParams();
+
+  if (parsed) {
+    params.set("kind", parsed.kind);
+    params.set("amount", parsed.amount);
+    params.set("currency", parsed.currencyCode);
+    params.set("date", parsed.date);
+    const desc = parsed.description || parsed.raw;
+    if (desc) params.set("description", desc);
+    if (parsed.categoryId) params.set("category", parsed.categoryId);
+  } else {
+    if (input) params.set("description", input);
+  }
+
+  return `/transactions/new?${params.toString()}`;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -225,7 +246,7 @@ export function QuickInput({
               {t(isIncome ? "quick_input.kind.income" : "quick_input.kind.expense")}
             </span>
             <span className="qi-chip-amount mono">
-              {formatAmount(parsed.amount)}{" "}
+              {formatAmountStr(parsed.amount)}{" "}
               <span className="mut">{parsed.currencyCode}</span>
             </span>
             {parsed.categoryGuess && !parsed.warnings.includes("category_kind_mismatch") && (
@@ -258,12 +279,10 @@ export function QuickInput({
           </span>
           <a
             className="qi-open-full btn"
-            href={`/transactions/new?description=${encodeURIComponent(input)}`}
+            href={buildFullFormHref(null, input)}
             onClick={(e) => {
               e.preventDefault();
-              router.push(
-                `/transactions/new?description=${encodeURIComponent(input)}`,
-              );
+              router.push(buildFullFormHref(null, input));
             }}
           >
             {t("quick_input.open_full")}
@@ -298,12 +317,10 @@ export function QuickInput({
           </button>
           <a
             className="qi-btn-full btn"
-            href={`/transactions/new?description=${encodeURIComponent(input)}`}
+            href={buildFullFormHref(parsed, input)}
             onClick={(e) => {
               e.preventDefault();
-              router.push(
-                `/transactions/new?description=${encodeURIComponent(input)}`,
-              );
+              router.push(buildFullFormHref(parsed, input));
             }}
           >
             {t("quick_input.open_full")}

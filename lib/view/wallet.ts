@@ -1,7 +1,9 @@
 import { Prisma } from "@prisma/client";
 import type { AccountKind } from "@prisma/client";
 import { formatAmount, formatRate, formatRubPrefix } from "@/lib/format/money";
-import { formatRelativeRu } from "@/lib/format/relative-time";
+import { formatRelative } from "@/lib/format/relative-time";
+import type { Locale, TOptions } from "@/lib/i18n/types";
+import type { TKey } from "@/lib/i18n/t";
 import { convertToBase } from "@/lib/data/wallet";
 import type {
   AccountWithCurrency,
@@ -9,6 +11,8 @@ import type {
   InstitutionWithAccounts,
   WalletTotals,
 } from "@/lib/data/wallet";
+
+type TFn = (key: TKey, options?: TOptions) => string;
 
 // ─────────────────────────────────────────────
 // ACCOUNT VIEW
@@ -74,6 +78,7 @@ export function toAccountView(
   a: AccountWithCurrency,
   rates: Map<string, Prisma.Decimal>,
   baseCcy: string,
+  locale: Locale = "ru",
 ): AccountView {
   const value = formatAmount(a.balance, a.currency);
 
@@ -84,7 +89,7 @@ export function toAccountView(
     if (approx) parts.push(approx);
   }
   if (a.balanceUpdatedAt) {
-    parts.push(`обн ${formatRelativeRu(a.balanceUpdatedAt)}`);
+    parts.push(`обн ${formatRelative(a.balanceUpdatedAt, locale)}`);
   }
   const updated = parts.length > 0 ? parts.join(" · ") : "обн";
 
@@ -162,8 +167,9 @@ export function toInstitutionView(
   rates: Map<string, Prisma.Decimal>,
   baseCcy: string,
   grandTotalBase: Prisma.Decimal,
+  locale: Locale = "ru",
 ): InstitutionView {
-  const accounts = inst.accounts.map((a) => toAccountView(a, rates, baseCcy));
+  const accounts = inst.accounts.map((a) => toAccountView(a, rates, baseCcy, locale));
 
   // Сумма этой институции в base.
   let instTotal = new Prisma.Decimal(0);
@@ -308,31 +314,31 @@ export type WalletTotalView = {
   s: string;
 };
 
-export function toWalletTotalsView(totals: WalletTotals): WalletTotalView[] {
+export function toWalletTotalsView(totals: WalletTotals, t: TFn): WalletTotalView[] {
   return [
     {
-      k: "чистая сумма",
+      k: t("wallet.totals.net_label"),
       value: Number(totals.net.valueBase.toFixed(0)),
       tone: "acc",
-      s: `всего по ${totals.net.accountsCount} счетам`,
+      s: t("wallet.totals.net_sub", { vars: { n: String(totals.net.accountsCount) } }),
     },
     {
-      k: "ликвидно",
+      k: t("wallet.totals.banks_crypto_label"),
       value: Number(totals.liquid.valueBase.toFixed(0)),
       tone: "pos",
-      s: "доступно в банках и крипто",
+      s: t("wallet.totals.banks_crypto_sub"),
     },
     {
-      k: "подушка / вклады",
+      k: t("wallet.totals.savings_label"),
       value: Number(totals.savings.valueBase.toFixed(0)),
       tone: "info",
-      s: `${totals.savings.accountsCount} накопительных`,
+      s: t("wallet.totals.savings_sub", { vars: { n: String(totals.savings.accountsCount) } }),
     },
     {
-      k: "наличка",
+      k: t("wallet.totals.cash_label"),
       value: Number(totals.cash.valueBase.toFixed(0)),
       tone: "warn",
-      s: `${totals.cash.accountsCount} локаций`,
+      s: t("wallet.totals.cash_sub", { vars: { n: String(totals.cash.accountsCount) } }),
     },
   ];
 }

@@ -1,6 +1,7 @@
 import { Prisma, TransactionKind, TransactionStatus } from "@prisma/client";
 import { formatAmount } from "@/lib/format/money";
 import { convertToBase } from "@/lib/data/wallet";
+import { DEFAULT_TZ } from "@/lib/constants";
 import type {
   PeriodSummary,
   TxnDayRaw,
@@ -109,23 +110,51 @@ function pad2(n: number): string {
   return n < 10 ? "0" + n : String(n);
 }
 
-// "21.04" from UTC date components — must stay UTC to stay consistent with the
-// day-grouping key (toISOString().slice(0,10) in getTransactionsGroupedByDay).
-// TODO: if day-boundary shifts become a user complaint (e.g. midnight MSK = 21:00 UTC →
-// previous day label), align both the key and this label to local TZ.
+// "21.04" — day label in user's timezone (DEFAULT_TZ).
+// en-CA gives YYYY-MM-DD; we extract DD and MM for the "DD.MM" format.
+// TODO: replace DEFAULT_TZ with User.timezone when user-level timezone is added.
 export function formatDateRu(d: Date): string {
-  return `${pad2(d.getUTCDate())}.${pad2(d.getUTCMonth() + 1)}`;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: DEFAULT_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(d);
+  const day = parts.find((p) => p.type === "day")?.value ?? "??";
+  const month = parts.find((p) => p.type === "month")?.value ?? "??";
+  return `${day}.${month}`;
+}
+
+// Weekday key resolved in user's timezone (DEFAULT_TZ).
+// TODO: replace DEFAULT_TZ with User.timezone when user-level timezone is added.
+function getWeekdayInTz(d: Date): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: DEFAULT_TZ,
+    weekday: "short",
+  }).formatToParts(d);
+  const short = parts.find((p) => p.type === "weekday")?.value ?? "Sun";
+  const map: Record<string, number> = {
+    Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
+  };
+  return map[short] ?? 0;
+}
+
+// Day-equality check in user's timezone (DEFAULT_TZ).
+function sameDayInTz(a: Date, b: Date): boolean {
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: DEFAULT_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  return fmt.format(a) === fmt.format(b);
 }
 
 // "Mon · today" / "Sun" / "Tue" — locale-aware via t().
 export function formatWeekdayRu(d: Date, today: Date, t: TFn): string {
-  const weekdayKey = WEEKDAY_KEYS[d.getUTCDay()];
+  const weekdayKey = WEEKDAY_KEYS[getWeekdayInTz(d)];
   const weekday = t(weekdayKey);
-  const sameDay =
-    d.getUTCFullYear() === today.getUTCFullYear() &&
-    d.getUTCMonth() === today.getUTCMonth() &&
-    d.getUTCDate() === today.getUTCDate();
-  return sameDay ? `${weekday} ${t("transactions.day.today")}` : weekday;
+  return sameDayInTz(d, today) ? `${weekday} ${t("transactions.day.today")}` : weekday;
 }
 
 export function formatTime(d: Date): string {
@@ -245,6 +274,7 @@ function resolveNote(
     };
   }
   if (txn.note) {
+    if (txn.note.startsWith("import:")) return {};
     return { note: txn.note };
   }
   return {};

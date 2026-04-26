@@ -221,6 +221,7 @@ export default async function IncomePage({
 
   // Active sources count
   const sourceCount = workSources.length;
+  const hasNoSources = workSources.length === 0;
 
   const inflowLabel = t(`income.kpi.inflow_label.${periodValue}` as Parameters<typeof t>[0]);
 
@@ -329,7 +330,7 @@ export default async function IncomePage({
   return (
     <>
       <IncomeStatusStrip />
-      <IncomeKpiRow kpi={kpi} />
+      <IncomeKpiRow kpi={kpi} hasNoSources={hasNoSources} />
       {(activeTab === "sources") && <WorkSourcesSection items={workSourceViews} />}
       {(activeTab === "expected") && <ExpectedIncome rows={expectedRows} />}
       {(activeTab === "other") && <OtherIncome rows={otherIncomeRows} />}

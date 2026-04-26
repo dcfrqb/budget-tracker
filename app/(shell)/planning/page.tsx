@@ -257,7 +257,12 @@ export default async function PlanningPage() {
     <>
       <PlanningStatusStrip />
       <PlanningKpiRow kpi={kpi} fundsCount={funds.length} />
-      <HoursCalculator />
+      <HoursCalculator
+        hourlyRate={hourlyRate ? hourlyRate.toFixed(2) : null}
+        sourceName={primaryWorkSource?.name ?? null}
+        hoursPerMonth={primaryWorkSource?.hoursPerMonth ?? HOURS_PER_MONTH_DEFAULT}
+        taxLabel={primaryWorkSource?.taxRatePct ? `${primaryWorkSource.taxRatePct}%` : null}
+      />
       <PlanningCalendar months={calendarMonths} />
       <FundsSection funds={fundViews} accounts={accounts} />
       <BigPurchases purchases={bigPurchaseViews} hourlyRate={hourlyRateLabel || undefined} />

@@ -1,52 +1,216 @@
-export function TrendCharts() {
+"use client";
+
+import { useT, useLocale } from "@/lib/i18n/context";
+import { formatShortDate, formatMonthYear } from "@/lib/format/date";
+import type { TrendPoint } from "@/lib/data/analytics";
+
+// ─────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────
+
+const SVG_W = 560;
+const SVG_H = 120;
+const PAD_TOP = 12;
+const PAD_BOTTOM = 24; // space for x-axis labels (rendered outside SVG)
+const PAD_LEFT = 0;
+const PLOT_H = SVG_H - PAD_TOP - 8;
+
+function calcY(value: number, min: number, range: number): number {
+  if (range === 0) return PAD_TOP + PLOT_H / 2;
+  return PAD_TOP + PLOT_H - ((value - min) / range) * PLOT_H;
+}
+
+function toPoints(ys: number[], total: number): string {
+  if (total === 0) return "";
+  return ys
+    .map((y, i) => `${(i / Math.max(total - 1, 1)) * SVG_W},${y.toFixed(1)}`)
+    .join(" ");
+}
+
+function toFillPoints(ys: number[], total: number): string {
+  if (total === 0) return "";
+  const pts = toPoints(ys, total);
+  const lastX = ((total - 1) / Math.max(total - 1, 1)) * SVG_W;
+  return `${pts} ${lastX},${SVG_H} 0,${SVG_H}`;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Component
+// ─────────────────────────────────────────────────────────────
+
+interface TrendChartsProps {
+  points: TrendPoint[];
+  granularity?: "weekly" | "monthly";
+  safeUntilDaysNow?: number | null;
+}
+
+export function TrendCharts({ points, granularity = "monthly", safeUntilDaysNow }: TrendChartsProps) {
+  const t = useT();
+  const locale = useLocale();
+
+  const isEmpty = points.length === 0;
+
+  // Compute min/max across inflow + outflow + net for shared Y axis
+  const allValues = points.flatMap((p) => [
+    Number(p.inflowBase),
+    Number(p.outflowBase),
+    Number(p.netBase),
+  ]);
+  const maxVal = isEmpty ? 1 : Math.max(...allValues, 0);
+  const minVal = isEmpty ? 0 : Math.min(...allValues, 0);
+  const range = maxVal - minVal || 1;
+
+  const inflowYs = points.map((p) => calcY(Number(p.inflowBase), minVal, range));
+  const outflowYs = points.map((p) => calcY(Number(p.outflowBase), minVal, range));
+  const netYs = points.map((p) => calcY(Number(p.netBase), minVal, range));
+
+  const n = points.length;
+
+  // X-axis labels — show first, middle and last
+  const labelIndices = n <= 1
+    ? [0]
+    : n <= 4
+      ? points.map((_, i) => i)
+      : [0, Math.floor(n / 2), n - 1];
+
+  function bucketLabel(iso: string): string {
+    const d = new Date(iso);
+    if (granularity === "weekly") {
+      // day-month for weekly
+      return formatShortDate(d, locale);
+    }
+    // month-year for monthly
+    return formatMonthYear(d, locale);
+  }
+
+  // Y-axis tick labels (k-units)
+  const yTicks = [maxVal, (maxVal + minVal) / 2, minVal].map((v) => {
+    const k = v / 1000;
+    return k >= 10 ? `${Math.round(k)}k` : k >= 1 ? `${k.toFixed(1)}k` : `${Math.round(v)}`;
+  });
+
+  // Grid line Y positions
+  const gridYs = [maxVal, (maxVal + minVal) / 2, minVal].map((v) =>
+    calcY(v, minVal, range),
+  );
+
   return (
     <div className="section fade-in" style={{ animationDelay: "180ms" }}>
       <div className="section-hd">
         <div className="ttl mono">
-          <b>тренд 12 месяцев</b> <span className="dim">· доход / расход / нетто</span>
+          <b>{t("analytics.trends.title")}</b>{" "}
+          <span className="dim">· {t("analytics.trends.subtitle")}</span>
         </div>
-        <div className="meta mono">max ₽ 220k · min ₽ 108k</div>
+        {!isEmpty && (
+          <div className="meta mono">
+            {yTicks[0]}
+          </div>
+        )}
       </div>
-      <div className="section-body flush">
-        <div className="trend">
-          <div className="trend-cell">
-            <div className="lbl">
-              <span>Доход <b>vs</b> расход</span>
-              <span className="mono" style={{ color: "var(--pos)" }}>нетто всегда плюс</span>
-            </div>
-            <svg viewBox="0 0 560 120" preserveAspectRatio="none">
-              <g stroke="#1B2230" strokeWidth={1}>
-                <line x1="0" y1="30" x2="560" y2="30" />
-                <line x1="0" y1="60" x2="560" y2="60" />
-                <line x1="0" y1="90" x2="560" y2="90" />
-              </g>
-              <polyline fill="rgba(63,185,80,.08)" stroke="none" points="0,70 50,66 100,60 150,58 200,62 250,50 300,44 350,40 400,36 450,32 500,28 560,22 560,120 0,120" />
-              <polyline fill="none" stroke="#3FB950" strokeWidth={1.6} points="0,70 50,66 100,60 150,58 200,62 250,50 300,44 350,40 400,36 450,32 500,28 560,22" />
-              <polyline fill="rgba(121,192,255,.06)" stroke="none" points="0,88 50,86 100,82 150,80 200,84 250,78 300,72 350,70 400,68 450,64 500,60 560,55 560,120 0,120" />
-              <polyline fill="none" stroke="#79C0FF" strokeWidth={1.4} points="0,88 50,86 100,82 150,80 200,84 250,78 300,72 350,70 400,68 450,64 500,60 560,55" />
-            </svg>
-            <div className="foot">
-              <span>май '25</span><span>авг '25</span><span>ноя '25</span><span>фев '26</span><span className="acc">апр '26</span>
-            </div>
-          </div>
 
-          <div className="trend-cell">
-            <div className="lbl">
-              <span>Безопасно до <b>(дней)</b></span>
-              <span className="mono" style={{ color: "var(--accent)" }}>47 дн сейчас</span>
-            </div>
-            <svg viewBox="0 0 360 120" preserveAspectRatio="none">
-              <g stroke="#1B2230" strokeWidth={1}>
-                <line x1="0" y1="40" x2="360" y2="40" />
-                <line x1="0" y1="70" x2="360" y2="70" />
-                <line x1="0" y1="100" x2="360" y2="100" />
-              </g>
-              <polyline fill="rgba(88,211,163,.1)" stroke="#58D3A3" strokeWidth={1.8} points="0,85 40,82 80,76 120,78 160,72 200,66 240,58 280,52 320,48 360,40" />
-              <circle cx={360} cy={40} r={3} fill="#58D3A3" />
-            </svg>
-            <div className="foot"><span>12 нед назад</span><span>сейчас</span></div>
+      <div className="section-body flush">
+        {isEmpty ? (
+          <div
+            className="mono dim"
+            style={{
+              padding: "var(--sp-4) var(--sp-3)",
+              fontSize: "var(--text-sm)",
+              textAlign: "center",
+            }}
+          >
+            {t("analytics.trends.empty")}
           </div>
-        </div>
+        ) : (
+          <div className="trend">
+            <div className="trend-cell" style={{ flex: "1 1 0", minWidth: 0 }}>
+              {/* Legend */}
+              <div className="lbl">
+                <span>
+                  <span style={{ color: "var(--pos)" }}>▪</span>{" "}
+                  {t("analytics.trends.legend.income")}
+                  {"  "}
+                  <span style={{ color: "var(--neg)" }}>▪</span>{" "}
+                  {t("analytics.trends.legend.expense")}
+                </span>
+                <span className="mono" style={{ color: "var(--accent)" }}>
+                  <span style={{ color: "var(--accent)" }}>▪</span>{" "}
+                  {t("analytics.trends.legend.net")}
+                </span>
+              </div>
+
+              {/* Chart */}
+              <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} preserveAspectRatio="none">
+                {/* Grid lines */}
+                <g stroke="var(--border)" strokeWidth={1}>
+                  {gridYs.map((gy, i) => (
+                    <line key={i} x1="0" y1={gy.toFixed(1)} x2={SVG_W} y2={gy.toFixed(1)} />
+                  ))}
+                </g>
+
+                {/* Inflow fill + line */}
+                {n > 1 && (
+                  <polyline
+                    style={{ fill: "var(--pos-fill)" }}
+                    stroke="none"
+                    points={toFillPoints(inflowYs, n)}
+                  />
+                )}
+                <polyline
+                  fill="none"
+                  stroke="var(--pos)"
+                  strokeWidth={1.6}
+                  points={toPoints(inflowYs, n)}
+                />
+
+                {/* Outflow fill + line */}
+                {n > 1 && (
+                  <polyline
+                    style={{ fill: "var(--neg-fill)" }}
+                    stroke="none"
+                    points={toFillPoints(outflowYs, n)}
+                  />
+                )}
+                <polyline
+                  fill="none"
+                  stroke="var(--neg)"
+                  strokeWidth={1.4}
+                  points={toPoints(outflowYs, n)}
+                />
+
+                {/* Net line */}
+                <polyline
+                  fill="none"
+                  stroke="var(--accent)"
+                  strokeWidth={1.8}
+                  strokeDasharray="4 2"
+                  points={toPoints(netYs, n)}
+                />
+
+                {/* Dot at last net point */}
+                {n >= 1 && (
+                  <circle
+                    cx={SVG_W}
+                    cy={netYs[n - 1].toFixed(1)}
+                    r={3}
+                    fill="var(--accent)"
+                  />
+                )}
+              </svg>
+
+              {/* X-axis labels */}
+              <div className="foot">
+                {labelIndices.map((idx) => (
+                  <span
+                    key={idx}
+                    className={idx === n - 1 ? "acc" : undefined}
+                  >
+                    {bucketLabel(points[idx].bucketStart)}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

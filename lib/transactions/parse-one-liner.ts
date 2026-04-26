@@ -87,15 +87,17 @@ const RE_AMOUNT_EXTRACT =
  * Handles: 1500, "1 500", "1,500" (EN grouping), "12,50" (RU decimal), "1.5k", "1.5к"
  */
 function parseAmount(raw: string): number | null {
-  // Strip internal spaces used as thousands separators
-  let s = raw.replace(/\s/g, "");
+  const trimmed = raw.trim();
 
-  // Handle k/к suffix
-  const kMatch = s.match(/^([\d.,]+)[кkKК]$/i);
+  // Handle k/к suffix on raw input BEFORE space-strip so "1500к" but not "1500 кофе".
+  const kMatch = trimmed.match(/^([\d.,]+)[кkKК]$/i);
   if (kMatch) {
     const base = parseFloat(kMatch[1].replace(",", "."));
     return isNaN(base) ? null : base * 1000;
   }
+
+  // Strip internal spaces used as thousands separators
+  let s = trimmed.replace(/\s/g, "");
 
   // Determine if comma is decimal separator (RU) or thousands (EN).
   // RU: "12,50" — comma followed by exactly 2 digits at end
@@ -331,10 +333,11 @@ interface AmountToken {
 
 function findAmounts(text: string): AmountToken[] {
   const results: AmountToken[] = [];
-  // Match pattern: optional currency before, number (with optional decimal + k), optional currency after
-  // We match: ₽1500 | 1500₽ | 1500 руб | 1.5k | 1500,50
+  // Match pattern: optional currency before, number (with optional decimal + k-suffix), optional currency after.
+  // k-suffix (?:[кkKК](?=\s|[.,;!?]|$)) requires к to be followed by whitespace/punct/end
+  // so "1500 кофе" does NOT match к, but "1500к" or "15к " does.
   const re =
-    /([₽$€£])\s*(\d[\d\s]*(?:[.,]\d+)?\s*[кkKК]?)\b|\b(\d[\d\s]*(?:[.,]\d+)?\s*[кkKК]?)\s*([₽$€£]|руб|rub|usd|eur|gbp)?/gi;
+    /([₽$€£])\s*(\d[\d\s]*(?:[.,]\d+)?(?:[кkKК](?=\s|[.,;!?]|$))?)|\b(\d[\d\s]*(?:[.,]\d+)?(?:[кkKК](?=\s|[.,;!?]|$))?)\s*([₽$€£]|руб|rub|usd|eur|gbp)?/gi;
   let m: RegExpExecArray | null;
   const seen = new Set<number>();
   re.lastIndex = 0;

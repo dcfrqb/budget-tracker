@@ -60,6 +60,8 @@ export type HomeDashboard = {
     inflowFactBase: string;
     outflowPlanBase: string;
     outflowFactBase: string;
+    hasInflowPlan: boolean;
+    hasOutflowPlan: boolean;
   };
   upcomingObligations30d: UpcomingObligation[];
   topCategoriesDelta: TopCategoryDelta[];
@@ -520,8 +522,63 @@ export const getHomeDashboard = cache(async (
       inflowFactBase: inflowFactBase.toString(),
       outflowPlanBase: outflowPlanBase.toString(),
       outflowFactBase: outflowFactBase.toString(),
+      hasInflowPlan: !inflowPlanBase.isZero(),
+      hasOutflowPlan: !outflowPlanBase.isZero(),
     },
     upcomingObligations30d,
     topCategoriesDelta,
   };
+});
+
+// ─────────────────────────────────────────────────────────────
+// Daily net cashflow for the last 30 days (sparkline source)
+// ─────────────────────────────────────────────────────────────
+
+export const getCashflow30dDailyNet = cache(async (
+  userId: string,
+  baseCcy: string,
+): Promise<number[]> => {
+  const now = new Date();
+  const start = addDays(now, -29); // 30 days inclusive: start..now
+
+  const [txns, rates] = await Promise.all([
+    db.transaction.findMany({
+      where: {
+        userId,
+        deletedAt: null,
+        occurredAt: { gte: start, lte: now },
+        status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
+        kind: { in: [TransactionKind.INCOME, TransactionKind.EXPENSE] },
+      },
+      select: {
+        kind: true,
+        status: true,
+        amount: true,
+        currencyCode: true,
+        occurredAt: true,
+        facts: { select: { amount: true } },
+      },
+    }),
+    getLatestRatesMap(),
+  ]);
+
+  // Build 30-slot array indexed 0..29 where index 0 = start day, 29 = today
+  const buckets: Prisma.Decimal[] = Array.from({ length: 30 }, () => new Prisma.Decimal(0));
+
+  const startDay = Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate());
+
+  for (const txn of txns) {
+    const actual = confirmedAmt(txn as Parameters<typeof confirmedAmt>[0]);
+    const inBase = convertToBase(actual, txn.currencyCode, baseCcy, rates);
+    if (!inBase) continue;
+
+    const txDay = Date.UTC(txn.occurredAt.getUTCFullYear(), txn.occurredAt.getUTCMonth(), txn.occurredAt.getUTCDate());
+    const idx = Math.round((txDay - startDay) / (24 * 60 * 60 * 1000));
+    if (idx < 0 || idx > 29) continue;
+
+    const signed = txn.kind === TransactionKind.INCOME ? inBase : inBase.negated();
+    buckets[idx] = buckets[idx].plus(signed);
+  }
+
+  return buckets.map((b) => Number(b.toFixed(0)));
 });

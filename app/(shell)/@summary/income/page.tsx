@@ -1,4 +1,3 @@
-import { CountUp } from "@/components/count-up";
 import {
   AvailableBlock,
   BalancesBlock,
@@ -11,7 +10,7 @@ import { getCurrentUserId } from "@/lib/api/auth";
 import { db } from "@/lib/db";
 import { getLatestRatesMap, convertToBase } from "@/lib/data/wallet";
 import { Prisma, TransactionKind, TransactionStatus } from "@prisma/client";
-import { formatRubPrefix } from "@/lib/format/money";
+import { formatRubPrefix, formatRubPrefixRounded } from "@/lib/format/money";
 import { getT } from "@/lib/i18n/server";
 
 export default async function IncomeSummary() {
@@ -80,7 +79,6 @@ export default async function IncomeSummary() {
   });
 
   const monthLabel = `${monthShort[now.getUTCMonth()]} ${now.getUTCFullYear()}`;
-  const factNum = Number(monthFact.toFixed(0));
 
   return (
     <SummaryShell>
@@ -91,7 +89,7 @@ export default async function IncomeSummary() {
           <span className="tiny mono">{monthLabel}</span>
         </div>
         <div className="mono" style={{ fontSize: 24, fontWeight: 700, color: "var(--pos)" }}>
-          +₽ <CountUp to={factNum} />
+          +{formatRubPrefixRounded(monthFact)}
         </div>
         <div className="sum-table" style={{ marginTop: 6 }}>
           <div className="r"><span>{t("summary.income.fact_key")}</span><span className="v">{formatRubPrefix(monthFact)}</span></div>

@@ -1,4 +1,7 @@
+"use client";
+
 import { CountUp } from "@/components/count-up";
+import { useT } from "@/lib/i18n/context";
 
 export type AnalyticsKpiItem = {
   k: string;
@@ -11,8 +14,10 @@ export type AnalyticsKpiItem = {
 };
 
 function Val({ v, fmt }: { v: number; fmt: string }) {
-  if (fmt === "days") return <><CountUp to={v} format="int" /> дн</>;
+  const t = useT();
+  if (fmt === "days") return <><CountUp to={v} format="int" /> {t("common.unit.day")}</>;
   if (fmt === "money-pos") return <>+₽ <CountUp to={v} /></>;
+  if (fmt === "money-neg") return <>{"−"}₽ <CountUp to={v} /></>;
   return <>₽ <CountUp to={v} /></>;
 }
 
@@ -23,11 +28,12 @@ export function AnalyticsKpiRow({
   items: AnalyticsKpiItem[];
   periodLabel?: string;
 }) {
+  const t = useT();
   return (
     <div className="section fade-in" style={{ animationDelay: "120ms" }}>
       <div className="section-hd">
-        <div className="ttl mono"><b>ключевые метрики</b> <span className="dim">· 3 мес</span></div>
-        <div className="meta mono">{periodLabel ?? "текущий период"}</div>
+        <div className="ttl mono"><b>{t("analytics.kpi.title")}</b> <span className="dim">{t("analytics.kpi.title_period")}</span></div>
+        <div className="meta mono">{periodLabel ?? t("analytics.kpi.period_default")}</div>
       </div>
       <div className="section-body flush">
         <div className="kpi-row">
@@ -41,7 +47,7 @@ export function AnalyticsKpiRow({
           ))}
           {items.length === 0 && (
             <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 0" }}>
-              нет данных за период
+              {t("analytics.kpi.no_data")}
             </div>
           )}
         </div>

@@ -35,15 +35,17 @@ export async function WorkSourcesSection({ items }: WorkSourcesSectionProps) {
           <b>{t("settings.work_sources_summary.section_title")}</b>
           <span className="dim"> · {items.length}</span>
         </div>
-        <div className="meta mono">
-          <Link
-            href="/income/work-sources/new"
-            className="btn primary"
-            style={{ padding: "3px 9px", fontSize: 10 }}
-          >
-            {t("income.work_sources.add")}
-          </Link>
-        </div>
+        {items.length > 0 && (
+          <div className="meta mono">
+            <Link
+              href="/income/work-sources/new"
+              className="btn primary"
+              style={{ padding: "3px 9px", fontSize: 10 }}
+            >
+              {t("income.work_sources.add")}
+            </Link>
+          </div>
+        )}
       </div>
       <div className="section-body flush">
         {items.length === 0 ? (

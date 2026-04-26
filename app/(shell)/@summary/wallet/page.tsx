@@ -5,8 +5,13 @@ import {
 } from "@/components/shell/summary/common";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { getCurrentUserId } from "@/lib/api/auth";
-import { getInstitutionsWithAccounts } from "@/lib/data/wallet";
-import { getLatestRatesMap, convertToBase } from "@/lib/data/wallet";
+import {
+  getInstitutionsWithAccounts,
+  getLatestRatesMap,
+  convertToBase,
+  getWalletTotals,
+  getBalancesByCurrency,
+} from "@/lib/data/wallet";
 import { Prisma } from "@prisma/client";
 import { formatAmount, formatRubPrefix } from "@/lib/format/money";
 import { getT } from "@/lib/i18n/server";
@@ -19,30 +24,37 @@ const BAR_COLORS = [
 
 export default async function WalletSummary() {
   const [userId, t] = await Promise.all([getCurrentUserId(), getT()]);
-  const [institutions, rates, currencies] = await Promise.all([
+
+  const [institutions, rates, currencies, totals, ccyMap] = await Promise.all([
     getInstitutionsWithAccounts(userId),
     getLatestRatesMap(),
     db.currency.findMany({ select: { code: true, symbol: true, decimals: true, name: true } }),
+    getWalletTotals(userId, DEFAULT_CURRENCY),
+    getBalancesByCurrency(userId),
   ]);
 
   const currencyMap = new Map(currencies.map((c) => [c.code, c]));
 
-  let totalBase = new Prisma.Decimal(0);
-  const instTotals: { name: string; total: Prisma.Decimal }[] = [];
-  const ccyMap = new Map<string, Prisma.Decimal>();
+  // Net total (from canonical getWalletTotals — respects LOAN/CREDIT/includeInAnalytics)
+  const totalNum = Number(totals.net.valueBase.toFixed(0));
+  const accountCount = totals.net.accountsCount;
+  const totalBase = totals.net.valueBase;
 
+  // Institution shares — apply same filter as getWalletTotals:
+  // skip LOAN, skip !includeInAnalytics, CREDIT subtracts.
+  const instTotals: { name: string; total: Prisma.Decimal }[] = [];
   for (const inst of institutions) {
     let instTotal = new Prisma.Decimal(0);
     for (const acc of inst.accounts) {
-      // UI list shows all accounts; aggregates only count included ones
       if (!acc.includeInAnalytics) continue;
+      if (acc.kind === "LOAN") continue;
       const inBase = convertToBase(acc.balance, acc.currencyCode, DEFAULT_CURRENCY, rates);
-      if (inBase) {
+      if (!inBase) continue;
+      if (acc.kind === "CREDIT") {
+        instTotal = instTotal.minus(inBase);
+      } else {
         instTotal = instTotal.plus(inBase);
-        totalBase = totalBase.plus(inBase);
       }
-      const prev = ccyMap.get(acc.currencyCode) ?? new Prisma.Decimal(0);
-      ccyMap.set(acc.currencyCode, prev.plus(new Prisma.Decimal(acc.balance)));
     }
     if (instTotal.gt(0)) {
       instTotals.push({ name: inst.name, total: instTotal });
@@ -59,6 +71,7 @@ export default async function WalletSummary() {
     code: DEFAULT_CURRENCY, symbol: DEFAULT_CURRENCY, decimals: 2, name: DEFAULT_CURRENCY,
   };
 
+  // Per-currency balances from helper (already filtered/CREDIT-subtracted)
   const ccyBalances = [...ccyMap.entries()].map(([code, amount]) => {
     const ccy = currencyMap.get(code) ?? { code, symbol: code, decimals: 2, name: code };
     const inBase = convertToBase(amount, code, DEFAULT_CURRENCY, rates);
@@ -70,8 +83,6 @@ export default async function WalletSummary() {
     };
   });
 
-  const totalNum = Number(totalBase.toFixed(0));
-  const accountCount = institutions.reduce((s, i) => s + i.accounts.length, 0);
   const totalStr = formatRubPrefix(new Prisma.Decimal(totalNum));
 
   return (

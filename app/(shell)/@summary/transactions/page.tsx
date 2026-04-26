@@ -93,6 +93,7 @@ export default async function TransactionsSummary() {
               ? t("summary.transactions.pending_val", { vars: { count: String(plannedCount) } })
               : t("summary.transactions.pending_none"),
             vClass: plannedCount > 0 ? "warn" : "muted",
+            vTitle: plannedCount > 0 ? t("summary.transactions.pending_tooltip") : undefined,
           },
         ]}
       />

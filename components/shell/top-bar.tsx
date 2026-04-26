@@ -1,27 +1,35 @@
 import { LiveClock } from "./live-clock";
 import { TopBarCrumbs } from "./top-bar-crumbs";
-import { getLatestRatesMap } from "@/lib/data/wallet";
+import { getLatestRatesMap, ensureFreshRates } from "@/lib/data/wallet";
 import { getHomeDashboard } from "@/lib/data/dashboard";
-import { DEFAULT_USER_ID, DEFAULT_CURRENCY } from "@/lib/constants";
-import { Prisma } from "@prisma/client";
+import { DEFAULT_CURRENCY } from "@/lib/constants";
+import { getCurrentUserId } from "@/lib/api/auth";
 import { formatRate } from "@/lib/format/money";
-
-const STATUS_LABELS: Record<string, string> = {
-  stable: "СТАБИЛЬНО",
-  warning: "ВНИМАНИЕ",
-  crisis: "КРИЗИС",
-};
+import { getT } from "@/lib/i18n/server";
 
 export async function TopBar() {
+  const t = await getT();
+
+  const STATUS_LABELS: Record<string, string> = {
+    stable:  t("shell.status.stable"),
+    warning: t("shell.status.warning"),
+    crisis:  t("shell.status.crisis"),
+  };
+
+  const userId = await getCurrentUserId();
+
+  // Ensure rates are fresh (CBR, max 10 min stale) before reading from DB.
+  await ensureFreshRates();
+
   const [rates, dashboard] = await Promise.all([
     getLatestRatesMap(),
-    getHomeDashboard(DEFAULT_USER_ID, DEFAULT_CURRENCY),
+    getHomeDashboard(userId, DEFAULT_CURRENCY),
   ]);
 
   const usdRub = rates.get("USD-RUB");
   const eurRub = rates.get("EUR-RUB");
 
-  const statusLabel = STATUS_LABELS[dashboard.status] ?? "СТАБИЛЬНО";
+  const statusLabel = STATUS_LABELS[dashboard.status] ?? t("shell.status.stable");
 
   return (
     <div className="topbar">

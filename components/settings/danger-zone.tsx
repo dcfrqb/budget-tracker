@@ -26,7 +26,7 @@ export function DangerZone() {
   }
 
   function handleWipe() {
-    if (phrase !== confirmPhrase) return;
+    if (phrase.trim() !== confirmPhrase) return;
     setError(null);
     startTransition(async () => {
       const result = await wipeAllDataAction();
@@ -55,6 +55,7 @@ export function DangerZone() {
           role="dialog"
           aria-modal="true"
           aria-label={t("settings.danger.dialog_title")}
+          onKeyDown={(e) => { if (e.key === "Escape") closeDialog(); }}
           style={{
             position: "fixed",
             inset: 0,
@@ -113,6 +114,8 @@ export function DangerZone() {
                 value={phrase}
                 onChange={(e) => setPhrase(e.target.value)}
                 autoComplete="off"
+                autoCapitalize="characters"
+                spellCheck={false}
                 autoFocus
               />
             </div>
@@ -136,8 +139,8 @@ export function DangerZone() {
                 type="button"
                 className="settings-danger-btn mono"
                 onClick={handleWipe}
-                disabled={phrase !== confirmPhrase || isPending}
-                style={{ opacity: phrase !== confirmPhrase ? 0.4 : 1 }}
+                disabled={phrase.trim() !== confirmPhrase || isPending}
+                style={{ opacity: phrase.trim() !== confirmPhrase ? 0.4 : 1 }}
               >
                 {t("settings.danger.confirm_button")}
               </button>
