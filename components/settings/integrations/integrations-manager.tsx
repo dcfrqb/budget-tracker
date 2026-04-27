@@ -408,8 +408,8 @@ function OtpDialog({
             onChange={(e) => setCode(e.target.value)}
             autoComplete="one-time-code"
             inputMode="numeric"
-            pattern="\d{6}"
-            maxLength={6}
+            pattern="\d{4,8}"
+            maxLength={8}
           />
         </div>
 
@@ -427,7 +427,7 @@ function OtpDialog({
             className="btn primary"
             type="button"
             onClick={handleSubmit}
-            disabled={isPending || code.length !== 6}
+            disabled={isPending || code.length < 4 || code.length > 8}
           >
             {isPending ? "..." : t("settings.integrations.action.submit_otp")}
           </button>

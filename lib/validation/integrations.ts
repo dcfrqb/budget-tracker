@@ -64,7 +64,7 @@ export const submitOtpSchema = z.object({
   credentialId: zCuid,
   code: z
     .string()
-    .regex(/^\d{6}$/, "OTP must be 6 digits"),
+    .regex(/^\d{4,8}$/, "OTP must be 4-8 digits"),
 });
 
 // ── Sync body (API route POST body) ──────────────────────────
