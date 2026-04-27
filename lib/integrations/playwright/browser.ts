@@ -46,6 +46,16 @@ export async function withTbankBrowser<T>(
       opts.headless ??
       (envHeadless === "false" || envHeadless === "0" ? false : true);
 
+    // Anti-bot evasion: T-Bank's /auth/step SPA refuses to render when it
+    // detects automation flags. We pass --disable-blink-features=
+    // AutomationControlled to suppress the "Chrome is being controlled by
+    // automated test software" banner and the matching CDP signal, and we
+    // strip the boolean navigator.webdriver flag in an init script.
+    const stealthArgs = [
+      "--disable-blink-features=AutomationControlled",
+      ...(headless ? ["--no-sandbox"] : []),
+    ];
+
     let context: BrowserContext;
     try {
       context = await chromium.launchPersistentContext(profileDir, {
@@ -53,12 +63,34 @@ export async function withTbankBrowser<T>(
         viewport: { width: 1280, height: 800 },
         locale: "ru-RU",
         timezoneId: "Europe/Moscow",
-        args: headless ? ["--no-sandbox"] : [],
+        args: stealthArgs,
+        ignoreDefaultArgs: ["--enable-automation"],
       });
     } catch (err) {
       console.error("[playwright-browser] launch failed:", err);
       throw err;
     }
+
+    // Override navigator.webdriver and a few other automation tells before
+    // any page script runs. Keeps Tinkoff's anti-bot heuristics from short-
+    // circuiting the SPA render.
+    await context.addInitScript(() => {
+      Object.defineProperty(Navigator.prototype, "webdriver", {
+        configurable: true,
+        get: () => false,
+      });
+      // Some bot-detection libs check window.chrome / plugins length.
+      // @ts-expect-error - injected at runtime
+      if (!window.chrome) window.chrome = { runtime: {} };
+      Object.defineProperty(navigator, "plugins", {
+        configurable: true,
+        get: () => [1, 2, 3, 4, 5],
+      });
+      Object.defineProperty(navigator, "languages", {
+        configurable: true,
+        get: () => ["ru-RU", "ru", "en-US", "en"],
+      });
+    });
 
     if (isFresh && opts.storageState) {
       try {
