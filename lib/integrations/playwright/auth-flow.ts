@@ -127,13 +127,26 @@ export async function runFullLogin(opts: {
   log("step4: waiting for /auth/step URL");
   await page.waitForURL(/id\.tbank\.ru\/auth\/step/, { timeout: 30_000 });
   log(`step4: at ${page.url()}`);
+  // Tinkoff /auth/step is a SPA — wait for the panel to finish rendering
+  // before introspecting the DOM, otherwise innerText is "Вход Телефон" stub.
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
   const step4Title = await page.title().catch(() => "?");
   const step4Body = await page
     .locator("body")
     .innerText({ timeout: 2000 })
     .catch(() => "?");
+  const step4Buttons = await page
+    .locator("button, [role=button]")
+    .evaluateAll((nodes) => nodes.map((n) => (n as HTMLElement).innerText.trim()).filter(Boolean))
+    .catch(() => [] as string[]);
+  const step4Headings = await page
+    .locator("h1, h2, h3, [role=heading]")
+    .evaluateAll((nodes) => nodes.map((n) => (n as HTMLElement).innerText.trim()).filter(Boolean))
+    .catch(() => [] as string[]);
   log(`step4: title="${step4Title}"`);
-  log(`step4: body (first 800): ${step4Body.slice(0, 800).replace(/\s+/g, " ")}`);
+  log(`step4: headings=${JSON.stringify(step4Headings)}`);
+  log(`step4: buttons=${JSON.stringify(step4Buttons)}`);
+  log(`step4: body (first 3000): ${step4Body.slice(0, 3000).replace(/\s+/g, " ")}`);
   const smsInput = page.locator('input[autocomplete="one-time-code"]').first();
   log("step5: waiting for SMS input visible");
   const smsVisible = await smsInput
