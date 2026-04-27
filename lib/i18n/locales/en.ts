@@ -195,6 +195,7 @@ export const enDict: RuDictShape = {
           insufficient_privileges: "Session requires SMS confirmation. Click \"Submit OTP\".",
           invalid_credentials: "Invalid login or password.",
           rate_limited: "Too many attempts. Try again later.",
+          circuit_open: "Too many errors in a row — sync temporarily halted.",
           unknown: "Could not reach T-Bank.",
           invalid_pin: "PIN must be 4 digits.",
           invalid_phone: "Invalid phone format.",

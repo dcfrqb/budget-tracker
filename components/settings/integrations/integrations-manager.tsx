@@ -45,6 +45,7 @@ type TinkoffErrorKey =
   | "settings.integrations.tinkoff_retail.error.insufficient_privileges"
   | "settings.integrations.tinkoff_retail.error.invalid_credentials"
   | "settings.integrations.tinkoff_retail.error.rate_limited"
+  | "settings.integrations.tinkoff_retail.error.circuit_open"
   | "settings.integrations.tinkoff_retail.error.unknown"
   | "settings.integrations.tinkoff_retail.error.invalid_pin"
   | "settings.integrations.tinkoff_retail.error.invalid_phone"
@@ -60,11 +61,16 @@ type TinkoffErrorKey =
   | "settings.integrations.tinkoff_retail.error.browser_unavailable"
   | "settings.integrations.tinkoff_retail.error.invalid_session";
 
-function mapAdapterError(code: string): TinkoffErrorKey {
+function mapAdapterError(code: string | null | undefined): TinkoffErrorKey {
+  if (!code) return "settings.integrations.tinkoff_retail.error.unknown";
+  // Tolerate "<code>: <details>" format produced by some setStatus paths
+  // (e.g. "rate_limited: retry after 60s", "circuit_open: 3 consecutive errors").
+  const head = code.split(":")[0].trim().toUpperCase();
   const map: Record<string, TinkoffErrorKey> = {
     INSUFFICIENT_PRIVILEGES: "settings.integrations.tinkoff_retail.error.insufficient_privileges",
     INVALID_CREDENTIALS: "settings.integrations.tinkoff_retail.error.invalid_credentials",
     RATE_LIMITED: "settings.integrations.tinkoff_retail.error.rate_limited",
+    CIRCUIT_OPEN: "settings.integrations.tinkoff_retail.error.circuit_open",
     INVALID_PIN: "settings.integrations.tinkoff_retail.error.invalid_pin",
     INVALID_PHONE: "settings.integrations.tinkoff_retail.error.invalid_phone",
     CAPTCHA_REQUIRED: "settings.integrations.tinkoff_retail.error.captcha_required",
@@ -79,7 +85,7 @@ function mapAdapterError(code: string): TinkoffErrorKey {
     BROWSER_UNAVAILABLE: "settings.integrations.tinkoff_retail.error.browser_unavailable",
     INVALID_SESSION: "settings.integrations.tinkoff_retail.error.invalid_session",
   };
-  return map[code.toUpperCase()] ?? "settings.integrations.tinkoff_retail.error.unknown";
+  return map[head] ?? "settings.integrations.tinkoff_retail.error.unknown";
 }
 
 // ─────────────────────────────────────────────────────────────
