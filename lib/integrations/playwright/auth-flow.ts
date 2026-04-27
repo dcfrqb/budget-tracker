@@ -88,7 +88,17 @@ export async function runFullLogin(opts: {
     );
 
   await phoneInput.waitFor({ state: "visible", timeout: 15_000 });
-  await phoneInput.fill(phone);
+  // T-Bank's phone input has a "+7 (___) ___-__-__" mask. .fill() sets the
+  // value via DOM and the mask layer corrupts it (the leading "+7 " prefix is
+  // already shown as placeholder/mask, and the masking handler rejects extra
+  // digits). pressSequentially simulates real key events so the mask absorbs
+  // the input correctly. We strip the "+7"/"7"/"8" country prefix and feed
+  // only the 10 trailing digits.
+  const phoneDigits = phone.replace(/^\+7/, "").replace(/\D/g, "");
+  await phoneInput.click();
+  await phoneInput.press("ControlOrMeta+a").catch(() => {});
+  await phoneInput.press("Delete").catch(() => {});
+  await phoneInput.pressSequentially(phoneDigits, { delay: 60 });
   await humanDelay();
 
   // Scope submit button to the same form as the phone input to avoid
