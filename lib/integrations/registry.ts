@@ -2,7 +2,7 @@ import type { BankAdapter } from "@/lib/integrations/types";
 import { tinkoffCsvAdapter } from "./adapters/tinkoff-csv";
 import { genericCsvAdapter } from "./adapters/generic-csv";
 import { tinkoffEmailAdapter } from "./adapters/tinkoff-email";
-import { tinkoffRetailAdapter } from "./adapters/tinkoff-retail";
+import { tinkoffRetailAdapter } from "./adapters/tinkoff-retail-playwright";
 
 const ADAPTERS: BankAdapter[] = [
   tinkoffCsvAdapter,

@@ -1,12 +1,11 @@
-// TypeScript-only types for the Tinkoff Retail adapter. No runtime code.
+// TypeScript-only types for the Tinkoff Retail Playwright adapter. No runtime code.
 
-export type TinkoffSecrets = {
-  sessionid?: string;
-  wuid?: string;
-  phone?: string;
-  pendingTicket?: string; // present only between sign_up and confirm
-  step?: "idle" | "awaiting_otp" | "ready";
-  lastLevelUpAt?: number;
+export type TinkoffPlaywrightSecrets = {
+  phone: string;
+  pin: string;
+  storageState?: string;
+  lastFastLoginAt?: number;
+  lastFullLoginAt?: number;
 };
 
 export type TinkoffCurrency = {
