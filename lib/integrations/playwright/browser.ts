@@ -4,10 +4,25 @@ import { chromium as chromiumVanilla, type BrowserContext, type Page } from "pla
 import path from "node:path";
 import { mkdir, readdir } from "node:fs/promises";
 
-chromiumExtra.use(StealthPlugin());
+// Lazy-init: calling chromiumExtra.use(StealthPlugin()) at module top-level
+// crashes Next.js's "Collecting page data" step (puppeteer-extra-plugin-stealth
+// 2.11.x evaluates an evasion sub-module before puppeteer-extra's type helper
+// is initialised, throwing TypeError: n.typeOf is not a function). Defer the
+// .use() call until the first real request hits withTbankBrowser. The boolean
+// guard ensures we register the plugin exactly once even though .use() is
+// idempotent in spirit.
+let _stealthRegistered = false;
 
-const _chromium =
-  process.env.TBANK_BROWSER_ENGINE === "vanilla" ? chromiumVanilla : chromiumExtra;
+function getChromium() {
+  if (process.env.TBANK_BROWSER_ENGINE === "vanilla") {
+    return chromiumVanilla;
+  }
+  if (!_stealthRegistered) {
+    chromiumExtra.use(StealthPlugin());
+    _stealthRegistered = true;
+  }
+  return chromiumExtra;
+}
 
 export type TbankBrowserCtx = {
   context: BrowserContext;
@@ -60,7 +75,7 @@ export async function withTbankBrowser<T>(
 
     let context: BrowserContext;
     try {
-      context = await _chromium.launchPersistentContext(profileDir, {
+      context = await getChromium().launchPersistentContext(profileDir, {
         headless,
         viewport: { width: 1280, height: 800 },
         locale: "ru-RU",
