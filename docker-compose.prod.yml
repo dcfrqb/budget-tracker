@@ -29,9 +29,13 @@ services:
       DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}?schema=public
       INTEGRATIONS_ENC_KEY: ${INTEGRATIONS_ENC_KEY}
       ADMIN_INTEGRATIONS: ${ADMIN_INTEGRATIONS}
+      PLAYWRIGHT_PROFILES_DIR: /var/lib/budget-tracker/playwright-profiles
       TZ: Europe/Moscow
+    volumes:
+      - playwright-profiles:/var/lib/budget-tracker/playwright-profiles
     ports:
       - "127.0.0.1:3002:3000"
 
 volumes:
   pgdata:
+  playwright-profiles:
