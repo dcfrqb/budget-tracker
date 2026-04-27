@@ -13,6 +13,13 @@ export function humanDelay(min = 800, max = 1200): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+export function profileDirFor(credentialId: string): string {
+  const baseDir =
+    process.env.PLAYWRIGHT_PROFILES_DIR ??
+    "/var/lib/budget-tracker/playwright-profiles";
+  return path.join(baseDir, credentialId);
+}
+
 export async function withTbankBrowser<T>(
   opts: {
     credentialId: string;
@@ -21,11 +28,7 @@ export async function withTbankBrowser<T>(
   },
   fn: (ctx: TbankBrowserCtx) => Promise<T>,
 ): Promise<T> {
-  const baseDir =
-    process.env.PLAYWRIGHT_PROFILES_DIR ??
-    "/var/lib/budget-tracker/playwright-profiles";
-
-  const profileDir = path.join(baseDir, opts.credentialId);
+  const profileDir = profileDirFor(opts.credentialId);
 
   await mkdir(profileDir, { recursive: true });
 

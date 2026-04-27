@@ -2,12 +2,11 @@
 // Terms of Service. Use only with explicit understanding of associated risks.
 
 import { rm } from "node:fs/promises";
-import path from "node:path";
 import type { BankAdapter, AdapterContext } from "@/lib/integrations/types";
 import type { ImportRow } from "@/lib/import/types";
 import { normalizeRuPhone } from "@/lib/format/phone";
 import { listAccountLinks } from "@/lib/data/_queries/integrations";
-import { withTbankBrowser } from "@/lib/integrations/playwright/browser";
+import { withTbankBrowser, profileDirFor } from "@/lib/integrations/playwright/browser";
 import { runFullLogin, runFastLogin } from "@/lib/integrations/playwright/auth-flow";
 import {
   waitForSms,
@@ -349,13 +348,8 @@ export const tinkoffRetailAdapter: BankAdapter = {
     abortSession(ctx.credentialId, "disconnect");
     cancelSms(ctx.credentialId, "disconnect");
 
-    const baseDir =
-      process.env.PLAYWRIGHT_PROFILES_DIR ??
-      "/var/lib/budget-tracker/playwright-profiles";
-    const profileDir = path.join(baseDir, ctx.credentialId);
-
     try {
-      await rm(profileDir, { recursive: true, force: true });
+      await rm(profileDirFor(ctx.credentialId), { recursive: true, force: true });
     } catch {
       // best-effort
     }
