@@ -142,7 +142,7 @@ async function loadCredential(userId: string, credentialId: string) {
 export async function loginWithCredential(
   userId: string,
   credentialId: string,
-  input: { username: string; password: string },
+  input: { username: string; password: string; lkPassword?: string },
 ) {
   assertAdminIntegrations(userId);
 
@@ -625,7 +625,7 @@ export async function listAccountLinksForCredential(
 export async function reloginCredential(
   userId: string,
   credentialId: string,
-  input: { phone: string; password: string },
+  input: { phone: string; password: string; lkPassword?: string },
 ) {
   assertAdminIntegrations(userId);
 
@@ -645,7 +645,7 @@ export async function reloginCredential(
   }
 
   const ctx = buildContext(userId, credentialId, secrets);
-  return adapter.login(ctx, { username: input.phone, password: input.password });
+  return adapter.login(ctx, { username: input.phone, password: input.password, lkPassword: input.lkPassword });
 }
 
 /** Call adapter.listExternalAccounts() to enumerate bank accounts via the API. */

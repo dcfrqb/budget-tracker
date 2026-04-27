@@ -58,7 +58,7 @@ export async function connectAdapterAction(
     // CSV adapters (no login) keep their config fields (e.g. forwarding email).
     const { getAdapter } = await import("@/lib/integrations/registry");
     const adapter = getAdapter(String(parsed.data.adapterId));
-    const CREDENTIAL_FIELDS = ["password", "username", "phone", "code"];
+    const CREDENTIAL_FIELDS = ["password", "username", "phone", "code", "lkPassword"];
     const initialSecrets: Record<string, unknown> =
       adapter?.supports.login
         ? Object.fromEntries(
@@ -83,7 +83,7 @@ export async function connectAdapterAction(
 /** Trigger login flow (username + password). */
 export async function loginAction(
   credentialId: string,
-  input: { username: string; password: string },
+  input: { username: string; password: string; lkPassword?: string },
 ): Promise<ActionResult> {
   // Validate: credentialId format + password presence
   const parsed = loginInputSchema.safeParse({ credentialId, password: input.password });
@@ -277,6 +277,7 @@ export async function listUserAccountsAction(): Promise<ActionResult> {
 export async function reloginAction(input: {
   credentialId: string;
   phone: string;
+  lkPassword: string;
   password: string;
 }): Promise<ActionResult> {
   const parsed = reloginSchema.safeParse(input);
@@ -286,6 +287,7 @@ export async function reloginAction(input: {
     const userId = await getCurrentUserId();
     const result = await reloginCredential(userId, parsed.data.credentialId, {
       phone: parsed.data.phone,
+      lkPassword: parsed.data.lkPassword,
       password: parsed.data.password,
     });
     revalidatePath("/settings/integrations");

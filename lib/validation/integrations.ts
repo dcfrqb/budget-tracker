@@ -21,6 +21,7 @@ export const connectTinkoffRetailSchema = z.object({
   username: z
     .string()
     .regex(/^(?:\+7|8|7)\d{10}$/, "Phone must be +7/8/7 followed by 10 digits"),
+  lkPassword: z.string().min(1, "password required"),
   password: z
     .string()
     .regex(/^\d{4}$/, "PIN must be 4 digits"),
@@ -54,6 +55,8 @@ export const loginTinkoffRetailSchema = z.object({
 export const loginGenericSchema = z.object({
   credentialId: zCuid,
   password: z.string().min(1).max(200),
+  // Optional at the boundary — adapter layer enforces per-adapter requirement.
+  lkPassword: z.string().optional(),
 });
 
 export const loginInputSchema = loginGenericSchema;
@@ -115,6 +118,10 @@ export const reloginSchema = z.object({
   credentialId: zCuid,
   // Loose — strict normalize happens in adapter via normalizeRuPhone.
   phone: z.string().min(11).max(20),
+  // Optional at the schema layer — per-adapter requirement is enforced inside
+  // the adapter (tinkoff-retail returns lk_password_required if missing).
+  // Generic adapters that don't need an LK password pass undefined or "".
+  lkPassword: z.string().optional(),
   password: z.string().min(1).max(200),
 });
 

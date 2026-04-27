@@ -169,6 +169,9 @@ export const ruDict = {
         pin_hint: "4 цифры — выбираешь сам",
         pin_placeholder: "••••",
         phone_placeholder: "+7 999 123-45-67",
+        lk_password: "Пароль ЛК Т-Банка",
+        lk_password_hint: "Текущий пароль от tbank.ru — нужен для входа после SMS.",
+        lk_password_placeholder: "••••••••",
       },
       category: {
         csv: "CSV-файл",
@@ -218,6 +221,7 @@ export const ruDict = {
           navigation_timeout: "Т-Банк отвечает медленно. Попробуй ещё раз через минуту.",
           browser_unavailable: "Внутренний браузер не запустился. Это проблема на нашей стороне.",
           invalid_session: "Сохранённая сессия повреждена. Подключи интеграцию заново.",
+          lk_password_required: "Введите пароль от ЛК Т-Банка.",
         },
         action: {
           relogin: "Переподключить",

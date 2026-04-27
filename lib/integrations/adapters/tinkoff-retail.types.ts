@@ -3,6 +3,7 @@
 export type TinkoffPlaywrightSecrets = {
   phone: string;
   pin: string;
+  password?: string;
   storageState?: string;
   lastFastLoginAt?: number;
   lastFullLoginAt?: number;

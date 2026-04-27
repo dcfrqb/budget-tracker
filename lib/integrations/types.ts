@@ -48,7 +48,7 @@ export type BankAdapter = {
   };
   login?: (
     ctx: AdapterContext,
-    input: { username: string; password: string },
+    input: { username: string; password: string; lkPassword?: string },
   ) => Promise<
     | { ok: true }
     | { ok: true; needsOtp: true }

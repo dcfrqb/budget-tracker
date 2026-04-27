@@ -84,7 +84,7 @@ export const tinkoffRetailAdapter: BankAdapter = {
 
   async login(
     ctx: AdapterContext,
-    input: { username: string; password: string },
+    input: { username: string; password: string; lkPassword?: string },
   ) {
     const phone = normalizeRuPhone(input.username);
     if (!phone) {
@@ -98,7 +98,13 @@ export const tinkoffRetailAdapter: BankAdapter = {
       return { ok: false as const, error: "invalid_pin" };
     }
 
-    await ctx.saveSecrets({ phone, pin } satisfies Omit<
+    const lkPassword = input.lkPassword?.trim() ?? "";
+    if (!lkPassword.length) {
+      await ctx.setStatus("ERROR", "lk_password_required");
+      return { ok: false as const, error: "lk_password_required" };
+    }
+
+    await ctx.saveSecrets({ phone, pin, password: lkPassword } satisfies Omit<
       TinkoffPlaywrightSecrets,
       "storageState" | "lastFastLoginAt" | "lastFullLoginAt"
     >);
@@ -123,6 +129,7 @@ export const tinkoffRetailAdapter: BankAdapter = {
               page,
               phone,
               pin,
+              password: lkPassword,
               smsResolver: () => waitForSms(credentialId),
             });
             return storageState;
@@ -132,6 +139,7 @@ export const tinkoffRetailAdapter: BankAdapter = {
         const freshSecrets: TinkoffPlaywrightSecrets = {
           phone,
           pin,
+          password: lkPassword,
           storageState,
           lastFullLoginAt: Date.now(),
         };

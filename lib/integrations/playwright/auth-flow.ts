@@ -69,9 +69,10 @@ export async function runFullLogin(opts: {
   page: Page;
   phone: string;
   pin: string;
+  password: string;
   smsResolver: SmsResolver;
 }): Promise<{ storageState: string }> {
-  const { page, phone, pin, smsResolver } = opts;
+  const { page, phone, pin, password, smsResolver } = opts;
   const log = (msg: string) => console.log(`[playwright-flow] ${msg}`);
 
   // Step 1: navigate to login
@@ -214,9 +215,47 @@ export async function runFullLogin(opts: {
   await humanDelay();
   log(`step6: post-type URL=${page.url()}`);
 
-  // Step 7: wait for PIN screen — 4+ numeric inputs
-  log("step7: waiting for PIN screen (>=4 numeric inputs)");
-  const pinScreenReached = await page
+  // Step 6.5: password screen — T-Bank may show "Введите пароль" after SMS.
+  // We probe for up to 5s; if not found we continue (some devices skip this step).
+  log("step6.5: probing for password screen");
+  const pwInput = page
+    .locator('input[type="password"]')
+    .or(page.locator('input[autocomplete="current-password"]'))
+    .or(page.locator('input[name="password"]'))
+    .first();
+  const pwVisible = await pwInput
+    .waitFor({ state: "visible", timeout: 10_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (pwVisible) {
+    log("step6.5: password screen detected");
+    await pwInput.click().catch(() => {});
+    await pwInput.press("ControlOrMeta+a").catch(() => {});
+    await pwInput.press("Delete").catch(() => {});
+    await pwInput.pressSequentially(password, { delay: 60 }).catch((err: unknown) => {
+      log(`step6.5: pressSequentially failed (auto-submit detached?): ${err instanceof Error ? err.message : String(err)}`);
+    });
+    log("step6.5: typed password");
+    await humanDelay();
+    // Submit: try form-scoped button first, fall back to Enter
+    const pwForm = pwInput.locator("xpath=ancestor::form[1]");
+    const pwSubmitBtn = pwForm.locator('button[type="submit"]').first();
+    const hasPwSubmit = await pwSubmitBtn.isVisible({ timeout: 500 }).catch(() => false);
+    if (hasPwSubmit) {
+      await pwSubmitBtn.click().catch(() => {});
+    } else {
+      await pwInput.press("Enter").catch(() => {});
+    }
+    await humanDelay();
+    log(`step6.5: post-type URL=${page.url()}`);
+  } else {
+    log("step6.5: no password screen — flowing to PIN/mybank wait");
+  }
+
+  // Step 7: wait for PIN screen (>=4 numeric inputs) OR mybank redirect — whichever comes first.
+  log("step7: waiting for PIN screen or /mybank (race)");
+  const mybankUrl = /^https:\/\/www\.tbank\.ru\/mybank/;
+  const pinScreenPromise = page
     .waitForFunction(
       () => {
         const inputs = document.querySelectorAll(
@@ -226,64 +265,76 @@ export async function runFullLogin(opts: {
       },
       { timeout: 30_000 },
     )
-    .then(() => true)
-    .catch(() => false);
-  if (!pinScreenReached) {
-    const title = await page.title().catch(() => "?");
-    const url = page.url();
-    const body = await page
-      .locator("body")
-      .innerText({ timeout: 2000 })
-      .catch(() => "?");
-    const inputCount = await page
-      .evaluate(
-        () =>
-          document.querySelectorAll(
-            'input[inputmode="numeric"], input[autocomplete="one-time-code"]',
-          ).length,
-      )
-      .catch(() => -1);
-    log(`step7: PIN screen NOT reached. url=${url} title="${title}" inputCount=${inputCount}`);
-    log(`step7: body (first 800): ${body.slice(0, 800).replace(/\s+/g, " ")}`);
-    throw new Error("pin_screen_missing");
-  }
-  log(`step7: PIN screen reached at ${page.url()}`);
-  await detectCaptcha(page);
+    .then(() => "pin" as const)
+    .catch(() => "timeout" as const);
+  const mybankPromise = page
+    .waitForURL(mybankUrl, { timeout: 30_000 })
+    .then(() => "mybank" as const)
+    .catch(() => "timeout" as const);
 
-  // Step 8: fill PIN
-  log("step8: filling PIN");
-  await fillPinInputs(page, pin);
-  await humanDelay();
+  const step7Winner = await Promise.race([pinScreenPromise, mybankPromise]);
+  log(`step7: race winner = ${step7Winner} at URL ${page.url()}`);
 
-  // Defensive: check for "confirm PIN" screen
-  // POC note: T-Bank may ask the user to confirm the PIN they just set.
-  // Detection: still on /auth/step URL and 4+ pin inputs visible after the delay.
-  const stillOnAuthStep = page.url().includes("/auth/step");
-  if (stillOnAuthStep && (await isPinScreen(page))) {
-    log("step8b: PIN-confirm screen detected, filling again");
+  if (step7Winner === "mybank" || page.url().match(mybankUrl)) {
+    log("step7: /mybank reached directly — skipping PIN steps");
+  } else {
+    // step7Winner === "pin" or we still need to check
+    const pinScreenReached = step7Winner === "pin";
+    if (!pinScreenReached) {
+      const title = await page.title().catch(() => "?");
+      const url = page.url();
+      const body = await page
+        .locator("body")
+        .innerText({ timeout: 2000 })
+        .catch(() => "?");
+      const inputCount = await page
+        .evaluate(
+          () =>
+            document.querySelectorAll(
+              'input[inputmode="numeric"], input[autocomplete="one-time-code"]',
+            ).length,
+        )
+        .catch(() => -1);
+      log(`step7: PIN screen NOT reached. url=${url} title="${title}" inputCount=${inputCount}`);
+      log(`step7: body (first 800): ${body.slice(0, 800).replace(/\s+/g, " ")}`);
+      throw new Error("pin_screen_missing");
+    }
+    log(`step7: PIN screen reached at ${page.url()}`);
+    await detectCaptcha(page);
+
+    // Step 8: fill PIN
+    log("step8: filling PIN");
     await fillPinInputs(page, pin);
     await humanDelay();
-  } else {
-    log(`step8: post-PIN URL=${page.url()}`);
-  }
 
-  // Step 9: wait for redirect to mybank
-  log("step9: waiting for /mybank redirect");
-  const reachedMybank = await page
-    .waitForURL(/^https:\/\/www\.tbank\.ru\/mybank/, { timeout: 60_000 })
-    .then(() => true)
-    .catch(() => false);
-  if (!reachedMybank) {
-    const title = await page.title().catch(() => "?");
-    const body = await page
-      .locator("body")
-      .innerText({ timeout: 2000 })
-      .catch(() => "?");
-    log(`step9: /mybank NOT reached. url=${page.url()} title="${title}"`);
-    log(`step9: body (first 800): ${body.slice(0, 800).replace(/\s+/g, " ")}`);
-    throw new Error("mybank_redirect_missing");
+    // Defensive: check for "confirm PIN" screen
+    const stillOnAuthStep = page.url().includes("/auth/step");
+    if (stillOnAuthStep && (await isPinScreen(page))) {
+      log("step8b: PIN-confirm screen detected, filling again");
+      await fillPinInputs(page, pin);
+      await humanDelay();
+    } else {
+      log(`step8: post-PIN URL=${page.url()}`);
+    }
+
+    // Step 9: wait for redirect to mybank
+    log("step9: waiting for /mybank redirect");
+    const reachedMybank = await page
+      .waitForURL(mybankUrl, { timeout: 60_000 })
+      .then(() => true)
+      .catch(() => false);
+    if (!reachedMybank) {
+      const title = await page.title().catch(() => "?");
+      const body = await page
+        .locator("body")
+        .innerText({ timeout: 2000 })
+        .catch(() => "?");
+      log(`step9: /mybank NOT reached. url=${page.url()} title="${title}"`);
+      log(`step9: body (first 800): ${body.slice(0, 800).replace(/\s+/g, " ")}`);
+      throw new Error("mybank_redirect_missing");
+    }
+    log(`step9: at ${page.url()}`);
   }
-  log(`step9: at ${page.url()}`);
 
   // Step 10: capture storage state
   log("step10: capturing storageState");

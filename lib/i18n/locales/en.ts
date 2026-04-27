@@ -161,6 +161,9 @@ export const enDict: RuDictShape = {
         pin_hint: "4 digits — your choice",
         pin_placeholder: "••••",
         phone_placeholder: "+7 999 123 45 67",
+        lk_password: "T-Bank online banking password",
+        lk_password_hint: "Current tbank.ru password — required after SMS during connect.",
+        lk_password_placeholder: "••••••••",
       },
       category: {
         csv: "CSV file",
@@ -210,6 +213,7 @@ export const enDict: RuDictShape = {
           navigation_timeout: "T-Bank is responding slowly. Try again in a minute.",
           browser_unavailable: "The internal browser failed to start. This is on our side.",
           invalid_session: "Saved session is corrupted. Reconnect the integration.",
+          lk_password_required: "Enter your T-Bank online banking password.",
         },
         action: {
           relogin: "Reconnect",

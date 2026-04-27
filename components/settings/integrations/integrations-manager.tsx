@@ -59,7 +59,8 @@ type TinkoffErrorKey =
   | "settings.integrations.tinkoff_retail.error.network_error"
   | "settings.integrations.tinkoff_retail.error.navigation_timeout"
   | "settings.integrations.tinkoff_retail.error.browser_unavailable"
-  | "settings.integrations.tinkoff_retail.error.invalid_session";
+  | "settings.integrations.tinkoff_retail.error.invalid_session"
+  | "settings.integrations.tinkoff_retail.error.lk_password_required";
 
 function mapAdapterError(code: string | null | undefined): TinkoffErrorKey {
   if (!code) return "settings.integrations.tinkoff_retail.error.unknown";
@@ -84,6 +85,7 @@ function mapAdapterError(code: string | null | undefined): TinkoffErrorKey {
     NAVIGATION_TIMEOUT: "settings.integrations.tinkoff_retail.error.navigation_timeout",
     BROWSER_UNAVAILABLE: "settings.integrations.tinkoff_retail.error.browser_unavailable",
     INVALID_SESSION: "settings.integrations.tinkoff_retail.error.invalid_session",
+    LK_PASSWORD_REQUIRED: "settings.integrations.tinkoff_retail.error.lk_password_required",
   };
   return map[head] ?? "settings.integrations.tinkoff_retail.error.unknown";
 }
@@ -137,6 +139,7 @@ function ConnectDialog({
   const [isPending, startTransition] = useTransition();
   const [displayLabel, setDisplayLabel] = useState("");
   const [username, setUsername] = useState("");
+  const [lkPassword, setLkPassword] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -150,6 +153,7 @@ function ConnectDialog({
         result = await reloginAction({
           credentialId: existingCredentialId,
           phone: username,
+          lkPassword: adapter.id === "tinkoff-retail" ? lkPassword : "",
           password,
         });
       } else {
@@ -157,6 +161,9 @@ function ConnectDialog({
         if (adapter.supports.login) {
           input.username = username;
           input.password = password;
+          if (adapter.id === "tinkoff-retail") {
+            input.lkPassword = lkPassword;
+          }
         }
         result = await connectAdapterAction(adapter.id, input);
 
@@ -167,7 +174,11 @@ function ConnectDialog({
         if (result.ok && adapter.supports.login) {
           const created = result.data as { id?: string } | undefined;
           if (created?.id) {
-            result = await loginAction(created.id, { username, password });
+            result = await loginAction(created.id, {
+              username,
+              password,
+              ...(adapter.id === "tinkoff-retail" ? { lkPassword } : {}),
+            });
           }
         }
       }
@@ -274,6 +285,24 @@ function ConnectDialog({
                   : {})}
               />
             </div>
+            {adapter.id === "tinkoff-retail" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>
+                  {t("settings.integrations.form.lk_password")}
+                </label>
+                <input
+                  className="settings-input"
+                  type="password"
+                  value={lkPassword}
+                  onChange={(e) => setLkPassword(e.target.value)}
+                  autoComplete="current-password"
+                  placeholder={t("settings.integrations.form.lk_password_placeholder")}
+                />
+                <div className="mono" style={{ fontSize: 10, color: "var(--dim)" }}>
+                  {t("settings.integrations.form.lk_password_hint")}
+                </div>
+              </div>
+            )}
             {adapter.category !== "email-forward" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <label className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>
@@ -320,7 +349,13 @@ function ConnectDialog({
             className="btn primary"
             type="button"
             onClick={handleSubmit}
-            disabled={isPending}
+            disabled={
+              isPending ||
+              (adapter.id === "tinkoff-retail" &&
+                (username.trim().length === 0 ||
+                  lkPassword.length === 0 ||
+                  !/^\d{4}$/.test(password)))
+            }
           >
             {isPending
               ? "..."
