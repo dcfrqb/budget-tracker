@@ -199,6 +199,7 @@ export async function runFullLogin(opts: {
   log(`step5: got SMS code (${sms.length} chars)`);
 
   // Step 6: fill SMS code; T-Bank may auto-submit
+  log("step6: filling SMS code");
   await smsInput.fill(sms);
   await humanDelay();
   // If not auto-submitted, scope submit button to the form containing the SMS input.
@@ -206,25 +207,54 @@ export async function runFullLogin(opts: {
   const smsSubmitBtn = smsForm.locator('button[type="submit"]').first();
   const hasSmsSubmit = await smsSubmitBtn.isVisible({ timeout: 800 }).catch(() => false);
   if (hasSmsSubmit) {
+    log("step6: clicking SMS submit");
     await smsSubmitBtn.click();
     await humanDelay();
   } else {
-    // Fallback: Enter key if form-scoped button not found
+    log("step6: pressing Enter on SMS input (no submit btn)");
     await smsInput.press("Enter");
     await humanDelay();
   }
+  log(`step6: post-submit URL=${page.url()}`);
 
   // Step 7: wait for PIN screen — 4+ numeric inputs
-  await page.waitForFunction(
-    () => {
-      const inputs = document.querySelectorAll('input[inputmode="numeric"], input[autocomplete="one-time-code"]');
-      return inputs.length >= 4;
-    },
-    { timeout: 30_000 },
-  );
+  log("step7: waiting for PIN screen (>=4 numeric inputs)");
+  const pinScreenReached = await page
+    .waitForFunction(
+      () => {
+        const inputs = document.querySelectorAll(
+          'input[inputmode="numeric"], input[autocomplete="one-time-code"]',
+        );
+        return inputs.length >= 4;
+      },
+      { timeout: 30_000 },
+    )
+    .then(() => true)
+    .catch(() => false);
+  if (!pinScreenReached) {
+    const title = await page.title().catch(() => "?");
+    const url = page.url();
+    const body = await page
+      .locator("body")
+      .innerText({ timeout: 2000 })
+      .catch(() => "?");
+    const inputCount = await page
+      .evaluate(
+        () =>
+          document.querySelectorAll(
+            'input[inputmode="numeric"], input[autocomplete="one-time-code"]',
+          ).length,
+      )
+      .catch(() => -1);
+    log(`step7: PIN screen NOT reached. url=${url} title="${title}" inputCount=${inputCount}`);
+    log(`step7: body (first 800): ${body.slice(0, 800).replace(/\s+/g, " ")}`);
+    throw new Error("pin_screen_missing");
+  }
+  log(`step7: PIN screen reached at ${page.url()}`);
   await detectCaptcha(page);
 
   // Step 8: fill PIN
+  log("step8: filling PIN");
   await fillPinInputs(page, pin);
   await humanDelay();
 
@@ -233,15 +263,35 @@ export async function runFullLogin(opts: {
   // Detection: still on /auth/step URL and 4+ pin inputs visible after the delay.
   const stillOnAuthStep = page.url().includes("/auth/step");
   if (stillOnAuthStep && (await isPinScreen(page))) {
+    log("step8b: PIN-confirm screen detected, filling again");
     await fillPinInputs(page, pin);
     await humanDelay();
+  } else {
+    log(`step8: post-PIN URL=${page.url()}`);
   }
 
   // Step 9: wait for redirect to mybank
-  await page.waitForURL(/^https:\/\/www\.tbank\.ru\/mybank/, { timeout: 60_000 });
+  log("step9: waiting for /mybank redirect");
+  const reachedMybank = await page
+    .waitForURL(/^https:\/\/www\.tbank\.ru\/mybank/, { timeout: 60_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!reachedMybank) {
+    const title = await page.title().catch(() => "?");
+    const body = await page
+      .locator("body")
+      .innerText({ timeout: 2000 })
+      .catch(() => "?");
+    log(`step9: /mybank NOT reached. url=${page.url()} title="${title}"`);
+    log(`step9: body (first 800): ${body.slice(0, 800).replace(/\s+/g, " ")}`);
+    throw new Error("mybank_redirect_missing");
+  }
+  log(`step9: at ${page.url()}`);
 
   // Step 10: capture storage state
+  log("step10: capturing storageState");
   const storageState = JSON.stringify(await page.context().storageState());
+  log(`step10: storageState captured (${storageState.length} chars)`);
   return { storageState };
 }
 
