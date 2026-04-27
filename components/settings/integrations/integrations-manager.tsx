@@ -54,7 +54,11 @@ type TinkoffErrorKey =
   | "settings.integrations.tinkoff_retail.error.no_session"
   | "settings.integrations.tinkoff_retail.error.no_pending_sms"
   | "settings.integrations.tinkoff_retail.error.login_failed"
-  | "settings.integrations.tinkoff_retail.error.unknown_step";
+  | "settings.integrations.tinkoff_retail.error.unknown_step"
+  | "settings.integrations.tinkoff_retail.error.network_error"
+  | "settings.integrations.tinkoff_retail.error.navigation_timeout"
+  | "settings.integrations.tinkoff_retail.error.browser_unavailable"
+  | "settings.integrations.tinkoff_retail.error.invalid_session";
 
 function mapAdapterError(code: string): TinkoffErrorKey {
   const map: Record<string, TinkoffErrorKey> = {
@@ -70,6 +74,10 @@ function mapAdapterError(code: string): TinkoffErrorKey {
     NO_PENDING_SMS: "settings.integrations.tinkoff_retail.error.no_pending_sms",
     LOGIN_FAILED: "settings.integrations.tinkoff_retail.error.login_failed",
     UNKNOWN_STEP: "settings.integrations.tinkoff_retail.error.unknown_step",
+    NETWORK_ERROR: "settings.integrations.tinkoff_retail.error.network_error",
+    NAVIGATION_TIMEOUT: "settings.integrations.tinkoff_retail.error.navigation_timeout",
+    BROWSER_UNAVAILABLE: "settings.integrations.tinkoff_retail.error.browser_unavailable",
+    INVALID_SESSION: "settings.integrations.tinkoff_retail.error.invalid_session",
   };
   return map[code.toUpperCase()] ?? "settings.integrations.tinkoff_retail.error.unknown";
 }

@@ -28,6 +28,28 @@ import type {
   TinkoffAccountSummary,
 } from "./tinkoff-retail.types";
 
+function classifyAdapterError(err: unknown): string {
+  if (!(err instanceof Error)) return "unknown";
+  const msg = err.message;
+  // Known synthetic codes from auth-flow
+  if (msg === "captcha_required") return "captcha_required";
+  if (msg === "session_expired") return "session_expired";
+  if (msg === "unknown_step") return "unknown_step";
+  // sms-channel reasons and Playwright TimeoutError
+  if (msg === "timeout" || msg === "superseded" || err.name === "TimeoutError") return "sms_timeout";
+  // no_session from browser storage state absence
+  if (msg === "no_session") return "no_session";
+  // Playwright network failures
+  if (msg.includes("net::ERR_") || msg.includes("NetworkError")) return "network_error";
+  // Playwright navigation timeouts (separate from sms_timeout — these are page-nav failures)
+  if (msg.includes("Navigation timeout") || msg.includes("page.waitForURL")) return "navigation_timeout";
+  // Browser-launch failures
+  if (msg.includes("Failed to launch") || msg.includes("Executable doesn't exist")) return "browser_unavailable";
+  // Storage state corruption (thrown by browser.ts)
+  if (msg === "invalid storageState JSON") return "invalid_session";
+  return "unknown";
+}
+
 const TINKOFF_API_BASE =
   "https://www.tbank.ru/api/common/v1";
 const TINKOFF_COMMON_QUERY =
@@ -120,10 +142,10 @@ export const tinkoffRetailAdapter: BankAdapter = {
           } else if (msg === "timeout" || msg === "superseded" || isPwTimeout) {
             await ctx.setStatus("NEEDS_OTP", "sms_timeout");
           } else {
-            await ctx.setStatus("ERROR", msg.slice(0, 250));
+            await ctx.setStatus("ERROR", classifyAdapterError(err));
           }
         } else {
-          await ctx.setStatus("ERROR", "UNKNOWN");
+          await ctx.setStatus("ERROR", "unknown");
         }
       }
     })();
@@ -319,9 +341,7 @@ export const tinkoffRetailAdapter: BankAdapter = {
         await ctx.setStatus("NEEDS_OTP", "session_expired");
         return;
       }
-      const msg =
-        err instanceof Error ? err.message.slice(0, 250) : "UNKNOWN";
-      await ctx.setStatus("ERROR", msg);
+      await ctx.setStatus("ERROR", classifyAdapterError(err));
     }
   },
 

@@ -205,6 +205,10 @@ export const enDict: RuDictShape = {
           no_pending_sms: "Nothing is waiting for an SMS code right now.",
           login_failed: "Could not complete login.",
           unknown_step: "T-Bank showed an unfamiliar screen. Try later.",
+          network_error: "Network unreachable. Check your connection and retry.",
+          navigation_timeout: "T-Bank is responding slowly. Try again in a minute.",
+          browser_unavailable: "The internal browser failed to start. This is on our side.",
+          invalid_session: "Saved session is corrupted. Reconnect the integration.",
         },
         action: {
           relogin: "Reconnect",
