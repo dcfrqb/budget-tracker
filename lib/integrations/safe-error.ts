@@ -154,6 +154,12 @@ function sanitizeMessage(raw: string): string {
   return msg;
 }
 
+export function redactValue(s: string, secret: string | undefined): string {
+  if (!secret || !s) return s;
+  const escaped = secret.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return s.replace(new RegExp(escaped, "g"), "[REDACTED]");
+}
+
 export function toSafeError(e: unknown): SafeError {
   const errorClass = classifyError(e);
 

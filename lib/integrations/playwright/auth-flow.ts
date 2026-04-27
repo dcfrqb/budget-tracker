@@ -1,7 +1,98 @@
-import type { Page } from "playwright";
+import type { Page, Locator } from "playwright";
 import { humanDelay } from "./browser";
 
 export type SmsResolver = () => Promise<string>;
+
+// ─── State machine types ───────────────────────────────────────
+
+type ScreenKind =
+  | "password"
+  | "pin_setup"
+  | "pin_confirm"
+  | "fast_pin"
+  | "mybank"
+  | "captcha"
+  | "error"
+  | "push_confirm"
+  | "unknown";
+
+type ClassifiedScreen = {
+  kind: ScreenKind;
+  meta?: {
+    url: string;
+    headingText?: string;
+    inputAttrs?: Array<Record<string, string | null>>;
+    errorCode?: string;
+    matchedSelector?: string;
+  };
+};
+
+type ActOnContext = { phone: string; pin: string; password?: string };
+
+const MAX_TRANSITIONS = 8;
+const NETWORKIDLE_TIMEOUT_MS = 5_000;
+const WAIT_FOR_CHANGE_TIMEOUT_MS = 8_000;
+const CLASSIFIER_PROBE_TIMEOUT_MS = 1_500;
+const DEBUG = process.env.DEBUG_PLAYWRIGHT !== "false";
+const LOG_PREFIX = "[playwright-tbank]";
+const log = (msg: string) => console.log(`${LOG_PREFIX} ${msg}`);
+
+// ─── Password-redacting helpers ────────────────────────────────
+
+function redactPassword(s: string, password: string | undefined): string {
+  if (!password || !s) return s;
+  const escaped = password.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return s.replace(new RegExp(escaped, "g"), "[REDACTED_PW]");
+}
+
+async function typePasswordSafely(locator: Locator, password: string): Promise<void> {
+  try {
+    await locator.pressSequentially(password, { delay: 60 });
+  } catch (err) {
+    const raw = err instanceof Error ? err.message : String(err);
+    const wrapped = new Error(redactPassword(raw, password));
+    if (err instanceof Error) wrapped.name = err.name;
+    throw wrapped;
+  }
+}
+
+// ─── Screen diagnostics ────────────────────────────────────────
+
+async function logScreenDiagnostics(page: Page, label: string): Promise<void> {
+  if (!DEBUG) return;
+  const url = page.url();
+  const title = await page.title().catch(() => "?");
+  const headings = await page
+    .locator("h1, h2, h3, [role=heading]")
+    .evaluateAll((nodes) => nodes.map((n) => (n as HTMLElement).innerText.trim()).filter(Boolean))
+    .catch(() => [] as string[]);
+  const inputAttrs = await page
+    .locator("input")
+    .evaluateAll((nodes) =>
+      nodes.map((el) => {
+        const input = el as HTMLInputElement;
+        return {
+          type: input.type,
+          name: input.name,
+          autocomplete: input.autocomplete,
+          automationId: input.getAttribute("automation-id"),
+          placeholder: input.placeholder,
+          ariaLabel: input.getAttribute("aria-label"),
+          inputmode: input.getAttribute("inputmode"),
+        };
+      }),
+    )
+    .catch(() => [] as unknown[]);
+  const bodyText = await page
+    .locator("body")
+    .innerText({ timeout: 2000 })
+    .catch(() => "?");
+  log(
+    `${label}: url=${url} title="${title}" headings=${JSON.stringify(headings)} inputs=${JSON.stringify(inputAttrs)} body(600)=${bodyText.slice(0, 600).replace(/\s+/g, " ")}`,
+  );
+}
+
+// ─── Captcha detection ─────────────────────────────────────────
 
 async function detectCaptcha(page: Page): Promise<void> {
   const probes = [
@@ -9,7 +100,6 @@ async function detectCaptcha(page: Page): Promise<void> {
     () => page.locator('iframe[src*="captcha" i]').isVisible({ timeout: 1000 }),
     () => page.getByRole("dialog").filter({ hasText: /проверка|captcha/i }).isVisible({ timeout: 1000 }),
     () => page.getByText(/проверка|captcha/i).isVisible({ timeout: 1000 }),
-    // reCAPTCHA / hCaptcha class-based probes
     () => page.locator('[class*="recaptcha" i]').isVisible({ timeout: 1000 }),
     () => page.locator('[class*="hcaptcha" i]').isVisible({ timeout: 1000 }),
     () => page.locator('[id*="captcha" i]').isVisible({ timeout: 1000 }),
@@ -28,42 +118,220 @@ async function detectCaptcha(page: Page): Promise<void> {
   }
 }
 
+// ─── Screen classifier ─────────────────────────────────────────
+
+async function classifyScreen(page: Page): Promise<ClassifiedScreen> {
+  const url = page.url();
+
+  // 1. mybank URL check
+  if (/tbank\.ru\/mybank/i.test(url) && !/\/auth\//.test(url)) {
+    log(`classify: kind=mybank url=${url}`);
+    return { kind: "mybank", meta: { url } };
+  }
+
+  // 2. captcha probe (convert throw to classification)
+  try {
+    await detectCaptcha(page);
+  } catch {
+    log(`classify: kind=captcha url=${url}`);
+    return { kind: "captcha", meta: { url } };
+  }
+
+  // 3. heading text probe
+  const headingText = await page
+    .locator("h1, h2, h3, [role=heading]")
+    .first()
+    .innerText({ timeout: CLASSIFIER_PROBE_TIMEOUT_MS })
+    .catch(() => "");
+
+  // 4. numeric input count → pin family
+  const numericInputCount = await page
+    .locator('input[inputmode="numeric"], input[autocomplete="one-time-code"]')
+    .count()
+    .catch(() => 0);
+
+  if (numericInputCount >= 4) {
+    let kind: ScreenKind = "pin_setup";
+    if (/Повторите|Подтвердите/i.test(headingText)) {
+      kind = "pin_confirm";
+    } else if (/Придумайте|Задайте|Создайте/i.test(headingText)) {
+      kind = "pin_setup";
+    } else if (/Введите PIN|Введите пин/i.test(headingText)) {
+      kind = "fast_pin";
+    }
+    log(`classify: kind=${kind} url=${url} heading="${headingText}" numericInputs=${numericInputCount}`);
+    return { kind, meta: { url, headingText, matchedSelector: 'input[inputmode="numeric"], input[autocomplete="one-time-code"]' } };
+  }
+
+  // 5. password input chain
+  const passwordSelectors = [
+    '[automation-id="password-input"]',
+    'input[type="password"]',
+    'input[autocomplete="current-password"]',
+    'input[name="password"]',
+  ];
+  for (const sel of passwordSelectors) {
+    const visible = await page
+      .locator(sel)
+      .first()
+      .isVisible({ timeout: CLASSIFIER_PROBE_TIMEOUT_MS })
+      .catch(() => false);
+    if (visible) {
+      log(`classify: kind=password url=${url} heading="${headingText}" matchedSelector="${sel}"`);
+      return { kind: "password", meta: { url, headingText, matchedSelector: sel } };
+    }
+  }
+
+  // 6. push confirmation heading (RUNTIME-PROBE: best guess copy)
+  const pushVisible = await page
+    .getByText(/подтвердите\s+вход|это\s+я|откройте\s+приложение/i)
+    .first()
+    .isVisible({ timeout: CLASSIFIER_PROBE_TIMEOUT_MS })
+    .catch(() => false);
+  if (pushVisible) {
+    log(`classify: kind=push_confirm url=${url} heading="${headingText}"`);
+    return { kind: "push_confirm", meta: { url, headingText } };
+  }
+
+  // 7. error heading
+  if (/ошибка/i.test(headingText)) {
+    const bodyText = await page
+      .locator("body")
+      .innerText({ timeout: 2000 })
+      .catch(() => "");
+    let errorCode = "unknown_step";
+    if (/неверн.*код|invalid.*otp|неправильн.*код/i.test(bodyText)) errorCode = "invalid_otp";
+    else if (/слишком\s+много.*попыт|превышено.*попыт/i.test(bodyText)) errorCode = "too_many_attempts";
+    else if (/неверн.*пароль|invalid.*password/i.test(bodyText)) errorCode = "invalid_password";
+    log(`classify: kind=error url=${url} heading="${headingText}" errorCode=${errorCode}`);
+    return { kind: "error", meta: { url, headingText, errorCode } };
+  }
+
+  // 8. unknown — dump diagnostics
+  await logScreenDiagnostics(page, "classify-unknown");
+  return { kind: "unknown", meta: { url, headingText } };
+}
+
+// ─── PIN input filler ──────────────────────────────────────────
+
 async function fillPinInputs(page: Page, pin: string): Promise<void> {
   const pinLocator = page.locator('input[inputmode="numeric"], input[autocomplete="one-time-code"]');
   const count = await pinLocator.count();
 
   if (count >= 4) {
-    // PIN is split across multiple inputs — type each digit
     for (let i = 0; i < pin.length && i < count; i++) {
       await pinLocator.nth(i).fill(pin[i]);
     }
   } else {
-    // Single combined input
-    await page.keyboard.type(pin);
+    await pinLocator.first().pressSequentially(pin, { delay: 60 });
   }
 }
 
-async function isPinScreen(page: Page): Promise<boolean> {
-  try {
-    const countSignal = await page
-      .locator('input[inputmode="numeric"], input[autocomplete="one-time-code"]')
-      .count();
-    if (countSignal >= 4) return true;
+// ─── Act on classified screen ──────────────────────────────────
 
-    // Semantic fallback: look for a heading, label, or role=group container
-    // that mentions PIN/Пин/Код near the inputs. Catches single split-rendered
-    // input designs where count-based check would miss.
-    const semanticSignal = await Promise.any([
-      page.locator('[aria-label*="PIN" i], [aria-label*="пин" i], [aria-label*="код" i]').isVisible({ timeout: 500 }),
-      page.locator('[role="group"][aria-label*="PIN" i], [role="group"][aria-label*="пин" i]').isVisible({ timeout: 500 }),
-      page.getByRole("heading").filter({ hasText: /пин|pin|код/i }).isVisible({ timeout: 500 }),
-    ]).catch(() => false);
+async function actOn(page: Page, screen: ClassifiedScreen, ctx: ActOnContext): Promise<void> {
+  switch (screen.kind) {
+    case "password": {
+      const sel = screen.meta?.matchedSelector ?? '[automation-id="password-input"]';
+      const urlBefore = page.url();
+      log(`actOn[password]: about to type password at URL=${urlBefore} selector="${sel}"`);
+      if (!ctx.password) throw new Error("lk_password_required");
+      const pwLocator = page.locator(sel).first();
+      await pwLocator.click().catch((err) => {
+        log(
+          `actOn[password]: click failed (continuing): ${err instanceof Error ? err.message : String(err)}`,
+        );
+      });
+      await pwLocator.press("ControlOrMeta+a").catch(() => {});
+      await pwLocator.press("Delete").catch(() => {});
+      await typePasswordSafely(pwLocator, ctx.password);
+      log(`actOn[password]: password_typed=true selector="${sel}" url_before=${urlBefore}`);
+      await humanDelay();
+      const pwForm = pwLocator.locator("xpath=ancestor::form[1]");
+      const pwSubmit = pwForm.locator('button[type="submit"]').first();
+      const hasSubmit = await pwSubmit.isVisible({ timeout: 500 }).catch(() => false);
+      if (hasSubmit) {
+        log(`actOn[password]: clicking form-scoped submit`);
+        await pwSubmit.click().catch((err) => {
+          log(
+            `actOn[password]: submit click failed: ${redactPassword(err instanceof Error ? err.message : String(err), ctx.password)}`,
+          );
+        });
+      } else {
+        log(`actOn[password]: pressing Enter (no form submit btn)`);
+        await pwLocator.press("Enter").catch(() => {});
+      }
+      log(`actOn[password]: url_after=${page.url()}`);
+      return;
+    }
 
-    return semanticSignal === true;
-  } catch {
-    return false;
+    case "pin_setup":
+    case "pin_confirm":
+    case "fast_pin": {
+      log(`actOn[${screen.kind}]: start url=${page.url()}`);
+      await fillPinInputs(page, ctx.pin);
+      await humanDelay();
+      log(`actOn[${screen.kind}]: done url=${page.url()}`);
+      return;
+    }
+
+    case "captcha":
+      throw new Error("captcha_required");
+
+    case "push_confirm":
+      throw new Error("push_confirmation_required");
+
+    case "error":
+      throw new Error(screen.meta?.errorCode ?? "unknown_step");
+
+    case "unknown":
+      await logScreenDiagnostics(page, "actOn-unknown");
+      throw new Error("unknown_step");
+
+    case "mybank":
+      throw new Error("actOn called on mybank screen — programmer error");
   }
 }
+
+// ─── Wait for screen change ────────────────────────────────────
+
+async function waitForChange(
+  page: Page,
+  prevUrl: string,
+  prevPrimarySelector: string | null,
+): Promise<string> {
+  const urlChangeArm = page
+    .waitForFunction((prev) => location.href !== prev, prevUrl, {
+      timeout: WAIT_FOR_CHANGE_TIMEOUT_MS,
+    })
+    .then(() => "url")
+    .catch(() => "timeout_url");
+
+  const inputDetachedArm =
+    prevPrimarySelector !== null
+      ? page
+          .locator(prevPrimarySelector)
+          .first()
+          .waitFor({ state: "detached", timeout: WAIT_FOR_CHANGE_TIMEOUT_MS })
+          .then(() => "input_detached")
+          .catch(() => "timeout_input")
+      : Promise.resolve("timeout_input");
+
+  const overlayGoneArm = page
+    .locator('[class*="_Overlay_" i]')
+    .first()
+    .waitFor({ state: "hidden", timeout: WAIT_FOR_CHANGE_TIMEOUT_MS })
+    .then(() => "overlay_gone")
+    .catch(() => "timeout_overlay");
+
+  const winner = await Promise.race([urlChangeArm, inputDetachedArm, overlayGoneArm]);
+  log(`waitForChange: winner=${winner} url=${page.url()}`);
+
+  if (winner.startsWith("timeout")) return "timeout";
+  return winner;
+}
+
+// ─── Full login flow ───────────────────────────────────────────
 
 export async function runFullLogin(opts: {
   page: Page;
@@ -73,7 +341,6 @@ export async function runFullLogin(opts: {
   smsResolver: SmsResolver;
 }): Promise<{ storageState: string }> {
   const { page, phone, pin, password, smsResolver } = opts;
-  const log = (msg: string) => console.log(`[playwright-flow] ${msg}`);
 
   // Step 1: navigate to login
   log("step1: goto tbank.ru/login");
@@ -95,12 +362,6 @@ export async function runFullLogin(opts: {
   log("step3: waiting for phone input");
   await phoneInput.waitFor({ state: "visible", timeout: 15_000 });
   log("step3: phone input visible");
-  // T-Bank's phone input has a "+7 (___) ___-__-__" mask. .fill() sets the
-  // value via DOM and the mask layer corrupts it (the leading "+7 " prefix is
-  // already shown as placeholder/mask, and the masking handler rejects extra
-  // digits). pressSequentially simulates real key events so the mask absorbs
-  // the input correctly. We strip the "+7"/"7"/"8" country prefix and feed
-  // only the 10 trailing digits.
   const phoneDigits = phone.replace(/^\+7/, "").replace(/\D/g, "");
   await phoneInput.click();
   await phoneInput.press("ControlOrMeta+a").catch(() => {});
@@ -110,8 +371,6 @@ export async function runFullLogin(opts: {
   log(`step3: phone field value=${JSON.stringify(await phoneInput.inputValue().catch(() => "?"))}`);
   await humanDelay();
 
-  // Scope submit button to the same form as the phone input to avoid
-  // hitting an unrelated button when multiple forms are on the page.
   const phoneForm = phoneInput.locator("xpath=ancestor::form[1]");
   const phoneSubmitBtn = phoneForm.locator('button[type="submit"]').first();
   const hasPhoneSubmitBtn = await phoneSubmitBtn.isVisible({ timeout: 500 }).catch(() => false);
@@ -128,14 +387,8 @@ export async function runFullLogin(opts: {
   log("step4: waiting for /auth/step URL");
   await page.waitForURL(/id\.tbank\.ru\/auth\/step/, { timeout: 30_000 });
   log(`step4: at ${page.url()}`);
-  // Tinkoff /auth/step is a SPA — wait for the panel to finish rendering
-  // before introspecting the DOM, otherwise innerText is "Вход Телефон" stub.
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
   const step4Title = await page.title().catch(() => "?");
-  const step4Body = await page
-    .locator("body")
-    .innerText({ timeout: 2000 })
-    .catch(() => "?");
   const step4Buttons = await page
     .locator("button, [role=button]")
     .evaluateAll((nodes) => nodes.map((n) => (n as HTMLElement).innerText.trim()).filter(Boolean))
@@ -144,9 +397,6 @@ export async function runFullLogin(opts: {
     .locator("h1, h2, h3, [role=heading]")
     .evaluateAll((nodes) => nodes.map((n) => (n as HTMLElement).innerText.trim()).filter(Boolean))
     .catch(() => [] as string[]);
-  // Dump tag-names that appear in the document — Tinkoff often hides UI in
-  // <td-button>, <td-input>, etc. or inside Shadow DOM, so plain locators
-  // miss them.
   const step4Tags = await page
     .evaluate(() => {
       const all = document.querySelectorAll("*");
@@ -161,19 +411,25 @@ export async function runFullLogin(opts: {
         .slice(0, 30);
     })
     .catch(() => [] as Array<[string, number]>);
-  // Dump outerHTML of the main container — should show the SPA root contents.
-  const step4Html = await page
-    .evaluate(() => {
-      const main = document.querySelector("main, [role=main], #root, #app, body");
-      return main ? (main as HTMLElement).outerHTML.slice(0, 4000) : "?";
-    })
-    .catch(() => "?");
   log(`step4: title="${step4Title}"`);
   log(`step4: headings=${JSON.stringify(step4Headings)}`);
   log(`step4: buttons=${JSON.stringify(step4Buttons)}`);
   log(`step4: tags=${JSON.stringify(step4Tags)}`);
-  log(`step4: body (first 3000): ${step4Body.slice(0, 3000).replace(/\s+/g, " ")}`);
-  log(`step4: html (first 4000): ${step4Html.replace(/\s+/g, " ")}`);
+  if (DEBUG) {
+    const step4Body = await page
+      .locator("body")
+      .innerText({ timeout: 2000 })
+      .catch(() => "?");
+    const step4Html = await page
+      .evaluate(() => {
+        const main = document.querySelector("main, [role=main], #root, #app, body");
+        return main ? (main as HTMLElement).outerHTML.slice(0, 4000) : "?";
+      })
+      .catch(() => "?");
+    log(`step4: body (first 3000): ${step4Body.slice(0, 3000).replace(/\s+/g, " ")}`);
+    log(`step4: html (first 4000): ${step4Html.replace(/\s+/g, " ")}`);
+  }
+
   const smsInput = page.locator('input[autocomplete="one-time-code"]').first();
   log("step5: waiting for SMS input visible");
   const smsVisible = await smsInput
@@ -181,7 +437,6 @@ export async function runFullLogin(opts: {
     .then(() => true)
     .catch(() => false);
   if (!smsVisible) {
-    // Dump page state so we can see what T-Bank actually shows here.
     const title = await page.title().catch(() => "?");
     const bodyText = await page
       .locator("body")
@@ -195,180 +450,50 @@ export async function runFullLogin(opts: {
   await detectCaptcha(page);
   log("step5: no captcha; waiting for user to submit SMS code");
 
-  // Step 5: get SMS code (no local timeout — sms-channel handles it)
+  // Step 5: get SMS code
   const sms = await smsResolver();
   log(`step5: got SMS code (${sms.length} chars)`);
 
-  // Step 6: type SMS code via keystrokes. T-Bank's OTP input auto-submits
-  // as soon as the last digit is entered (same UX as the phone field). We
-  // intentionally do NOT press Enter or hunt for a submit button — by the
-  // time fill completes, the form has already advanced and smsInput is
-  // detached from DOM, which makes any follow-up locator action hang for
-  // its full default timeout.
+  // Step 6: type SMS code
   log("step6: typing SMS code via keystrokes");
-  await smsInput.click().catch(() => {});
+  await smsInput.click().catch((err) => {
+    log(`step6: SMS input click failed (continuing): ${err instanceof Error ? err.message : String(err)}`);
+  });
   await smsInput.press("ControlOrMeta+a").catch(() => {});
   await smsInput.press("Delete").catch(() => {});
   await smsInput.pressSequentially(sms, { delay: 80 }).catch((err) => {
-    log(`step6: pressSequentially failed (likely auto-submit detached input): ${err instanceof Error ? err.message : String(err)}`);
+    log(
+      `step6: pressSequentially failed (likely auto-submit detached input): ${err instanceof Error ? err.message : String(err)}`,
+    );
   });
   await humanDelay();
   log(`step6: post-type URL=${page.url()}`);
 
-  // Step 6.5: password screen — T-Bank may show "Введите пароль" after SMS.
-  // T-Bank uses a custom Input component with automation-id="password-input"
-  // (phone uses automation-id="phone-input"; same convention). The input may
-  // be type="text" with CSS-only masking, so we cannot rely on type=password.
-  log("step6.5: probing for password screen");
-  const pwInput = page
-    .locator('[automation-id="password-input"]')
-    .or(page.locator('input[type="password"]'))
-    .or(page.locator('input[autocomplete="current-password"]'))
-    .or(page.locator('input[name="password"]'))
-    .first();
-  const pwVisible = await pwInput
-    .waitFor({ state: "visible", timeout: 10_000 })
-    .then(() => true)
-    .catch(() => false);
-  if (!pwVisible) {
-    // Dump page state so we can see what selector T-Bank actually uses.
-    const url = page.url();
-    const title = await page.title().catch(() => "?");
-    const body = await page
-      .locator("body")
-      .innerText({ timeout: 2000 })
-      .catch(() => "?");
-    const inputAttrs = await page
-      .evaluate(() =>
-        Array.from(document.querySelectorAll("input")).map((el) => ({
-          type: el.type,
-          name: el.name,
-          autocomplete: el.autocomplete,
-          automationId: el.getAttribute("automation-id"),
-          placeholder: el.placeholder,
-          ariaLabel: el.getAttribute("aria-label"),
-        })),
-      )
-      .catch(() => [] as unknown[]);
-    log(
-      `step6.5: password screen NOT found. url=${url} title="${title}" inputs=${JSON.stringify(inputAttrs)}`,
-    );
-    log(`step6.5: body (first 600): ${body.slice(0, 600).replace(/\s+/g, " ")}`);
+  // Steps 6.5+: state machine loop replacing old steps 6.5-9
+  log(`loop: entering state machine, max ${MAX_TRANSITIONS} transitions`);
+  for (let i = 0; i < MAX_TRANSITIONS; i++) {
+    await page.waitForLoadState("networkidle", { timeout: NETWORKIDLE_TIMEOUT_MS }).catch(() => {});
+    const screen = await classifyScreen(page);
+    log(`loop[${i}]: kind=${screen.kind} url=${page.url()}`);
+
+    if (screen.kind === "mybank") {
+      log(`loop[${i}]: mybank reached, capturing storageState`);
+      const storageState = JSON.stringify(await page.context().storageState());
+      log(`loop[${i}]: storageState captured (${storageState.length} chars)`);
+      return { storageState };
+    }
+
+    const prevUrl = page.url();
+    const prevPrimary = screen.meta?.matchedSelector ?? null;
+    await actOn(page, screen, { phone, pin, password });
+    const winner = await waitForChange(page, prevUrl, prevPrimary);
+    if (winner === "timeout") {
+      log(
+        `loop[${i}]: no change observed within ${WAIT_FOR_CHANGE_TIMEOUT_MS}ms — continuing to next classify pass`,
+      );
+    }
   }
-  if (pwVisible) {
-    log("step6.5: password screen detected");
-    await pwInput.click().catch(() => {});
-    await pwInput.press("ControlOrMeta+a").catch(() => {});
-    await pwInput.press("Delete").catch(() => {});
-    await pwInput.pressSequentially(password, { delay: 60 }).catch((err: unknown) => {
-      log(`step6.5: pressSequentially failed (auto-submit detached?): ${err instanceof Error ? err.message : String(err)}`);
-    });
-    log("step6.5: typed password");
-    await humanDelay();
-    // Submit: try form-scoped button first, fall back to Enter
-    const pwForm = pwInput.locator("xpath=ancestor::form[1]");
-    const pwSubmitBtn = pwForm.locator('button[type="submit"]').first();
-    const hasPwSubmit = await pwSubmitBtn.isVisible({ timeout: 500 }).catch(() => false);
-    if (hasPwSubmit) {
-      await pwSubmitBtn.click().catch(() => {});
-    } else {
-      await pwInput.press("Enter").catch(() => {});
-    }
-    await humanDelay();
-    log(`step6.5: post-type URL=${page.url()}`);
-  } else {
-    log("step6.5: no password screen — flowing to PIN/mybank wait");
-  }
-
-  // Step 7: wait for PIN screen (>=4 numeric inputs) OR mybank redirect — whichever comes first.
-  log("step7: waiting for PIN screen or /mybank (race)");
-  const mybankUrl = /^https:\/\/www\.tbank\.ru\/mybank/;
-  const pinScreenPromise = page
-    .waitForFunction(
-      () => {
-        const inputs = document.querySelectorAll(
-          'input[inputmode="numeric"], input[autocomplete="one-time-code"]',
-        );
-        return inputs.length >= 4;
-      },
-      { timeout: 30_000 },
-    )
-    .then(() => "pin" as const)
-    .catch(() => "timeout" as const);
-  const mybankPromise = page
-    .waitForURL(mybankUrl, { timeout: 30_000 })
-    .then(() => "mybank" as const)
-    .catch(() => "timeout" as const);
-
-  const step7Winner = await Promise.race([pinScreenPromise, mybankPromise]);
-  log(`step7: race winner = ${step7Winner} at URL ${page.url()}`);
-
-  if (step7Winner === "mybank" || page.url().match(mybankUrl)) {
-    log("step7: /mybank reached directly — skipping PIN steps");
-  } else {
-    // step7Winner === "pin" or we still need to check
-    const pinScreenReached = step7Winner === "pin";
-    if (!pinScreenReached) {
-      const title = await page.title().catch(() => "?");
-      const url = page.url();
-      const body = await page
-        .locator("body")
-        .innerText({ timeout: 2000 })
-        .catch(() => "?");
-      const inputCount = await page
-        .evaluate(
-          () =>
-            document.querySelectorAll(
-              'input[inputmode="numeric"], input[autocomplete="one-time-code"]',
-            ).length,
-        )
-        .catch(() => -1);
-      log(`step7: PIN screen NOT reached. url=${url} title="${title}" inputCount=${inputCount}`);
-      log(`step7: body (first 800): ${body.slice(0, 800).replace(/\s+/g, " ")}`);
-      throw new Error("pin_screen_missing");
-    }
-    log(`step7: PIN screen reached at ${page.url()}`);
-    await detectCaptcha(page);
-
-    // Step 8: fill PIN
-    log("step8: filling PIN");
-    await fillPinInputs(page, pin);
-    await humanDelay();
-
-    // Defensive: check for "confirm PIN" screen
-    const stillOnAuthStep = page.url().includes("/auth/step");
-    if (stillOnAuthStep && (await isPinScreen(page))) {
-      log("step8b: PIN-confirm screen detected, filling again");
-      await fillPinInputs(page, pin);
-      await humanDelay();
-    } else {
-      log(`step8: post-PIN URL=${page.url()}`);
-    }
-
-    // Step 9: wait for redirect to mybank
-    log("step9: waiting for /mybank redirect");
-    const reachedMybank = await page
-      .waitForURL(mybankUrl, { timeout: 60_000 })
-      .then(() => true)
-      .catch(() => false);
-    if (!reachedMybank) {
-      const title = await page.title().catch(() => "?");
-      const body = await page
-        .locator("body")
-        .innerText({ timeout: 2000 })
-        .catch(() => "?");
-      log(`step9: /mybank NOT reached. url=${page.url()} title="${title}"`);
-      log(`step9: body (first 800): ${body.slice(0, 800).replace(/\s+/g, " ")}`);
-      throw new Error("mybank_redirect_missing");
-    }
-    log(`step9: at ${page.url()}`);
-  }
-
-  // Step 10: capture storage state
-  log("step10: capturing storageState");
-  const storageState = JSON.stringify(await page.context().storageState());
-  log(`step10: storageState captured (${storageState.length} chars)`);
-  return { storageState };
+  throw new Error("too_many_transitions");
 }
 
 export async function runFastLogin(opts: {
@@ -380,10 +505,6 @@ export async function runFastLogin(opts: {
   await page.goto("https://www.tbank.ru/mybank/", { waitUntil: "domcontentloaded" });
   await detectCaptcha(page);
 
-  // Race up to 8 seconds for one of three states:
-  // 1. Already on /mybank → done
-  // 2. PIN screen (4+ digit inputs) → fill pin → wait /mybank → done
-  // 3. SMS screen (single one-time-code input) → session_expired
   const deadline = Date.now() + 8_000;
 
   while (Date.now() < deadline) {
@@ -393,7 +514,12 @@ export async function runFastLogin(opts: {
       return;
     }
 
-    if (await isPinScreen(page)) {
+    const numericCount = await page
+      .locator('input[inputmode="numeric"], input[autocomplete="one-time-code"]')
+      .count()
+      .catch(() => 0);
+
+    if (numericCount >= 4) {
       await fillPinInputs(page, pin);
       await humanDelay();
       await page.waitForURL(/^https:\/\/www\.tbank\.ru\/mybank/, { timeout: 30_000 });
@@ -406,13 +532,8 @@ export async function runFastLogin(opts: {
         .locator('input[autocomplete="one-time-code"]')
         .first()
         .isVisible({ timeout: 300 });
-      if (smsInputVisible) {
-        const count = await page
-          .locator('input[inputmode="numeric"], input[autocomplete="one-time-code"]')
-          .count();
-        if (count < 4) {
-          throw new Error("session_expired");
-        }
+      if (smsInputVisible && numericCount < 4) {
+        throw new Error("session_expired");
       }
     } catch (err) {
       if (err instanceof Error && err.message === "session_expired") throw err;

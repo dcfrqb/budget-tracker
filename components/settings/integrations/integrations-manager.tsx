@@ -60,7 +60,15 @@ type TinkoffErrorKey =
   | "settings.integrations.tinkoff_retail.error.navigation_timeout"
   | "settings.integrations.tinkoff_retail.error.browser_unavailable"
   | "settings.integrations.tinkoff_retail.error.invalid_session"
-  | "settings.integrations.tinkoff_retail.error.lk_password_required";
+  | "settings.integrations.tinkoff_retail.error.lk_password_required"
+  | "settings.integrations.tinkoff_retail.error.push_confirmation_required"
+  | "settings.integrations.tinkoff_retail.error.too_many_transitions"
+  | "settings.integrations.tinkoff_retail.error.sms_input_missing"
+  | "settings.integrations.tinkoff_retail.error.invalid_otp"
+  | "settings.integrations.tinkoff_retail.error.invalid_password"
+  | "settings.integrations.tinkoff_retail.error.too_many_attempts"
+  | "settings.integrations.tinkoff_retail.error.pin_screen_missing"
+  | "settings.integrations.tinkoff_retail.error.mybank_redirect_missing";
 
 function mapAdapterError(code: string | null | undefined): TinkoffErrorKey {
   if (!code) return "settings.integrations.tinkoff_retail.error.unknown";
@@ -86,6 +94,14 @@ function mapAdapterError(code: string | null | undefined): TinkoffErrorKey {
     BROWSER_UNAVAILABLE: "settings.integrations.tinkoff_retail.error.browser_unavailable",
     INVALID_SESSION: "settings.integrations.tinkoff_retail.error.invalid_session",
     LK_PASSWORD_REQUIRED: "settings.integrations.tinkoff_retail.error.lk_password_required",
+    PUSH_CONFIRMATION_REQUIRED: "settings.integrations.tinkoff_retail.error.push_confirmation_required",
+    TOO_MANY_TRANSITIONS: "settings.integrations.tinkoff_retail.error.too_many_transitions",
+    SMS_INPUT_MISSING: "settings.integrations.tinkoff_retail.error.sms_input_missing",
+    INVALID_OTP: "settings.integrations.tinkoff_retail.error.invalid_otp",
+    INVALID_PASSWORD: "settings.integrations.tinkoff_retail.error.invalid_password",
+    TOO_MANY_ATTEMPTS: "settings.integrations.tinkoff_retail.error.too_many_attempts",
+    PIN_SCREEN_MISSING: "settings.integrations.tinkoff_retail.error.pin_screen_missing",
+    MYBANK_REDIRECT_MISSING: "settings.integrations.tinkoff_retail.error.mybank_redirect_missing",
   };
   return map[head] ?? "settings.integrations.tinkoff_retail.error.unknown";
 }

@@ -34,6 +34,16 @@ function classifyAdapterError(err: unknown): string {
   if (msg === "captcha_required") return "captcha_required";
   if (msg === "session_expired") return "session_expired";
   if (msg === "unknown_step") return "unknown_step";
+  // State machine error codes
+  if (msg === "lk_password_required") return "lk_password_required";
+  if (msg === "push_confirmation_required") return "push_confirmation_required";
+  if (msg === "too_many_transitions") return "too_many_transitions";
+  if (msg === "sms_input_missing") return "sms_input_missing";
+  if (msg === "pin_screen_missing") return "pin_screen_missing";
+  if (msg === "mybank_redirect_missing") return "mybank_redirect_missing";
+  if (msg === "invalid_otp") return "invalid_otp";
+  if (msg === "invalid_password") return "invalid_password";
+  if (msg === "too_many_attempts") return "too_many_attempts";
   // sms-channel reasons and Playwright TimeoutError
   if (msg === "timeout" || msg === "superseded" || err.name === "TimeoutError") return "sms_timeout";
   // no_session from browser storage state absence
@@ -116,15 +126,17 @@ export const tinkoffRetailAdapter: BankAdapter = {
 
     // Holds a reference to the Playwright BrowserContext once it is created so
     // abortFn can close the browser immediately regardless of which await point
-    // the task is currently blocked on.
-    let activeBrowserCtx: import("playwright").BrowserContext | null = null;
+    // the task is currently blocked on. Using a ref object ensures abortFn
+    // (defined synchronously after the IIFE starts) sees the captured context
+    // even before the first await resolves.
+    const browserCtxRef: { current: import("playwright").BrowserContext | null } = { current: null };
 
     const task = (async () => {
       try {
         const storageState = await withTbankBrowser(
           { credentialId, storageState: null },
           async ({ context, page }) => {
-            activeBrowserCtx = context;
+            browserCtxRef.current = context;
             const { storageState } = await runFullLogin({
               page,
               phone,
@@ -161,7 +173,7 @@ export const tinkoffRetailAdapter: BankAdapter = {
           await ctx.setStatus("ERROR", "unknown");
         }
       } finally {
-        activeBrowserCtx = null;
+        browserCtxRef.current = null;
       }
     })().catch((err: unknown) => {
       // Outer guard: catches any rejection that escapes the inner try/catch
@@ -176,9 +188,8 @@ export const tinkoffRetailAdapter: BankAdapter = {
       cancelSms(credentialId, "aborted");
       // Close the browser immediately so Chromium does not keep running while
       // waiting for an OTP that will never arrive.
-      if (activeBrowserCtx !== null) {
-        activeBrowserCtx.close().catch(() => {});
-      }
+      const ctx = browserCtxRef.current;
+      if (ctx !== null) ctx.close().catch(() => {});
     };
 
     registerSession(credentialId, {

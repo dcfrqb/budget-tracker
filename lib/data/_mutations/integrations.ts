@@ -9,7 +9,8 @@ import type { AdapterContext } from "@/lib/integrations/types";
 import { findDuplicates } from "@/lib/import/dedupe";
 import { getSession } from "@/lib/integrations/playwright/session-registry";
 
-const POST_OTP_STATUS_POLL_MS = 20000;
+// Increased from 20 000 — state machine path through password+pin_setup+pin_confirm can take up to 45s in worst case.
+const POST_OTP_STATUS_POLL_MS = 45_000;
 
 // ─────────────────────────────────────────────────────────────
 // Integration credential mutations — all guarded by assertAdminIntegrations
