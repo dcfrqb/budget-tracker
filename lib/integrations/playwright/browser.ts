@@ -32,7 +32,10 @@ export async function withTbankBrowser<T>(
   const entries = await readdir(profileDir);
   const isFresh = entries.length === 0;
 
-  const headless = opts.headless ?? true;
+  const envHeadless = process.env.PLAYWRIGHT_HEADLESS;
+  const headless =
+    opts.headless ??
+    (envHeadless === "false" || envHeadless === "0" ? false : true);
 
   const context = await chromium.launchPersistentContext(profileDir, {
     headless,
