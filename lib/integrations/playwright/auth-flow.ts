@@ -198,24 +198,21 @@ export async function runFullLogin(opts: {
   const sms = await smsResolver();
   log(`step5: got SMS code (${sms.length} chars)`);
 
-  // Step 6: fill SMS code; T-Bank may auto-submit
-  log("step6: filling SMS code");
-  await smsInput.fill(sms);
+  // Step 6: type SMS code via keystrokes. T-Bank's OTP input auto-submits
+  // as soon as the last digit is entered (same UX as the phone field). We
+  // intentionally do NOT press Enter or hunt for a submit button — by the
+  // time fill completes, the form has already advanced and smsInput is
+  // detached from DOM, which makes any follow-up locator action hang for
+  // its full default timeout.
+  log("step6: typing SMS code via keystrokes");
+  await smsInput.click().catch(() => {});
+  await smsInput.press("ControlOrMeta+a").catch(() => {});
+  await smsInput.press("Delete").catch(() => {});
+  await smsInput.pressSequentially(sms, { delay: 80 }).catch((err) => {
+    log(`step6: pressSequentially failed (likely auto-submit detached input): ${err instanceof Error ? err.message : String(err)}`);
+  });
   await humanDelay();
-  // If not auto-submitted, scope submit button to the form containing the SMS input.
-  const smsForm = smsInput.locator("xpath=ancestor::form[1]");
-  const smsSubmitBtn = smsForm.locator('button[type="submit"]').first();
-  const hasSmsSubmit = await smsSubmitBtn.isVisible({ timeout: 800 }).catch(() => false);
-  if (hasSmsSubmit) {
-    log("step6: clicking SMS submit");
-    await smsSubmitBtn.click();
-    await humanDelay();
-  } else {
-    log("step6: pressing Enter on SMS input (no submit btn)");
-    await smsInput.press("Enter");
-    await humanDelay();
-  }
-  log(`step6: post-submit URL=${page.url()}`);
+  log(`step6: post-type URL=${page.url()}`);
 
   // Step 7: wait for PIN screen — 4+ numeric inputs
   log("step7: waiting for PIN screen (>=4 numeric inputs)");
