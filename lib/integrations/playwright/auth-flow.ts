@@ -72,12 +72,16 @@ export async function runFullLogin(opts: {
   smsResolver: SmsResolver;
 }): Promise<{ storageState: string }> {
   const { page, phone, pin, smsResolver } = opts;
+  const log = (msg: string) => console.log(`[playwright-flow] ${msg}`);
 
   // Step 1: navigate to login
-  await page.goto("https://www.tbank.ru/login/", { waitUntil: "domcontentloaded" });
+  log("step1: goto tbank.ru/login");
+  await page.goto("https://www.tbank.ru/login/", { waitUntil: "domcontentloaded", timeout: 30_000 });
+  log(`step1: arrived at ${page.url()}`);
 
   // Step 2: captcha probe
   await detectCaptcha(page);
+  log("step2: no captcha");
 
   // Step 3: fill phone and submit
   const phoneInput =
@@ -87,7 +91,9 @@ export async function runFullLogin(opts: {
       page.locator('input[autocomplete="tel"]').first(),
     );
 
+  log("step3: waiting for phone input");
   await phoneInput.waitFor({ state: "visible", timeout: 15_000 });
+  log("step3: phone input visible");
   // T-Bank's phone input has a "+7 (___) ___-__-__" mask. .fill() sets the
   // value via DOM and the mask layer corrupts it (the leading "+7 " prefix is
   // already shown as placeholder/mask, and the masking handler rejects extra
@@ -98,7 +104,9 @@ export async function runFullLogin(opts: {
   await phoneInput.click();
   await phoneInput.press("ControlOrMeta+a").catch(() => {});
   await phoneInput.press("Delete").catch(() => {});
+  log(`step3: typing ${phoneDigits.length} phone digits`);
   await phoneInput.pressSequentially(phoneDigits, { delay: 60 });
+  log(`step3: phone field value=${JSON.stringify(await phoneInput.inputValue().catch(() => "?"))}`);
   await humanDelay();
 
   // Scope submit button to the same form as the phone input to avoid
@@ -107,14 +115,18 @@ export async function runFullLogin(opts: {
   const phoneSubmitBtn = phoneForm.locator('button[type="submit"]').first();
   const hasPhoneSubmitBtn = await phoneSubmitBtn.isVisible({ timeout: 500 }).catch(() => false);
   if (hasPhoneSubmitBtn) {
+    log("step3: clicking form-scoped submit");
     await phoneSubmitBtn.click();
   } else {
+    log("step3: pressing Enter (no form submit btn)");
     await phoneInput.press("Enter");
   }
   await humanDelay();
 
   // Step 4: wait for SMS step
+  log("step4: waiting for /auth/step URL");
   await page.waitForURL(/id\.tbank\.ru\/auth\/step/, { timeout: 30_000 });
+  log(`step4: at ${page.url()}`);
   const smsInput = page.locator('input[autocomplete="one-time-code"]').first();
   await smsInput.waitFor({ state: "visible", timeout: 15_000 });
   await detectCaptcha(page);
