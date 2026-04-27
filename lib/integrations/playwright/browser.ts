@@ -66,11 +66,26 @@ export async function withTbankBrowser<T>(
     const envHeadless = process.env.PLAYWRIGHT_HEADLESS;
     const headless =
       opts.headless ??
-      (envHeadless === "false" || envHeadless === "0" ? false : true);
+      (envHeadless === "true" || envHeadless === "1"
+        ? true
+        : envHeadless === "false" || envHeadless === "0"
+          ? false
+          : process.env.DISPLAY
+            ? false
+            : true);
 
+    console.log(
+      "[playwright-browser] mode:",
+      headless ? "headless" : "headed display=" + process.env.DISPLAY,
+    );
+
+    // --no-sandbox is unconditional: the container runs as root (no USER
+    // directive in Dockerfile), so the chromium sandbox cannot acquire the
+    // namespaces it needs and would crash on launch under headed mode too.
+    // The container boundary is the trust boundary here — single-admin tool.
     const stealthArgs = [
       "--disable-blink-features=AutomationControlled",
-      ...(headless ? ["--no-sandbox"] : []),
+      "--no-sandbox",
     ];
 
     let context: BrowserContext;

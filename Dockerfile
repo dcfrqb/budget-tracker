@@ -18,7 +18,14 @@ ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 ENV PLAYWRIGHT_PROFILES_DIR=/var/lib/budget-tracker/playwright-profiles
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && apt-get install -y --no-install-recommends \
+       openssl \
+       ca-certificates \
+       xvfb \
+       dbus-x11 \
+       fonts-liberation \
+       libgbm1 \
+       x11-utils \
   && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/package.json /app/package-lock.json ./
@@ -39,4 +46,7 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
-CMD ["sh", "-c", "npx prisma migrate deploy && npm run start"]
+RUN printf '#!/bin/sh\nset -e\n\n# Reap Xvfb when the container exits so a restart does not collide on :99.\ntrap "kill 0" EXIT\n\nXvfb :99 -screen 0 1920x1080x24 -ac +extension RANDR -nolisten tcp &\n\nDISPLAY=:99\nexport DISPLAY\n\ni=0\nwhile ! xdpyinfo -display :99 >/dev/null 2>&1; do\n  i=$((i+1))\n  if [ "$i" -ge 20 ]; then\n    echo "[entrypoint] Xvfb did not start within 10s — aborting" >&2\n    exit 1\n  fi\n  sleep 0.5\ndone\necho "[entrypoint] Xvfb ready on :99"\n\nnpx prisma migrate deploy\nexec npm run start\n' > /app/docker-entrypoint-xvfb.sh \
+  && chmod +x /app/docker-entrypoint-xvfb.sh
+
+CMD ["/app/docker-entrypoint-xvfb.sh"]

@@ -24,6 +24,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    shm_size: 1gb
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}?schema=public
@@ -31,6 +32,7 @@ services:
       ADMIN_INTEGRATIONS: ${ADMIN_INTEGRATIONS}
       PLAYWRIGHT_PROFILES_DIR: /var/lib/budget-tracker/playwright-profiles
       TZ: Europe/Moscow
+      DISPLAY: ":99"
     volumes:
       - playwright-profiles:/var/lib/budget-tracker/playwright-profiles
     ports:
