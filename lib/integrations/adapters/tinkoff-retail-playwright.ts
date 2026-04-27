@@ -108,11 +108,17 @@ export const tinkoffRetailAdapter: BankAdapter = {
 
     let abortFn: () => void = () => {};
 
+    // Holds a reference to the Playwright BrowserContext once it is created so
+    // abortFn can close the browser immediately regardless of which await point
+    // the task is currently blocked on.
+    let activeBrowserCtx: import("playwright").BrowserContext | null = null;
+
     const task = (async () => {
       try {
         const storageState = await withTbankBrowser(
           { credentialId, storageState: null },
-          async ({ page }) => {
+          async ({ context, page }) => {
+            activeBrowserCtx = context;
             const { storageState } = await runFullLogin({
               page,
               phone,
@@ -146,11 +152,25 @@ export const tinkoffRetailAdapter: BankAdapter = {
         } else {
           await ctx.setStatus("ERROR", "unknown");
         }
+      } finally {
+        activeBrowserCtx = null;
       }
-    })();
+    })().catch((err: unknown) => {
+      // Outer guard: catches any rejection that escapes the inner try/catch
+      // (e.g. ctx.saveSecrets or ctx.setStatus throwing after a successful PIN
+      // flow). Must not re-throw — its sole job is to prevent an unhandled
+      // rejection from crashing the Node process.
+      const code = classifyAdapterError(err);
+      ctx.setStatus("ERROR", code).catch(() => {});
+    });
 
     abortFn = () => {
       cancelSms(credentialId, "aborted");
+      // Close the browser immediately so Chromium does not keep running while
+      // waiting for an OTP that will never arrive.
+      if (activeBrowserCtx !== null) {
+        activeBrowserCtx.close().catch(() => {});
+      }
     };
 
     registerSession(credentialId, {

@@ -20,6 +20,8 @@ export function profileDirFor(credentialId: string): string {
   return path.join(baseDir, credentialId);
 }
 
+const _launchQueue = new Map<string, Promise<unknown>>();
+
 export async function withTbankBrowser<T>(
   opts: {
     credentialId: string;
@@ -30,51 +32,66 @@ export async function withTbankBrowser<T>(
 ): Promise<T> {
   const profileDir = profileDirFor(opts.credentialId);
 
-  await mkdir(profileDir, { recursive: true });
+  const prior = _launchQueue.get(profileDir) ?? Promise.resolve();
+  await prior.catch(() => {});
 
-  const entries = await readdir(profileDir);
-  const isFresh = entries.length === 0;
+  const work = (async (): Promise<T> => {
+    await mkdir(profileDir, { recursive: true });
 
-  const envHeadless = process.env.PLAYWRIGHT_HEADLESS;
-  const headless =
-    opts.headless ??
-    (envHeadless === "false" || envHeadless === "0" ? false : true);
+    const entries = await readdir(profileDir);
+    const isFresh = entries.length === 0;
 
-  const context = await chromium.launchPersistentContext(profileDir, {
-    headless,
-    viewport: { width: 1280, height: 800 },
-    locale: "ru-RU",
-    timezoneId: "Europe/Moscow",
-    args: headless ? ["--no-sandbox"] : [],
-  });
+    const envHeadless = process.env.PLAYWRIGHT_HEADLESS;
+    const headless =
+      opts.headless ??
+      (envHeadless === "false" || envHeadless === "0" ? false : true);
 
-  if (isFresh && opts.storageState) {
-    try {
-      const parsed = JSON.parse(opts.storageState) as {
-        cookies?: unknown[];
-      };
-      if (Array.isArray(parsed.cookies) && parsed.cookies.length > 0) {
-        await context.addCookies(
-          parsed.cookies as Parameters<BrowserContext["addCookies"]>[0],
-        );
+    const context = await chromium.launchPersistentContext(profileDir, {
+      headless,
+      viewport: { width: 1280, height: 800 },
+      locale: "ru-RU",
+      timezoneId: "Europe/Moscow",
+      args: headless ? ["--no-sandbox"] : [],
+    });
+
+    if (isFresh && opts.storageState) {
+      try {
+        const parsed = JSON.parse(opts.storageState) as {
+          cookies?: unknown[];
+        };
+        if (Array.isArray(parsed.cookies) && parsed.cookies.length > 0) {
+          await context.addCookies(
+            parsed.cookies as Parameters<BrowserContext["addCookies"]>[0],
+          );
+        }
+      } catch {
+        throw new Error("invalid storageState JSON");
       }
-    } catch {
-      throw new Error("invalid storageState JSON");
     }
-  }
 
-  const page = context.pages()[0] ?? (await context.newPage());
+    const page = context.pages()[0] ?? (await context.newPage());
 
-  const saveStorageState = async (): Promise<string> =>
-    JSON.stringify(await context.storageState());
+    const saveStorageState = async (): Promise<string> =>
+      JSON.stringify(await context.storageState());
+
+    try {
+      return await fn({ context, page, saveStorageState });
+    } finally {
+      try {
+        await context.close();
+      } catch (err) {
+        console.error("[playwright-browser] close error:", err);
+      }
+    }
+  })();
+
+  _launchQueue.set(profileDir, work);
 
   try {
-    return await fn({ context, page, saveStorageState });
+    return await work;
   } finally {
-    try {
-      await context.close();
-    } catch (err) {
-      console.error("[playwright-browser] close error:", err);
+    if (_launchQueue.get(profileDir) === work) {
+      _launchQueue.delete(profileDir);
     }
   }
 }

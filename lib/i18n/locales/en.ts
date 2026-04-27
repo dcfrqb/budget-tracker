@@ -192,8 +192,8 @@ export const enDict: RuDictShape = {
           loading: "Loading accounts from T-Bank…",
         },
         error: {
-          insufficient_privileges: "Session requires SMS confirmation. Click \"Submit OTP\".",
-          invalid_credentials: "Invalid login or password.",
+          insufficient_privileges: "Insufficient privileges on this T-Bank account.",
+          invalid_credentials: "Invalid phone or PIN.",
           rate_limited: "Too many attempts. Try again later.",
           circuit_open: "Too many errors in a row — sync temporarily halted.",
           unknown: "Could not reach T-Bank.",

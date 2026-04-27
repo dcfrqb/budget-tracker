@@ -5,10 +5,14 @@ export type SmsResolver = () => Promise<string>;
 
 async function detectCaptcha(page: Page): Promise<void> {
   const probes = [
-    () => page.locator('iframe[title*="captcha" i]').isVisible({ timeout: 500 }),
-    () => page.locator('iframe[src*="captcha" i]').isVisible({ timeout: 500 }),
-    () => page.getByRole("dialog").filter({ hasText: /проверка|captcha/i }).isVisible({ timeout: 500 }),
-    () => page.getByText(/проверка|captcha/i).isVisible({ timeout: 500 }),
+    () => page.locator('iframe[title*="captcha" i]').isVisible({ timeout: 1000 }),
+    () => page.locator('iframe[src*="captcha" i]').isVisible({ timeout: 1000 }),
+    () => page.getByRole("dialog").filter({ hasText: /проверка|captcha/i }).isVisible({ timeout: 1000 }),
+    () => page.getByText(/проверка|captcha/i).isVisible({ timeout: 1000 }),
+    // reCAPTCHA / hCaptcha class-based probes
+    () => page.locator('[class*="recaptcha" i]').isVisible({ timeout: 1000 }),
+    () => page.locator('[class*="hcaptcha" i]').isVisible({ timeout: 1000 }),
+    () => page.locator('[id*="captcha" i]').isVisible({ timeout: 1000 }),
   ];
   const results = await Promise.all(
     probes.map(async (probe) => {
@@ -41,10 +45,21 @@ async function fillPinInputs(page: Page, pin: string): Promise<void> {
 
 async function isPinScreen(page: Page): Promise<boolean> {
   try {
-    const count = await page
+    const countSignal = await page
       .locator('input[inputmode="numeric"], input[autocomplete="one-time-code"]')
       .count();
-    return count >= 4;
+    if (countSignal >= 4) return true;
+
+    // Semantic fallback: look for a heading, label, or role=group container
+    // that mentions PIN/Пин/Код near the inputs. Catches single split-rendered
+    // input designs where count-based check would miss.
+    const semanticSignal = await Promise.any([
+      page.locator('[aria-label*="PIN" i], [aria-label*="пин" i], [aria-label*="код" i]').isVisible({ timeout: 500 }),
+      page.locator('[role="group"][aria-label*="PIN" i], [role="group"][aria-label*="пин" i]').isVisible({ timeout: 500 }),
+      page.getByRole("heading").filter({ hasText: /пин|pin|код/i }).isVisible({ timeout: 500 }),
+    ]).catch(() => false);
+
+    return semanticSignal === true;
   } catch {
     return false;
   }
@@ -76,11 +91,13 @@ export async function runFullLogin(opts: {
   await phoneInput.fill(phone);
   await humanDelay();
 
-  // Try submit button first; fall back to Enter
-  const submitBtn = page.locator('button[type="submit"]').first();
-  const hasSubmitBtn = await submitBtn.isVisible({ timeout: 500 }).catch(() => false);
-  if (hasSubmitBtn) {
-    await submitBtn.click();
+  // Scope submit button to the same form as the phone input to avoid
+  // hitting an unrelated button when multiple forms are on the page.
+  const phoneForm = phoneInput.locator("xpath=ancestor::form[1]");
+  const phoneSubmitBtn = phoneForm.locator('button[type="submit"]').first();
+  const hasPhoneSubmitBtn = await phoneSubmitBtn.isVisible({ timeout: 500 }).catch(() => false);
+  if (hasPhoneSubmitBtn) {
+    await phoneSubmitBtn.click();
   } else {
     await phoneInput.press("Enter");
   }
@@ -98,11 +115,16 @@ export async function runFullLogin(opts: {
   // Step 6: fill SMS code; T-Bank may auto-submit
   await smsInput.fill(sms);
   await humanDelay();
-  // If not auto-submitted, look for a submit button
-  const smsSubmit = page.locator('button[type="submit"]').first();
-  const hasSmsSubmit = await smsSubmit.isVisible({ timeout: 800 }).catch(() => false);
+  // If not auto-submitted, scope submit button to the form containing the SMS input.
+  const smsForm = smsInput.locator("xpath=ancestor::form[1]");
+  const smsSubmitBtn = smsForm.locator('button[type="submit"]').first();
+  const hasSmsSubmit = await smsSubmitBtn.isVisible({ timeout: 800 }).catch(() => false);
   if (hasSmsSubmit) {
-    await smsSubmit.click();
+    await smsSubmitBtn.click();
+    await humanDelay();
+  } else {
+    // Fallback: Enter key if form-scoped button not found
+    await smsInput.press("Enter");
     await humanDelay();
   }
 

@@ -200,8 +200,8 @@ export const ruDict = {
           loading: "Загружаем счета из T-Банка…",
         },
         error: {
-          insufficient_privileges: "Сессия требует SMS-подтверждения. Нажмите «Подтвердить SMS».",
-          invalid_credentials: "Неверный логин или пароль.",
+          insufficient_privileges: "Недостаточно прав на этом аккаунте Т-Банка.",
+          invalid_credentials: "Неверный телефон или PIN.",
           rate_limited: "Слишком много попыток. Попробуйте позже.",
           circuit_open: "Слишком много ошибок подряд — синхронизация временно остановлена.",
           unknown: "Не удалось связаться с T-Банком.",
