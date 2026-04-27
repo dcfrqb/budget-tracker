@@ -134,7 +134,7 @@ export const enDict: RuDictShape = {
       adapter: {
         tinkoff_csv: "Tinkoff — CSV export",
         tinkoff_email: "Tinkoff — Email notifications",
-        tinkoff_retail: "Tinkoff — Retail API (stub)",
+        tinkoff_retail: "T-Bank — retail",
         generic_csv: "Generic CSV",
       },
       status: {

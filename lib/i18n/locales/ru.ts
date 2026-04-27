@@ -142,7 +142,7 @@ export const ruDict = {
       adapter: {
         tinkoff_csv: "Тинькофф — CSV-выгрузка",
         tinkoff_email: "Тинькофф — Email-уведомления",
-        tinkoff_retail: "Тинькофф — Retail API (stub)",
+        tinkoff_retail: "Т-Банк — личный кабинет",
         generic_csv: "Универсальный CSV",
       },
       status: {
