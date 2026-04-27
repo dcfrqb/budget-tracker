@@ -4,6 +4,7 @@ import { useState, useEffect, useTransition } from "react";
 import { useT } from "@/lib/i18n";
 import type { BankAdapterMeta } from "@/lib/integrations/types";
 import type { IntegrationStatus } from "@prisma/client";
+import { InfoCallout } from "@/components/ui/info-callout";
 import {
   connectAdapterAction,
   loginAction,
@@ -44,13 +45,31 @@ type TinkoffErrorKey =
   | "settings.integrations.tinkoff_retail.error.insufficient_privileges"
   | "settings.integrations.tinkoff_retail.error.invalid_credentials"
   | "settings.integrations.tinkoff_retail.error.rate_limited"
-  | "settings.integrations.tinkoff_retail.error.unknown";
+  | "settings.integrations.tinkoff_retail.error.unknown"
+  | "settings.integrations.tinkoff_retail.error.invalid_pin"
+  | "settings.integrations.tinkoff_retail.error.invalid_phone"
+  | "settings.integrations.tinkoff_retail.error.captcha_required"
+  | "settings.integrations.tinkoff_retail.error.session_expired"
+  | "settings.integrations.tinkoff_retail.error.sms_timeout"
+  | "settings.integrations.tinkoff_retail.error.no_session"
+  | "settings.integrations.tinkoff_retail.error.no_pending_sms"
+  | "settings.integrations.tinkoff_retail.error.login_failed"
+  | "settings.integrations.tinkoff_retail.error.unknown_step";
 
 function mapAdapterError(code: string): TinkoffErrorKey {
   const map: Record<string, TinkoffErrorKey> = {
     INSUFFICIENT_PRIVILEGES: "settings.integrations.tinkoff_retail.error.insufficient_privileges",
     INVALID_CREDENTIALS: "settings.integrations.tinkoff_retail.error.invalid_credentials",
     RATE_LIMITED: "settings.integrations.tinkoff_retail.error.rate_limited",
+    INVALID_PIN: "settings.integrations.tinkoff_retail.error.invalid_pin",
+    INVALID_PHONE: "settings.integrations.tinkoff_retail.error.invalid_phone",
+    CAPTCHA_REQUIRED: "settings.integrations.tinkoff_retail.error.captcha_required",
+    SESSION_EXPIRED: "settings.integrations.tinkoff_retail.error.session_expired",
+    SMS_TIMEOUT: "settings.integrations.tinkoff_retail.error.sms_timeout",
+    NO_SESSION: "settings.integrations.tinkoff_retail.error.no_session",
+    NO_PENDING_SMS: "settings.integrations.tinkoff_retail.error.no_pending_sms",
+    LOGIN_FAILED: "settings.integrations.tinkoff_retail.error.login_failed",
+    UNKNOWN_STEP: "settings.integrations.tinkoff_retail.error.unknown_step",
   };
   return map[code.toUpperCase()] ?? "settings.integrations.tinkoff_retail.error.unknown";
 }
@@ -218,6 +237,12 @@ function ConnectDialog({
 
         {(adapter.supports.login || isRelogin) && (
           <>
+            {adapter.id === "tinkoff-retail" && !isRelogin && (
+              <InfoCallout tone="info">
+                {t("settings.integrations.tinkoff_retail.connect.pin_intro")}
+              </InfoCallout>
+            )}
+
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <label className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>
                 {usernameLabel}
@@ -227,20 +252,41 @@ function ConnectDialog({
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 autoComplete="username"
+                {...(adapter.id === "tinkoff-retail"
+                  ? {
+                      inputMode: "tel" as const,
+                      placeholder: t("settings.integrations.form.phone_placeholder"),
+                    }
+                  : {})}
               />
             </div>
             {adapter.category !== "email-forward" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <label className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>
-                  {t("settings.integrations.form.password")}
+                  {adapter.id === "tinkoff-retail"
+                    ? t("settings.integrations.form.pin")
+                    : t("settings.integrations.form.password")}
                 </label>
                 <input
                   className="settings-input"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="current-password"
+                  {...(adapter.id === "tinkoff-retail"
+                    ? {
+                        inputMode: "numeric" as const,
+                        maxLength: 4,
+                        pattern: "\\d{4}",
+                        autoComplete: "off",
+                        placeholder: t("settings.integrations.form.pin_placeholder"),
+                      }
+                    : { autoComplete: "current-password" })}
                 />
+                {adapter.id === "tinkoff-retail" && (
+                  <div className="mono" style={{ fontSize: 10, color: "var(--dim)" }}>
+                    {t("settings.integrations.form.pin_hint")}
+                  </div>
+                )}
               </div>
             )}
           </>

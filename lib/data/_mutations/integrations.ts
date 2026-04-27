@@ -7,6 +7,9 @@ import { toSafeError } from "@/lib/integrations/safe-error";
 import { checkRateLimit } from "@/lib/integrations/rate-limit";
 import type { AdapterContext } from "@/lib/integrations/types";
 import { findDuplicates } from "@/lib/import/dedupe";
+import { getSession } from "@/lib/integrations/playwright/session-registry";
+
+const POST_OTP_STATUS_POLL_MS = 8000;
 
 // ─────────────────────────────────────────────────────────────
 // Integration credential mutations — all guarded by assertAdminIntegrations
@@ -186,7 +189,19 @@ export async function submitOtpForCredential(
   }
 
   const ctx = buildContext(userId, credentialId, secrets);
-  return adapter.submitOtp(ctx, input);
+  const result = await adapter.submitOtp(ctx, input);
+
+  if (result.ok && cred.adapterId === "tinkoff-retail") {
+    const session = getSession(credentialId);
+    if (session) {
+      await Promise.race([
+        session.promise.catch(() => undefined),
+        new Promise<void>((resolve) => setTimeout(resolve, POST_OTP_STATUS_POLL_MS)),
+      ]);
+    }
+  }
+
+  return result;
 }
 
 /**

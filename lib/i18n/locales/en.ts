@@ -157,6 +157,10 @@ export const enDict: RuDictShape = {
         otp_code: "OTP code",
         display_label: "Label (optional)",
         email_forward: "Forwarding email",
+        pin: "Login PIN",
+        pin_hint: "4 digits — your choice",
+        pin_placeholder: "••••",
+        phone_placeholder: "+7 999 123 45 67",
       },
       category: {
         csv: "CSV file",
@@ -166,6 +170,9 @@ export const enDict: RuDictShape = {
       tinkoff_retail: {
         title: "T-Bank (retail)",
         description: "Connect to your T-Bank personal account via reverse-API for automatic transaction sync.",
+        connect: {
+          pin_intro: "You choose this PIN — T-Bank requires it to bind the device. We store it encrypted so subsequent syncs skip the SMS step.",
+        },
         relogin: {
           title: "Reconnect",
           password_only_hint: "Session expired. Re-enter your password — phone is preserved.",
@@ -189,6 +196,15 @@ export const enDict: RuDictShape = {
           invalid_credentials: "Invalid login or password.",
           rate_limited: "Too many attempts. Try again later.",
           unknown: "Could not reach T-Bank.",
+          invalid_pin: "PIN must be 4 digits.",
+          invalid_phone: "Invalid phone format.",
+          captcha_required: "T-Bank showed a captcha. Try later or sign in manually in the app.",
+          session_expired: "T-Bank session expired. Reconnect the integration.",
+          sms_timeout: "SMS didn't arrive or code wasn't entered in time.",
+          no_session: "No saved session — reconnect the integration.",
+          no_pending_sms: "Nothing is waiting for an SMS code right now.",
+          login_failed: "Could not complete login.",
+          unknown_step: "T-Bank showed an unfamiliar screen. Try later.",
         },
         action: {
           relogin: "Reconnect",

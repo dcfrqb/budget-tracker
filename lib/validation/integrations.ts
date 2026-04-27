@@ -18,9 +18,12 @@ const zCuid = z.string().cuid();
 export const connectTinkoffRetailSchema = z.object({
   adapterId: z.literal("tinkoff-retail"),
   // Accepts +7XXXXXXXXXX, 8XXXXXXXXXX, or 7XXXXXXXXXX — adapter normalizes via normalizeRuPhone.
-  phone: z
+  username: z
     .string()
     .regex(/^(?:\+7|8|7)\d{10}$/, "Phone must be +7/8/7 followed by 10 digits"),
+  password: z
+    .string()
+    .regex(/^\d{4}$/, "PIN must be 4 digits"),
   displayLabel: z.string().max(120).optional(),
 });
 
@@ -44,7 +47,7 @@ export const connectInputSchema = z.discriminatedUnion("adapterId", [
 export const loginTinkoffRetailSchema = z.object({
   adapterId: z.literal("tinkoff-retail"),
   credentialId: zCuid,
-  password: z.string().min(1).max(200),
+  password: z.string().regex(/^\d{4}$/, "PIN must be 4 digits"),
 });
 
 /** Generic login schema. */
