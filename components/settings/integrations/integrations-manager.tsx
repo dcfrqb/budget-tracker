@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition } from "react";
 import { useT } from "@/lib/i18n";
-import type { BankAdapter } from "@/lib/integrations/types";
+import type { BankAdapterMeta } from "@/lib/integrations/types";
 import type { IntegrationStatus } from "@prisma/client";
 import {
   connectAdapterAction,
@@ -31,7 +31,7 @@ export type CredentialRow = {
 };
 
 type Props = {
-  adapters: BankAdapter[];
+  adapters: BankAdapterMeta[];
   credentials: CredentialRow[];
 };
 
@@ -94,7 +94,7 @@ function ConnectDialog({
   onClose,
   onDone,
 }: {
-  adapter: BankAdapter;
+  adapter: BankAdapterMeta;
   existingCredentialId?: string;
   onClose: () => void;
   onDone: () => void;
@@ -383,14 +383,14 @@ function CredentialCard({
   onRefresh,
 }: {
   cred: CredentialRow;
-  adapter: BankAdapter | null;
+  adapter: BankAdapterMeta | null;
   onRefresh: () => void;
 }) {
   const t = useT();
   const [isPending, startTransition] = useTransition();
   const [showOtpDialog, setShowOtpDialog] = useState(false);
   const [showLinkDialog, setShowLinkDialog] = useState(false);
-  const [reloginAdapter, setReloginAdapter] = useState<BankAdapter | null>(null);
+  const [reloginAdapter, setReloginAdapter] = useState<BankAdapterMeta | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [accountLinks, setAccountLinks] = useState<LinkRow[]>([]);
 
@@ -616,7 +616,7 @@ function CredentialCard({
 export function IntegrationsManager({ adapters, credentials: initialCredentials }: Props) {
   const t = useT();
   const [credentials, setCredentials] = useState<CredentialRow[]>(initialCredentials);
-  const [connectingAdapter, setConnectingAdapter] = useState<BankAdapter | null>(null);
+  const [connectingAdapter, setConnectingAdapter] = useState<BankAdapterMeta | null>(null);
 
   function refresh() {
     if (typeof window !== "undefined") {

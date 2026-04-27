@@ -13,6 +13,28 @@ export type AdapterContext = {
   setStatus: (status: IntegrationStatus, err?: string) => Promise<void>;
 };
 
+export type BankAdapterMeta = {
+  id: string;
+  displayName: string;
+  category: "csv" | "email-forward" | "api-reverse";
+  supports: {
+    login: boolean;
+    otp: boolean;
+    fetchTransactions: boolean;
+    parseFile: boolean;
+    listExternalAccounts: boolean;
+  };
+};
+
+export function toAdapterMeta(a: BankAdapter): BankAdapterMeta {
+  return {
+    id: a.id,
+    displayName: a.displayName,
+    category: a.category,
+    supports: a.supports,
+  };
+}
+
 export type BankAdapter = {
   id: string; // "tinkoff-retail" | "tinkoff-email" | "tinkoff-csv" | "sber-csv" | "generic-csv"
   displayName: string; // i18n key or literal

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getT } from "@/lib/i18n/server";
 import { getCurrentUserId } from "@/lib/api/auth";
 import { getAdapters } from "@/lib/integrations/registry";
+import { toAdapterMeta } from "@/lib/integrations/types";
 import { listCredentials } from "@/lib/data/_mutations/integrations";
 import { IntegrationsManager } from "@/components/settings/integrations/integrations-manager";
 import type { CredentialRow } from "@/components/settings/integrations/integrations-manager";
@@ -36,7 +37,7 @@ export default async function IntegrationsPage() {
     );
   }
 
-  const adapters = getAdapters();
+  const adapters = getAdapters().map(toAdapterMeta);
   const rawCredentials = await listCredentials(userId);
 
   // Serialize dates to strings for client component props
