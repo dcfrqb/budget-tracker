@@ -93,6 +93,7 @@ export async function loginAction(
     const userId = await getCurrentUserId();
     const result = await loginWithCredential(userId, credentialId, input);
     revalidatePath("/settings/integrations");
+    if (!result.ok) return { ok: false, error: result.error };
     return { ok: true, data: result };
   } catch (e) {
     const safe = toSafeError(e);
@@ -114,6 +115,7 @@ export async function submitOtpAction(
       code: parsed.data.code,
     });
     revalidatePath("/settings/integrations");
+    if (!result.ok) return { ok: false, error: result.error };
     return { ok: true, data: result };
   } catch (e) {
     const safe = toSafeError(e);
@@ -287,6 +289,7 @@ export async function reloginAction(input: {
       password: parsed.data.password,
     });
     revalidatePath("/settings/integrations");
+    if (!result.ok) return { ok: false, error: result.error };
     return { ok: true, data: result };
   } catch (e) {
     const safe = toSafeError(e);

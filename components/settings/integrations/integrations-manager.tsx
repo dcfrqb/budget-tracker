@@ -345,7 +345,7 @@ function OtpDialog({
     startTransition(async () => {
       const result = await submitOtpAction(credentialId, { code });
       if (!result.ok) {
-        setErrorMsg(result.error);
+        setErrorMsg(t(mapAdapterError(result.error)));
         return;
       }
       onSuccess?.();
@@ -477,7 +477,7 @@ function CredentialCard({
     startTransition(async () => {
       const result = await syncAction(cred.id);
       if (!result.ok) {
-        setFeedback(result.error);
+        setFeedback(t(mapAdapterError(result.error)));
       } else {
         const data = result.data as { created: number; skipped: number } | undefined;
         setFeedback(
@@ -533,7 +533,7 @@ function CredentialCard({
         {/* Error message */}
         {cred.status === "ERROR" && cred.lastErrorMessage && (
           <div className="mono" style={{ fontSize: 10, color: "var(--neg)", opacity: 0.8 }}>
-            {cred.lastErrorMessage}
+            {t(mapAdapterError(cred.lastErrorMessage))}
           </div>
         )}
 
