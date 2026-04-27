@@ -151,15 +151,20 @@ async function classifyScreen(page: Page): Promise<ClassifiedScreen> {
     .catch(() => 0);
 
   if (numericInputCount >= 4) {
+    const pinBody = await page
+      .locator("body")
+      .innerText({ timeout: 1500 })
+      .catch(() => "");
+    const pinBodySnippet = pinBody.slice(0, 300).replace(/\s+/g, " ").trim();
     let kind: ScreenKind = "pin_setup";
-    if (/Повторите|Подтвердите/i.test(headingText)) {
+    if (/повторите|подтвердите|ещё\s+раз|еще\s+раз/i.test(headingText) || /повторите|подтвердите|ещё\s+раз|еще\s+раз/i.test(pinBody)) {
       kind = "pin_confirm";
-    } else if (/Придумайте|Задайте|Создайте/i.test(headingText)) {
-      kind = "pin_setup";
-    } else if (/Введите PIN|Введите пин/i.test(headingText)) {
+    } else if (/введите\s*pin|введите\s*пин|быстрый\s+вход/i.test(headingText) || /введите\s*pin|введите\s*пин/i.test(pinBody)) {
       kind = "fast_pin";
+    } else if (/придумайте|задайте|создайте/i.test(headingText)) {
+      kind = "pin_setup";
     }
-    log(`classify: kind=${kind} url=${url} heading="${headingText}" numericInputs=${numericInputCount}`);
+    log(`classify: kind=${kind} url=${url} heading="${headingText}" numericInputs=${numericInputCount} bodySnippet="${pinBodySnippet}"`);
     return { kind, meta: { url, headingText, matchedSelector: 'input[inputmode="numeric"], input[autocomplete="one-time-code"]' } };
   }
 
@@ -217,13 +222,25 @@ async function classifyScreen(page: Page): Promise<ClassifiedScreen> {
 async function fillPinInputs(page: Page, pin: string): Promise<void> {
   const pinLocator = page.locator('input[inputmode="numeric"], input[autocomplete="one-time-code"]');
   const count = await pinLocator.count();
+  log(`fillPinInputs: count=${count} pinLen=${pin.length}`);
 
   if (count >= 4) {
     for (let i = 0; i < pin.length && i < count; i++) {
-      await pinLocator.nth(i).fill(pin[i]);
+      const digitInput = pinLocator.nth(i);
+      await digitInput.click({ timeout: 3_000 }).catch((err) => {
+        log(`fillPinInputs[${i}]: click failed (continuing): ${err instanceof Error ? err.message : String(err)}`);
+      });
+      try {
+        await digitInput.pressSequentially(pin[i], { delay: 60, timeout: 3_000 });
+        log(`fillPinInputs[${i}]: keystroke ok`);
+      } catch (err) {
+        log(`fillPinInputs[${i}]: pressSequentially failed: ${err instanceof Error ? err.message : String(err)}`);
+        throw err;
+      }
     }
   } else {
-    await pinLocator.first().pressSequentially(pin, { delay: 60 });
+    await pinLocator.first().pressSequentially(pin, { delay: 60, timeout: 5_000 });
+    log(`fillPinInputs: combined-input keystroke ok`);
   }
 }
 
