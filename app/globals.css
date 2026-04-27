@@ -2254,6 +2254,7 @@ a { color: inherit; text-decoration: none; }
 /* Backdrop overlay token — added here because drawer needs a semi-transparent bg */
 :root {
   --overlay: rgba(0, 0, 0, 0.45);
+  --overlay-strong: rgba(0, 0, 0, 0.7);
 }
 
 /* Grid wrapper for vertical form stacks */

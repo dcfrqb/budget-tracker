@@ -33,6 +33,7 @@ export const genericCsvAdapter: BankAdapter = {
     otp: false,
     fetchTransactions: false,
     parseFile: true,
+    listExternalAccounts: false,
   },
 
   async parseFile(input: ArrayBuffer | string): Promise<ImportRow[]> {

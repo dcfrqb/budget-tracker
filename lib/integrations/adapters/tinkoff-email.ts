@@ -21,6 +21,7 @@ export const tinkoffEmailAdapter: BankAdapter = {
     otp: false,
     fetchTransactions: true,
     parseFile: false,
+    listExternalAccounts: false,
   },
 
   async login(

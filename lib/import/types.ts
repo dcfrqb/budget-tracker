@@ -11,6 +11,7 @@ export type ImportRow = {
   rawCategory?: string;
   description?: string;
   counterparty?: string;
+  accountId?: string;            // per-row target account (set by api adapters; CSV uses opts.accountId)
   raw: Record<string, string>;   // original row
 };
 

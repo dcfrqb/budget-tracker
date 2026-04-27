@@ -1,17 +1,19 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useT } from "@/lib/i18n";
 import type { BankAdapter } from "@/lib/integrations/types";
 import type { IntegrationStatus } from "@prisma/client";
 import {
   connectAdapterAction,
-  loginAction,
+  reloginAction,
   submitOtpAction,
   syncAction,
   disconnectAction,
   deleteCredentialAction,
+  listAccountLinksAction,
 } from "@/app/(shell)/settings/integrations/actions";
+import { LinkAccountsDialog } from "./link-accounts-dialog";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -32,6 +34,25 @@ type Props = {
   adapters: BankAdapter[];
   credentials: CredentialRow[];
 };
+
+// ─────────────────────────────────────────────────────────────
+// Error code → i18n key mapping helper
+// ─────────────────────────────────────────────────────────────
+
+type TinkoffErrorKey =
+  | "settings.integrations.tinkoff_retail.error.insufficient_privileges"
+  | "settings.integrations.tinkoff_retail.error.invalid_credentials"
+  | "settings.integrations.tinkoff_retail.error.rate_limited"
+  | "settings.integrations.tinkoff_retail.error.unknown";
+
+function mapAdapterError(code: string): TinkoffErrorKey {
+  const map: Record<string, TinkoffErrorKey> = {
+    INSUFFICIENT_PRIVILEGES: "settings.integrations.tinkoff_retail.error.insufficient_privileges",
+    INVALID_CREDENTIALS: "settings.integrations.tinkoff_retail.error.invalid_credentials",
+    RATE_LIMITED: "settings.integrations.tinkoff_retail.error.rate_limited",
+  };
+  return map[code.toUpperCase()] ?? "settings.integrations.tinkoff_retail.error.unknown";
+}
 
 // ─────────────────────────────────────────────────────────────
 // Status badge
@@ -64,15 +85,17 @@ function StatusBadge({ status }: { status: IntegrationStatus }) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Connect dialog (for adapters that need initial input)
+// Connect / Relogin dialog
 // ─────────────────────────────────────────────────────────────
 
 function ConnectDialog({
   adapter,
+  existingCredentialId,
   onClose,
   onDone,
 }: {
   adapter: BankAdapter;
+  existingCredentialId?: string;
   onClose: () => void;
   onDone: () => void;
 }) {
@@ -83,17 +106,30 @@ function ConnectDialog({
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const isRelogin = Boolean(existingCredentialId);
+
   function handleSubmit() {
     setErrorMsg(null);
     startTransition(async () => {
-      const input: Record<string, string> = { displayLabel };
-      if (adapter.supports.login) {
-        input.username = username;
-        input.password = password;
+      let result;
+      if (isRelogin && existingCredentialId) {
+        result = await reloginAction({
+          credentialId: existingCredentialId,
+          phone: username,
+          password,
+        });
+      } else {
+        const input: Record<string, string> = { displayLabel };
+        if (adapter.supports.login) {
+          input.username = username;
+          input.password = password;
+        }
+        result = await connectAdapterAction(adapter.id, input);
       }
-      const result = await connectAdapterAction(adapter.id, input);
+
       if (!result.ok) {
-        setErrorMsg(result.error);
+        const errKey = mapAdapterError(result.error);
+        setErrorMsg(t(errKey));
         return;
       }
       onDone();
@@ -104,6 +140,14 @@ function ConnectDialog({
     adapter.category === "email-forward"
       ? t("settings.integrations.form.email_forward")
       : t("settings.integrations.form.username");
+
+  const title = isRelogin
+    ? t("settings.integrations.tinkoff_retail.relogin.title")
+    : `${t("settings.integrations.action.connect")} — ${
+        adapter.displayName.startsWith("settings.")
+          ? t(adapter.displayName as Parameters<typeof t>[0])
+          : adapter.displayName
+      }`;
 
   return (
     <div
@@ -116,7 +160,7 @@ function ConnectDialog({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "rgba(0,0,0,0.7)",
+        background: "var(--overlay-strong)",
       }}
     >
       <div
@@ -133,28 +177,34 @@ function ConnectDialog({
         }}
       >
         <div className="mono" style={{ fontSize: 12, fontWeight: 700, color: "var(--text)" }}>
-          {t("settings.integrations.action.connect")} — {adapter.displayName.startsWith("settings.")
-            ? t(adapter.displayName as Parameters<typeof t>[0])
-            : adapter.displayName}
+          {title}
         </div>
 
-        {/* Display label */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>
-            {t("settings.integrations.form.display_label")}
-          </label>
-          <input
-            className="settings-input"
-            value={displayLabel}
-            onChange={(e) => setDisplayLabel(e.target.value)}
-            placeholder={adapter.displayName.startsWith("settings.")
-              ? t(adapter.displayName as Parameters<typeof t>[0])
-              : adapter.displayName}
-          />
-        </div>
+        {isRelogin && (
+          <div className="mono" style={{ fontSize: 10, color: "var(--dim)" }}>
+            {t("settings.integrations.tinkoff_retail.relogin.password_only_hint")}
+          </div>
+        )}
 
-        {/* Username/email field (only for adapters requiring login) */}
-        {adapter.supports.login && (
+        {!isRelogin && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>
+              {t("settings.integrations.form.display_label")}
+            </label>
+            <input
+              className="settings-input"
+              value={displayLabel}
+              onChange={(e) => setDisplayLabel(e.target.value)}
+              placeholder={
+                adapter.displayName.startsWith("settings.")
+                  ? t(adapter.displayName as Parameters<typeof t>[0])
+                  : adapter.displayName
+              }
+            />
+          </div>
+        )}
+
+        {(adapter.supports.login || isRelogin) && (
           <>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <label className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>
@@ -200,7 +250,11 @@ function ConnectDialog({
             onClick={handleSubmit}
             disabled={isPending}
           >
-            {isPending ? "..." : t("settings.integrations.action.connect")}
+            {isPending
+              ? "..."
+              : isRelogin
+              ? t("settings.integrations.tinkoff_retail.action.relogin")
+              : t("settings.integrations.action.connect")}
           </button>
         </div>
       </div>
@@ -216,10 +270,12 @@ function OtpDialog({
   credentialId,
   onClose,
   onDone,
+  onSuccess,
 }: {
   credentialId: string;
   onClose: () => void;
   onDone: () => void;
+  onSuccess?: () => void;
 }) {
   const t = useT();
   const [isPending, startTransition] = useTransition();
@@ -234,6 +290,7 @@ function OtpDialog({
         setErrorMsg(result.error);
         return;
       }
+      onSuccess?.();
       onDone();
     });
   }
@@ -249,7 +306,7 @@ function OtpDialog({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "rgba(0,0,0,0.7)",
+        background: "var(--overlay-strong)",
       }}
     >
       <div
@@ -311,6 +368,15 @@ function OtpDialog({
 // Credential card
 // ─────────────────────────────────────────────────────────────
 
+type LinkRow = {
+  id: string;
+  externalAccountId: string;
+  accountId: string;
+  label: string | null;
+  accountName: string;
+  accountCurrency: string;
+};
+
 function CredentialCard({
   cred,
   adapter,
@@ -323,7 +389,12 @@ function CredentialCard({
   const t = useT();
   const [isPending, startTransition] = useTransition();
   const [showOtpDialog, setShowOtpDialog] = useState(false);
+  const [showLinkDialog, setShowLinkDialog] = useState(false);
+  const [reloginAdapter, setReloginAdapter] = useState<BankAdapter | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [accountLinks, setAccountLinks] = useState<LinkRow[]>([]);
+
+  const supportsLinking = adapter?.supports.listExternalAccounts === true;
 
   const label = cred.displayLabel ?? cred.adapterId;
   const canSync =
@@ -332,6 +403,16 @@ function CredentialCard({
   const canLogin =
     (cred.status === "ERROR" || cred.status === "DISCONNECTED") &&
     adapter?.supports.login;
+
+  useEffect(() => {
+    if (!supportsLinking) return;
+
+    listAccountLinksAction(cred.id).then((res) => {
+      if (res.ok) {
+        setAccountLinks((res.data as LinkRow[]) ?? []);
+      }
+    });
+  }, [cred.id, supportsLinking]);
 
   function doSync() {
     setFeedback(null);
@@ -343,8 +424,8 @@ function CredentialCard({
         const data = result.data as { created: number; skipped: number } | undefined;
         setFeedback(
           data
-            ? `+${data.created} / skip ${data.skipped}`
-            : "ok",
+            ? t("settings.integrations.sync.result", { vars: { created: String(data.created), skipped: String(data.skipped) } })
+            : t("settings.integrations.sync.ok"),
         );
       }
       onRefresh();
@@ -401,7 +482,7 @@ function CredentialCard({
         {/* Last sync */}
         {cred.lastSyncAt && (
           <div className="mono" style={{ fontSize: 10, color: "var(--dim)" }}>
-            sync: {new Date(cred.lastSyncAt).toLocaleString()}
+            {t("settings.integrations.sync.last_sync")} {new Date(cred.lastSyncAt).toLocaleString()}
           </div>
         )}
 
@@ -409,6 +490,26 @@ function CredentialCard({
         {feedback && (
           <div className="mono" style={{ fontSize: 10, color: "var(--info)" }}>
             {feedback}
+          </div>
+        )}
+
+        {/* Linked accounts sub-list */}
+        {supportsLinking && accountLinks.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 2 }}>
+            <div className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>
+              {t("settings.integrations.tinkoff_retail.link.linked_count", {
+                vars: { count: String(accountLinks.length) },
+              })}
+            </div>
+            {accountLinks.map((link) => (
+              <div
+                key={link.id}
+                className="mono"
+                style={{ fontSize: 10, color: "var(--dim)", paddingLeft: 8 }}
+              >
+                {link.label ?? link.externalAccountId} → {link.accountName}
+              </div>
+            ))}
           </div>
         )}
 
@@ -429,18 +530,24 @@ function CredentialCard({
               {t("settings.integrations.action.submit_otp")}
             </button>
           )}
-          {canLogin && (
+          {canLogin && adapter && (
             <button
               className="btn"
               type="button"
-              onClick={() => {
-                // For re-login, we'd need to show a login dialog.
-                // For now, guide user to delete + reconnect.
-                setFeedback("Please delete and reconnect to re-authenticate.");
-              }}
+              onClick={() => setReloginAdapter(adapter)}
               disabled={isPending}
             >
-              {t("settings.integrations.action.login")}
+              {t("settings.integrations.tinkoff_retail.action.relogin")}
+            </button>
+          )}
+          {supportsLinking && (
+            <button
+              className="btn"
+              type="button"
+              onClick={() => setShowLinkDialog(true)}
+              disabled={isPending}
+            >
+              {t("settings.integrations.tinkoff_retail.action.manage_links")}
             </button>
           )}
           <button className="btn" type="button" onClick={doDisconnect} disabled={isPending}>
@@ -451,7 +558,7 @@ function CredentialCard({
             type="button"
             onClick={doDelete}
             disabled={isPending}
-            style={{ color: "var(--neg)", borderColor: "rgba(248,81,73,.35)" }}
+            style={{ color: "var(--neg)", borderColor: "color-mix(in srgb, var(--neg) 35%, transparent)" }}
           >
             {t("settings.integrations.action.delete")}
           </button>
@@ -462,8 +569,38 @@ function CredentialCard({
         <OtpDialog
           credentialId={cred.id}
           onClose={() => setShowOtpDialog(false)}
+          onSuccess={() => {
+            if (supportsLinking) {
+              setShowLinkDialog(true);
+            }
+          }}
           onDone={() => {
             setShowOtpDialog(false);
+            if (!supportsLinking) {
+              onRefresh();
+            }
+          }}
+        />
+      )}
+
+      {showLinkDialog && (
+        <LinkAccountsDialog
+          credentialId={cred.id}
+          onClose={() => setShowLinkDialog(false)}
+          onDone={() => {
+            setShowLinkDialog(false);
+            onRefresh();
+          }}
+        />
+      )}
+
+      {reloginAdapter && (
+        <ConnectDialog
+          adapter={reloginAdapter}
+          existingCredentialId={cred.id}
+          onClose={() => setReloginAdapter(null)}
+          onDone={() => {
+            setReloginAdapter(null);
             onRefresh();
           }}
         />
@@ -481,11 +618,7 @@ export function IntegrationsManager({ adapters, credentials: initialCredentials 
   const [credentials, setCredentials] = useState<CredentialRow[]>(initialCredentials);
   const [connectingAdapter, setConnectingAdapter] = useState<BankAdapter | null>(null);
 
-  // After any mutation the server action calls revalidatePath — but since we're
-  // a client component we trigger a soft refresh by updating local state.
-  // Full server revalidation happens on next navigation.
   function refresh() {
-    // Trigger a full page refresh to get updated data from server
     if (typeof window !== "undefined") {
       window.location.reload();
     }

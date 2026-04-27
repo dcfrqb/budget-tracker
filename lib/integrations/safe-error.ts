@@ -44,6 +44,16 @@ const SENSITIVE_VALUE_PATTERNS: RegExp[] = [
 
 const MAX_MESSAGE_LENGTH = 500;
 
+// Redact credential-bearing URL query parameters that may appear in error messages
+// if a network library or future code path ever includes the full request URL.
+// Covers sessionid=, wuid=, and password= as query params or standalone key=value pairs.
+export function redactCredsFromString(s: string): string {
+  return s
+    .replace(/sessionid=[^&\s"]+/gi, "sessionid=[REDACTED]")
+    .replace(/wuid=[^&\s"]+/gi, "wuid=[REDACTED]")
+    .replace(/password=[^&\s"]+/gi, "password=[REDACTED]");
+}
+
 export type SafeError = {
   /** Short label for DB errorClass field: "fetch_timeout" | "401" | "decrypt_failure" | "json_parse" | "unknown" */
   class: string;
@@ -54,6 +64,21 @@ export type SafeError = {
 function classifyError(e: unknown): string {
   if (e instanceof Error) {
     const name = e.name;
+
+    // TinkoffApiError — duck-typed to avoid circular import from adapter layer.
+    // Produces "tinkoff:<CODE>" or "tinkoff:<CODE>@trk_<trackingId>".
+    if (
+      name === "TinkoffApiError" &&
+      "code" in e &&
+      typeof (e as Record<string, unknown>).code === "string"
+    ) {
+      const tinkoffCode = (e as Record<string, unknown>).code as string;
+      const trackingId = (e as Record<string, unknown>).trackingId;
+      const suffix =
+        typeof trackingId === "string" ? `@trk_${trackingId}` : "";
+      return `tinkoff:${tinkoffCode}${suffix}`;
+    }
+
     // AbortError from AbortController timeout
     if (name === "AbortError" || name === "TimeoutError") return "fetch_timeout";
     // Non-HTTPS URL blocked by httpFetch
@@ -114,6 +139,9 @@ function sanitizeMessage(raw: string): string {
     pattern.lastIndex = 0;
     msg = msg.replace(pattern, "[REDACTED]");
   }
+
+  // Redact credential-bearing URL query params (last pass, after key-based redaction)
+  msg = redactCredsFromString(msg);
 
   // Truncate
   if (msg.length > MAX_MESSAGE_LENGTH) {

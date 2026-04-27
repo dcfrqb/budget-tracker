@@ -171,6 +171,43 @@ export const ruDict = {
         email: "Email-уведомления",
         api_reverse: "API (reverse)",
       },
+      tinkoff_retail: {
+        title: "T-Банк (личный)",
+        description: "Подключение к личному кабинету T-Банка через reverse-API для автоматической синхронизации транзакций.",
+        relogin: {
+          title: "Переподключить",
+          password_only_hint: "Сессия истекла. Введите пароль заново — телефон сохранён.",
+        },
+        link: {
+          title: "Привязать счета",
+          column: {
+            tbank_account: "Счёт в T-Банке",
+            currency: "Валюта",
+            local_account: "Локальный счёт",
+          },
+          unlinked_option: "(не связан)",
+          save: "Сохранить связи",
+          no_external_accounts: "Счетов не найдено. Подтвердите SMS, чтобы получить список.",
+          manage_button: "Привязки счетов",
+          linked_count: "Связано счетов: {count}",
+          loading: "Загружаем счета из T-Банка…",
+        },
+        error: {
+          insufficient_privileges: "Сессия требует SMS-подтверждения. Нажмите «Подтвердить SMS».",
+          invalid_credentials: "Неверный логин или пароль.",
+          rate_limited: "Слишком много попыток. Попробуйте позже.",
+          unknown: "Не удалось связаться с T-Банком.",
+        },
+        action: {
+          relogin: "Переподключить",
+          manage_links: "Связи счетов",
+        },
+      },
+      sync: {
+        result: "+{created} / пропущено {skipped}",
+        ok: "ok",
+        last_sync: "синк:",
+      },
     },
     export: {
       section_title: "Экспорт данных",

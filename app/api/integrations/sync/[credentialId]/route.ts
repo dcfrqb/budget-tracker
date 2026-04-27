@@ -1,7 +1,7 @@
 import { getCurrentUserId } from "@/lib/api/auth";
 import { ok, err, serverError } from "@/lib/api/response";
 import { syncCredential } from "@/lib/data/_mutations/integrations";
-import { syncBodySchema } from "@/lib/validation/integrations";
+import { syncBodySchema, disconnectInputSchema } from "@/lib/validation/integrations";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +19,13 @@ export async function POST(
   { params }: { params: Promise<{ credentialId: string }> },
 ) {
   try {
-    const { credentialId } = await params;
+    const { credentialId: rawCredentialId } = await params;
+
+    // Validate path param format (cuid) before any DB or business logic.
+    const paramParsed = disconnectInputSchema.safeParse({ credentialId: rawCredentialId });
+    if (!paramParsed.success) return err("invalid credentialId", 400);
+    const { credentialId } = paramParsed.data;
+
     const userId = await getCurrentUserId();
 
     // Body is fully optional — treat missing / empty body as {}.
@@ -43,6 +49,8 @@ export async function POST(
       }
 
       const body = result.data;
+      // accountId dual semantic: used by CSV adapters as the single target account;
+      // ignored by API adapters (tinkoff-retail) whose rows carry per-row accountId.
       if (body.accountId) accountId = body.accountId;
       if (body.from && body.to) {
         range = { from: new Date(body.from), to: new Date(body.to) };

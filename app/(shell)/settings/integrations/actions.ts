@@ -10,13 +10,22 @@ import {
   syncCredential,
   disconnectCredential,
   deleteCredential,
+  linkExternalAccount,
+  unlinkExternalAccount,
+  listAccountLinksForCredential,
+  listExternalAccountsForCredential,
+  reloginCredential,
 } from "@/lib/data/_mutations/integrations";
+import { listAccountsForQuickDrawer } from "@/lib/data/wallet";
 import {
   connectInputSchema,
   loginInputSchema,
   submitOtpSchema,
   disconnectInputSchema,
   deleteCredentialSchema,
+  linkExternalAccountSchema,
+  unlinkExternalAccountSchema,
+  reloginSchema,
   toValidationFailure,
 } from "@/lib/validation/integrations";
 
@@ -42,7 +51,21 @@ export async function connectAdapterAction(
   try {
     const userId = await getCurrentUserId();
     const { displayLabel, adapterId: _id, ...rest } = parsed.data as Record<string, unknown>;
-    const initialSecrets: Record<string, unknown> = rest;
+
+    // For login-flow adapters (supports.login === true), the password/phone supplied
+    // at connect time is consumed by adapter.login() — never persisted in secrets.
+    // Strip all credential-like fields so the initial encrypted blob is clean.
+    // CSV adapters (no login) keep their config fields (e.g. forwarding email).
+    const { getAdapter } = await import("@/lib/integrations/registry");
+    const adapter = getAdapter(String(parsed.data.adapterId));
+    const CREDENTIAL_FIELDS = ["password", "username", "phone", "code"];
+    const initialSecrets: Record<string, unknown> =
+      adapter?.supports.login
+        ? Object.fromEntries(
+            Object.entries(rest).filter(([k]) => !CREDENTIAL_FIELDS.includes(k)),
+          )
+        : rest;
+
     const credential = await connectAdapter(
       userId,
       String(parsed.data.adapterId),
@@ -146,6 +169,125 @@ export async function deleteCredentialAction(
     await deleteCredential(userId, parsed.data.credentialId);
     revalidatePath("/settings/integrations");
     return { ok: true };
+  } catch (e) {
+    const safe = toSafeError(e);
+    return { ok: false, error: safe.message };
+  }
+}
+
+/** Link (or re-link) an external bank account to a local account. */
+export async function linkExternalAccountAction(input: {
+  credentialId: string;
+  externalAccountId: string;
+  accountId: string;
+  label?: string;
+}): Promise<ActionResult> {
+  const parsed = linkExternalAccountSchema.safeParse(input);
+  if (!parsed.success) return toValidationFailure(parsed.error);
+
+  try {
+    const userId = await getCurrentUserId();
+    const result = await linkExternalAccount(
+      userId,
+      parsed.data.credentialId,
+      parsed.data.externalAccountId,
+      parsed.data.accountId,
+      parsed.data.label,
+    );
+    revalidatePath("/settings/integrations");
+    return { ok: true, data: result };
+  } catch (e) {
+    const safe = toSafeError(e);
+    return { ok: false, error: safe.message };
+  }
+}
+
+/** Remove the link between an external account id and a local account. */
+export async function unlinkExternalAccountAction(input: {
+  credentialId: string;
+  externalAccountId: string;
+}): Promise<ActionResult> {
+  const parsed = unlinkExternalAccountSchema.safeParse(input);
+  if (!parsed.success) return toValidationFailure(parsed.error);
+
+  try {
+    const userId = await getCurrentUserId();
+    const result = await unlinkExternalAccount(
+      userId,
+      parsed.data.credentialId,
+      parsed.data.externalAccountId,
+    );
+    revalidatePath("/settings/integrations");
+    return { ok: true, data: result };
+  } catch (e) {
+    const safe = toSafeError(e);
+    return { ok: false, error: safe.message };
+  }
+}
+
+/** List all account links for a credential with joined account details (read-only). */
+export async function listAccountLinksAction(
+  credentialId: string,
+): Promise<ActionResult> {
+  const parsed = deleteCredentialSchema.safeParse({ credentialId });
+  if (!parsed.success) return toValidationFailure(parsed.error);
+
+  try {
+    const userId = await getCurrentUserId();
+    const result = await listAccountLinksForCredential(userId, parsed.data.credentialId);
+    return { ok: true, data: result };
+  } catch (e) {
+    const safe = toSafeError(e);
+    return { ok: false, error: safe.message };
+  }
+}
+
+/** Enumerate external bank accounts via the adapter API (read-only — live HTTP call). */
+export async function listExternalAccountsAction(
+  credentialId: string,
+): Promise<ActionResult> {
+  const parsed = deleteCredentialSchema.safeParse({ credentialId });
+  if (!parsed.success) return toValidationFailure(parsed.error);
+
+  try {
+    const userId = await getCurrentUserId();
+    const result = await listExternalAccountsForCredential(userId, parsed.data.credentialId);
+    return { ok: true, data: result };
+  } catch (e) {
+    const safe = toSafeError(e);
+    return { ok: false, error: safe.message };
+  }
+}
+
+/** List user's non-archived accounts for linking dropdowns. */
+export async function listUserAccountsAction(): Promise<ActionResult> {
+  try {
+    const userId = await getCurrentUserId();
+    const result = await listAccountsForQuickDrawer(userId);
+    return { ok: true, data: result };
+  } catch (e) {
+    const safe = toSafeError(e);
+    return { ok: false, error: safe.message };
+  }
+}
+
+/** Re-run the login flow for an existing credential (e.g. after session expiry). */
+export async function reloginAction(input: {
+  credentialId: string;
+  phone: string;
+  password: string;
+}): Promise<ActionResult> {
+  const parsed = reloginSchema.safeParse(input);
+  if (!parsed.success) return toValidationFailure(parsed.error);
+
+  try {
+    const userId = await getCurrentUserId();
+    const result = await reloginCredential(userId, parsed.data.credentialId, {
+      phone: parsed.data.phone,
+      password: parsed.data.password,
+    });
+    revalidatePath("/settings/integrations");
+    return { ok: true, data: result };
   } catch (e) {
     const safe = toSafeError(e);
     return { ok: false, error: safe.message };

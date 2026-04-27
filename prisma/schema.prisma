@@ -176,12 +176,13 @@ model Account {
   updatedAt  DateTime  @updatedAt
   deletedAt  DateTime?
 
-  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  institution   Institution?  @relation(fields: [institutionId], references: [id], onDelete: SetNull)
-  currency      Currency      @relation(fields: [currencyCode], references: [code])
-  transactions  Transaction[]
-  transfersFrom Transfer[]    @relation("TransferFromAccount")
-  transfersTo   Transfer[]    @relation("TransferToAccount")
+  user                    User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institution             Institution?             @relation(fields: [institutionId], references: [id], onDelete: SetNull)
+  currency                Currency                 @relation(fields: [currencyCode], references: [code])
+  transactions            Transaction[]
+  transfersFrom           Transfer[]               @relation("TransferFromAccount")
+  transfersTo             Transfer[]               @relation("TransferToAccount")
+  integrationAccountLinks IntegrationAccountLink[]
 
   @@index([userId])
 }
@@ -721,8 +722,9 @@ model IntegrationCredential {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
-  user     User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  syncLogs IntegrationSyncLog[]
+  user         User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  syncLogs     IntegrationSyncLog[]
+  accountLinks IntegrationAccountLink[]
 
   @@index([userId, adapterId])
   @@index([userId, status])
@@ -745,4 +747,22 @@ model IntegrationSyncLog {
 
   @@index([credentialId, startedAt])
   @@index([startedAt])
+}
+
+// Маппинг внешних счётов (T-Bank, Sber, etc.) на локальные Account'ы.
+// Один credential может быть привязан к нескольким счётам, каждый внешний счёт уникален в scope credential.
+model IntegrationAccountLink {
+  id                String   @id @default(cuid())
+  credentialId      String
+  externalAccountId String /// T-Bank account id, e.g. "5247156945"
+  accountId         String
+  label             String? /// Human label such as "Black ****2919"
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  credential IntegrationCredential @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+  account    Account               @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([credentialId, externalAccountId])
+  @@index([accountId])
 }

@@ -22,6 +22,7 @@ export type BankAdapter = {
     otp: boolean; // SMS/PIN second factor
     fetchTransactions: boolean; // can pull data automatically
     parseFile: boolean; // accepts exported file
+    listExternalAccounts: boolean; // can enumerate bank accounts via API
   };
   login?: (
     ctx: AdapterContext,
@@ -40,6 +41,16 @@ export type BankAdapter = {
     range: { from: Date; to: Date },
   ) => Promise<ImportRow[]>;
   parseFile?: (input: ArrayBuffer | string) => Promise<ImportRow[]>;
+  listExternalAccounts?: (
+    ctx: AdapterContext,
+  ) => Promise<
+    Array<{
+      externalAccountId: string;
+      label: string;
+      currencyCode: string;
+      accountType?: string;
+    }>
+  >;
   refreshSession?: (ctx: AdapterContext) => Promise<void>;
   disconnect?: (ctx: AdapterContext) => Promise<void>;
 };

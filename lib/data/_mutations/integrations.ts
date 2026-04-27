@@ -192,7 +192,12 @@ export async function submitOtpForCredential(
 /**
  * Sync: fetch transactions from adapter, deduplicate, create new ones.
  * Falls back to last 30 days if range not specified.
- * Requires an accountId to attach transactions to.
+ *
+ * accountId semantics (dual path):
+ *   - Rows with per-row accountId (tinkoff-retail API adapter) → grouped by row.accountId,
+ *     each group runs through its own dedupe loop against that account.
+ *   - Rows without per-row accountId (CSV adapters) → opts.accountId is used; if not provided,
+ *     falls back to the first non-archived account (legacy CSV-import UX).
  */
 export async function syncCredential(
   userId: string,
@@ -277,78 +282,148 @@ export async function syncCredential(
     const rows = await adapter.fetchTransactions(ctx, range);
 
     if (rows.length > 0) {
-      // If no accountId provided, try to use the first available non-archived account
-      let accountId = opts?.accountId;
-      if (!accountId) {
-        const fallback = await db.account.findFirst({
-          where: { userId, deletedAt: null, isArchived: false },
+      // ── Split rows into two buckets ───────────────────────────
+      // Bucket A: rows that carry their own accountId (tinkoff-retail API path).
+      // Bucket B: rows without accountId (CSV adapters — use opts.accountId or fallback).
+      const rowsWithAccountId = rows.filter((r) => r.accountId != null);
+      const rowsWithoutAccountId = rows.filter((r) => r.accountId == null);
+
+      // ── Bucket A: per-row accountId path ─────────────────────
+      if (rowsWithAccountId.length > 0) {
+        // Collect unique accountIds and validate they all belong to this user.
+        const uniqueAccountIds = [...new Set(rowsWithAccountId.map((r) => r.accountId as string))];
+        const validAccounts = await db.account.findMany({
+          where: { userId, id: { in: uniqueAccountIds }, deletedAt: null },
           select: { id: true },
-          orderBy: { sortOrder: "asc" },
         });
-        if (!fallback) {
-          throw Object.assign(
-            new Error("No active account found. Please specify an accountId."),
-            { code: "CONFLICT" },
-          );
-        }
-        accountId = fallback.id;
-      }
+        const validAccountIdSet = new Set(validAccounts.map((a) => a.id));
 
-      // Load existing transactions for deduplication
-      const existing = await db.transaction.findMany({
-        where: {
-          userId,
-          accountId,
-          occurredAt: { gte: range.from, lte: range.to },
-          deletedAt: null,
-        },
-        select: {
-          id: true,
-          note: true,
-          occurredAt: true,
-          amount: true,
-          accountId: true,
-        },
-      });
-
-      // Map existing to ExistingTransaction shape (note field contains externalId as "import:...")
-      const existingForDedupe = existing.map((t) => ({
-        externalId: t.note?.startsWith("import:") ? t.note.slice(7) : undefined,
-        occurredAt: t.occurredAt,
-        amount: t.amount.toString(),
-        accountId: t.accountId,
-      }));
-
-      const duplicateIndices = findDuplicates(rows, existingForDedupe, accountId);
-
-      await db.$transaction(async (tx) => {
-        for (let i = 0; i < rows.length; i++) {
-          if (duplicateIndices.has(i)) {
+        // Group rows by accountId; silently skip rows whose accountId isn't valid.
+        const groups = new Map<string, typeof rowsWithAccountId>();
+        for (const row of rowsWithAccountId) {
+          const aid = row.accountId as string;
+          if (!validAccountIdSet.has(aid)) {
             rowsSkipped++;
             continue;
           }
-          const row = rows[i];
-          const kind =
-            row.kind === "INCOME" ? TransactionKind.INCOME : TransactionKind.EXPENSE;
+          if (!groups.has(aid)) groups.set(aid, []);
+          groups.get(aid)!.push(row);
+        }
 
-          const name = row.description ?? row.rawCategory ?? "Sync import";
-
-          await tx.transaction.create({
-            data: {
+        // Run dedupe + insert for each per-account group.
+        for (const [accountId, groupRows] of groups) {
+          const existing = await db.transaction.findMany({
+            where: {
               userId,
               accountId,
-              kind,
-              status: TransactionStatus.DONE,
-              amount: row.amount,
-              currencyCode: row.currencyCode,
-              occurredAt: new Date(row.occurredAt),
-              name: name.substring(0, 240),
-              note: row.externalId ? `import:${row.externalId}` : null,
+              occurredAt: { gte: range.from, lte: range.to },
+              deletedAt: null,
             },
+            select: { id: true, note: true, occurredAt: true, amount: true, accountId: true },
           });
-          rowsCreated++;
+
+          const existingForDedupe = existing.map((t) => ({
+            externalId: t.note?.startsWith("import:") ? t.note.slice(7) : undefined,
+            occurredAt: t.occurredAt,
+            amount: t.amount.toString(),
+            accountId: t.accountId,
+          }));
+
+          const duplicateIndices = findDuplicates(groupRows, existingForDedupe, accountId);
+
+          await db.$transaction(async (tx) => {
+            for (let i = 0; i < groupRows.length; i++) {
+              if (duplicateIndices.has(i)) {
+                rowsSkipped++;
+                continue;
+              }
+              const row = groupRows[i];
+              const kind =
+                row.kind === "INCOME" ? TransactionKind.INCOME : TransactionKind.EXPENSE;
+              const name = row.description ?? row.rawCategory ?? "Sync import";
+              await tx.transaction.create({
+                data: {
+                  userId,
+                  accountId,
+                  kind,
+                  status: TransactionStatus.DONE,
+                  amount: row.amount,
+                  currencyCode: row.currencyCode,
+                  occurredAt: new Date(row.occurredAt),
+                  name: name.substring(0, 240),
+                  note: row.externalId ? `import:${row.externalId}` : null,
+                },
+              });
+              rowsCreated++;
+            }
+          });
         }
-      });
+      }
+
+      // ── Bucket B: legacy single-account path (CSV adapters) ──
+      if (rowsWithoutAccountId.length > 0) {
+        let accountId = opts?.accountId;
+        if (!accountId) {
+          const fallback = await db.account.findFirst({
+            where: { userId, deletedAt: null, isArchived: false },
+            select: { id: true },
+            orderBy: { sortOrder: "asc" },
+          });
+          if (!fallback) {
+            throw Object.assign(
+              new Error("No active account found. Please specify an accountId."),
+              { code: "CONFLICT" },
+            );
+          }
+          accountId = fallback.id;
+        }
+
+        const existing = await db.transaction.findMany({
+          where: {
+            userId,
+            accountId,
+            occurredAt: { gte: range.from, lte: range.to },
+            deletedAt: null,
+          },
+          select: { id: true, note: true, occurredAt: true, amount: true, accountId: true },
+        });
+
+        const existingForDedupe = existing.map((t) => ({
+          externalId: t.note?.startsWith("import:") ? t.note.slice(7) : undefined,
+          occurredAt: t.occurredAt,
+          amount: t.amount.toString(),
+          accountId: t.accountId,
+        }));
+
+        const duplicateIndices = findDuplicates(rowsWithoutAccountId, existingForDedupe, accountId);
+
+        await db.$transaction(async (tx) => {
+          for (let i = 0; i < rowsWithoutAccountId.length; i++) {
+            if (duplicateIndices.has(i)) {
+              rowsSkipped++;
+              continue;
+            }
+            const row = rowsWithoutAccountId[i];
+            const kind =
+              row.kind === "INCOME" ? TransactionKind.INCOME : TransactionKind.EXPENSE;
+            const name = row.description ?? row.rawCategory ?? "Sync import";
+            await tx.transaction.create({
+              data: {
+                userId,
+                accountId,
+                kind,
+                status: TransactionStatus.DONE,
+                amount: row.amount,
+                currencyCode: row.currencyCode,
+                occurredAt: new Date(row.occurredAt),
+                name: name.substring(0, 240),
+                note: row.externalId ? `import:${row.externalId}` : null,
+              },
+            });
+            rowsCreated++;
+          }
+        });
+      }
     }
 
     // Update lastSyncAt on success
@@ -429,4 +504,153 @@ export async function deleteCredential(userId: string, credentialId: string) {
   }
 
   await db.integrationCredential.delete({ where: { id: credentialId } });
+}
+
+// ─────────────────────────────────────────────────────────────
+// Account link mutations
+// ─────────────────────────────────────────────────────────────
+
+/** Link (or re-link) an external bank account to a local account. */
+export async function linkExternalAccount(
+  userId: string,
+  credentialId: string,
+  externalAccountId: string,
+  accountId: string,
+  label?: string,
+) {
+  assertAdminIntegrations(userId);
+
+  const cred = await db.integrationCredential.findFirst({
+    where: { id: credentialId, userId },
+    select: { id: true },
+  });
+  if (!cred) {
+    throw Object.assign(new Error("Credential not found"), { code: "NOT_FOUND" });
+  }
+
+  const account = await db.account.findFirst({
+    where: { id: accountId, userId, deletedAt: null },
+    select: { id: true },
+  });
+  if (!account) {
+    throw Object.assign(new Error("Account not found"), { code: "NOT_FOUND" });
+  }
+
+  const link = await db.integrationAccountLink.upsert({
+    where: { credentialId_externalAccountId: { credentialId, externalAccountId } },
+    create: { credentialId, externalAccountId, accountId, label: label ?? null },
+    update: { accountId, label: label ?? null },
+  });
+
+  return { id: link.id, externalAccountId: link.externalAccountId, accountId: link.accountId, label: link.label };
+}
+
+/** Remove the link between an external account id and a local account. */
+export async function unlinkExternalAccount(
+  userId: string,
+  credentialId: string,
+  externalAccountId: string,
+) {
+  assertAdminIntegrations(userId);
+
+  const cred = await db.integrationCredential.findFirst({
+    where: { id: credentialId, userId },
+    select: { id: true },
+  });
+  if (!cred) {
+    throw Object.assign(new Error("Credential not found"), { code: "NOT_FOUND" });
+  }
+
+  const result = await db.integrationAccountLink.deleteMany({
+    where: { credentialId, externalAccountId },
+  });
+
+  return { deleted: result.count };
+}
+
+/** List all account links for a credential, with joined account details. */
+export async function listAccountLinksForCredential(
+  userId: string,
+  credentialId: string,
+) {
+  assertAdminIntegrations(userId);
+
+  const cred = await db.integrationCredential.findFirst({
+    where: { id: credentialId, userId },
+    select: { id: true },
+  });
+  if (!cred) {
+    throw Object.assign(new Error("Credential not found"), { code: "NOT_FOUND" });
+  }
+
+  const links = await db.integrationAccountLink.findMany({
+    where: { credentialId },
+    include: {
+      account: {
+        select: { id: true, name: true, currencyCode: true },
+      },
+    },
+  });
+
+  return links.map((l) => ({
+    id: l.id,
+    externalAccountId: l.externalAccountId,
+    accountId: l.accountId,
+    label: l.label,
+    accountName: l.account.name,
+    accountCurrency: l.account.currencyCode,
+  }));
+}
+
+/** Re-run the login flow for an existing credential (e.g. after session expiry). */
+export async function reloginCredential(
+  userId: string,
+  credentialId: string,
+  input: { phone: string; password: string },
+) {
+  assertAdminIntegrations(userId);
+
+  const { cred, secrets } = await loadCredential(userId, credentialId);
+
+  const adapter = getAdapter(cred.adapterId);
+  if (!adapter) {
+    throw Object.assign(new Error(`Unknown adapter: ${cred.adapterId}`), {
+      code: "NOT_FOUND",
+    });
+  }
+  if (!adapter.login) {
+    throw Object.assign(
+      new Error(`Adapter ${cred.adapterId} does not support login`),
+      { code: "CONFLICT" },
+    );
+  }
+
+  const ctx = buildContext(userId, credentialId, secrets);
+  return adapter.login(ctx, { username: input.phone, password: input.password });
+}
+
+/** Call adapter.listExternalAccounts() to enumerate bank accounts via the API. */
+export async function listExternalAccountsForCredential(
+  userId: string,
+  credentialId: string,
+) {
+  assertAdminIntegrations(userId);
+
+  const { cred, secrets } = await loadCredential(userId, credentialId);
+
+  const adapter = getAdapter(cred.adapterId);
+  if (!adapter) {
+    throw Object.assign(new Error(`Unknown adapter: ${cred.adapterId}`), {
+      code: "NOT_FOUND",
+    });
+  }
+  if (!adapter.supports.listExternalAccounts || !adapter.listExternalAccounts) {
+    throw Object.assign(
+      new Error(`Adapter ${cred.adapterId} does not support listExternalAccounts`),
+      { code: "CONFLICT" },
+    );
+  }
+
+  const ctx = buildContext(userId, credentialId, secrets);
+  return adapter.listExternalAccounts(ctx);
 }

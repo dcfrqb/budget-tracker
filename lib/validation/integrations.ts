@@ -17,9 +17,10 @@ const zCuid = z.string().cuid();
  */
 export const connectTinkoffRetailSchema = z.object({
   adapterId: z.literal("tinkoff-retail"),
+  // Accepts +7XXXXXXXXXX, 8XXXXXXXXXX, or 7XXXXXXXXXX — adapter normalizes via normalizeRuPhone.
   phone: z
     .string()
-    .regex(/^\+7\d{10}$/, "Phone must be +7 followed by 10 digits"),
+    .regex(/^(?:\+7|8|7)\d{10}$/, "Phone must be +7/8/7 followed by 10 digits"),
   displayLabel: z.string().max(120).optional(),
 });
 
@@ -92,6 +93,27 @@ export const syncBodySchema = z
     },
     { message: "from must be before to" },
   );
+
+// ── Account link mutations ────────────────────────────────────
+
+export const linkExternalAccountSchema = z.object({
+  credentialId: zCuid,
+  externalAccountId: z.string().min(1).max(64),
+  accountId: zCuid,
+  label: z.string().max(120).optional(),
+});
+
+export const unlinkExternalAccountSchema = z.object({
+  credentialId: zCuid,
+  externalAccountId: z.string().min(1).max(64),
+});
+
+export const reloginSchema = z.object({
+  credentialId: zCuid,
+  // Loose — strict normalize happens in adapter via normalizeRuPhone.
+  phone: z.string().min(11).max(20),
+  password: z.string().min(1).max(200),
+});
 
 // ── Disconnect / Delete ───────────────────────────────────────
 

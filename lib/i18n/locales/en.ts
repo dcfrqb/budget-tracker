@@ -163,6 +163,43 @@ export const enDict: RuDictShape = {
         email: "Email notifications",
         api_reverse: "API (reverse)",
       },
+      tinkoff_retail: {
+        title: "T-Bank (retail)",
+        description: "Connect to your T-Bank personal account via reverse-API for automatic transaction sync.",
+        relogin: {
+          title: "Reconnect",
+          password_only_hint: "Session expired. Re-enter your password — phone is preserved.",
+        },
+        link: {
+          title: "Link accounts",
+          column: {
+            tbank_account: "T-Bank account",
+            currency: "Currency",
+            local_account: "Local account",
+          },
+          unlinked_option: "(unlinked)",
+          save: "Save links",
+          no_external_accounts: "No accounts found. Confirm SMS to fetch the list.",
+          manage_button: "Manage links",
+          linked_count: "Linked accounts: {count}",
+          loading: "Loading accounts from T-Bank…",
+        },
+        error: {
+          insufficient_privileges: "Session requires SMS confirmation. Click \"Submit OTP\".",
+          invalid_credentials: "Invalid login or password.",
+          rate_limited: "Too many attempts. Try again later.",
+          unknown: "Could not reach T-Bank.",
+        },
+        action: {
+          relogin: "Reconnect",
+          manage_links: "Account links",
+        },
+      },
+      sync: {
+        result: "+{created} / skipped {skipped}",
+        ok: "ok",
+        last_sync: "sync:",
+      },
     },
     export: {
       section_title: "Data export",
