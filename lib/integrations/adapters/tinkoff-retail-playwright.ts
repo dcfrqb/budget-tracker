@@ -196,15 +196,27 @@ export const tinkoffRetailAdapter: BankAdapter = {
           const { payload: ops } = parseTinkoffResponse<TinkoffOperation[]>(json);
 
           for (const op of ops) {
+            const cardLast4Raw = op.cardNumber != null
+              ? String(op.cardNumber).replace(/^\*+/, "").replace(/\D/g, "").slice(-4)
+              : undefined;
+            const cardLast4 =
+              cardLast4Raw !== undefined && /^\d{4}$/.test(cardLast4Raw)
+                ? cardLast4Raw
+                : undefined;
+
             const row: ImportRow = {
               externalId: op.id,
               occurredAt: new Date(op.operationTime.milliseconds).toISOString(),
-              amount: op.amount.value.toString(),
+              amount: Math.abs(op.amount.value).toFixed(2),
               currencyCode: op.amount.currency.name,
               kind: op.type === "Credit" ? "INCOME" : "EXPENSE",
               direction: op.type === "Credit" ? "in" : "out",
               description: op.description,
               accountId: link.accountId,
+              ...(cardLast4 !== undefined ? { cardLast4 } : {}),
+              ...(op.spendingCategory?.name !== undefined
+                ? { rawCategory: op.spendingCategory.name }
+                : {}),
               raw: {
                 tinkoffId: op.id,
                 ...(op.mccString !== undefined ? { mccString: op.mccString } : {}),
