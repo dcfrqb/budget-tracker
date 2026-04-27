@@ -1,6 +1,6 @@
 # Tinkoff Retail via Playwright — design & implementation plan
 
-> Status: design ready, implementation pending. POC at `scripts/probe-tinkoff-playwright.ts` confirmed end-to-end auth + cookie capture works.
+> Status: phases A1–C implemented and committed. Awaiting prod smoke (live SMS/PIN flow + selector tuning). POC at `scripts/probe-tinkoff-playwright.ts` confirmed end-to-end auth + cookie capture works.
 
 ## Why Playwright, not raw HTTP
 
@@ -184,28 +184,29 @@ Memory: prod VPS has X GB RAM (check). Each Playwright sync ≈ 250MB. With sing
 - Captcha solving (manual fallback)
 - Concurrent syncs (rate-limit prevents)
 
-## Concrete next-session execution order
+## Implementation status (2026-04-27)
 
-1. **db-migrator** — none, schema reuse.
-2. **coder phase A**:
-   - Add `playwright` to `dependencies` in `package.json`.
-   - Create `playwright/browser.ts` + `playwright/auth-flow.ts` + `playwright/sms-channel.ts`.
-   - Replace adapter file with `tinkoff-retail-playwright.ts`.
-   - Delete old `tinkoff-retail.ts` + `tinkoff-retail.client.ts`.
-   - Wire into `registry.ts`.
-3. **coder phase B**:
-   - Update `connectTinkoffRetailSchema` to require `pin` (4-digit string).
-   - Update `IntegrationsManager`'s ConnectDialog: add PIN field for tinkoff-retail.
-   - Update `submitOtpForCredential`: route SMS to sms-channel instead of adapter.submitOtp.
-   - i18n keys for `pin` field.
-4. **coder phase C**:
-   - Update `Dockerfile` for Chromium install.
-   - Update `docker-compose.prod.yml` for volume.
-5. **reviewer** — usual checks + verify no Russian leakage + Dockerfile changes.
-6. **manual smoke**: connect → SMS → PIN → see CONNECTED → click Sync → see operations.
-7. **Deploy** to prod.
+Phases A1–C plus follow-up polish are merged on `main`. Open work is the live smoke and any selector tuning that follows.
 
-Estimated effort: ~6 hours pure coding, plus debug iterations as Playwright selectors are tuned against the live Tinkoff UI.
+- **A1 — foundation** (`da9defd`): `playwright/sms-channel.ts`, `playwright/browser.ts`, `playwright` moved to `dependencies` (pinned `1.59.1`).
+- **A2 — auth-flow + adapter** (`0fac521`): `auth-flow.ts`, `session-registry.ts`, `tinkoff-retail-playwright.ts`, parser extraction, types rewrite, registry retarget. Old `tinkoff-retail.ts` and `tinkoff-retail.client.ts` deleted.
+- **B — UI/validation/action/i18n** (`07f1f78`): PIN field with InfoCallout, `connectTinkoffRetailSchema` requires 4-digit PIN, `submitOtpForCredential` polls `session.promise` 8s for tinkoff-retail. RU+EN keys with parity.
+- **C — infra** (`79d20e7`): Dockerfile and runner switched to `node:20-bookworm-slim` (Alpine doesn't run Chromium); `npx playwright install chromium --with-deps`; `playwright-profiles` named volume.
+- **Polish**: mapping fidelity (`7f080b2` — rawCategory / cardLast4 / Math.abs+toFixed), error pipeline propagation (`3b5f44b`), exception classification (`29fd273`), `PLAYWRIGHT_HEADLESS` env override (`5d2ee6c`), env example (`f4d1ede`), `<code>: <details>` tolerance in mapAdapterError + circuit_open key (`000f504`), profileDirFor extraction (`83ed496`).
+
+### Smoke checklist (next session)
+
+1. Owner runs `npm install` in `code/` to regenerate `package-lock.json` (playwright now in deps), commits, pushes.
+2. Local `docker compose -f docker-compose.prod.yml build app` to confirm Chromium installs cleanly in the bookworm-slim image.
+3. Deploy: `ssh root@217.60.5.138 'cd /opt/budget-tracker && git pull origin main && docker compose -f docker-compose.prod.yml up -d --build'`.
+4. In `/settings/integrations`, click Connect on `tinkoff-retail`, fill phone + chosen PIN. Expect status NEEDS_OTP.
+5. Enter SMS code. Expect status CONNECTED within ~8s (background task finishes PIN+redirect).
+6. Open "Manage links", select internal accounts for the external ones, save.
+7. Click "Sync". Expect transactions imported.
+8. **If any step fails**: errors in `cred.lastErrorMessage` are now translated. Tail logs via `docker compose logs -f app | grep playwright-browser`. For visible-Chromium debugging set `PLAYWRIGHT_HEADLESS=false` and `PLAYWRIGHT_PROFILES_DIR=/tmp/...` in dev, run locally against staged Tinkoff.
+9. Selector tuning in `auth-flow.ts` is the most likely follow-up — POC was captured in early April, live UI may have drifted.
+
+Estimated remaining effort: 1–2 selector iterations, ~30 min each.
 
 ## Reference: POC findings
 
