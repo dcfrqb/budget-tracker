@@ -34,7 +34,7 @@ async function main() {
   const results: SiteResult[] = [];
 
   await withTbankBrowser(
-    { credentialId: "fingerprint-probe", headless: true },
+    { credentialId: "fingerprint-probe" },
     async ({ page }) => {
       for (const site of SITES) {
         log(`--- ${site.name} (${site.url}) ---`);
