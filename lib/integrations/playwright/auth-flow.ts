@@ -143,10 +143,36 @@ export async function runFullLogin(opts: {
     .locator("h1, h2, h3, [role=heading]")
     .evaluateAll((nodes) => nodes.map((n) => (n as HTMLElement).innerText.trim()).filter(Boolean))
     .catch(() => [] as string[]);
+  // Dump tag-names that appear in the document — Tinkoff often hides UI in
+  // <td-button>, <td-input>, etc. or inside Shadow DOM, so plain locators
+  // miss them.
+  const step4Tags = await page
+    .evaluate(() => {
+      const all = document.querySelectorAll("*");
+      const counts: Record<string, number> = {};
+      for (const el of Array.from(all)) {
+        const t = el.tagName.toLowerCase();
+        counts[t] = (counts[t] ?? 0) + 1;
+      }
+      return Object.entries(counts)
+        .filter(([t]) => t.includes("-") || /^(input|button|form|td|tb)/.test(t))
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 30);
+    })
+    .catch(() => [] as Array<[string, number]>);
+  // Dump outerHTML of the main container — should show the SPA root contents.
+  const step4Html = await page
+    .evaluate(() => {
+      const main = document.querySelector("main, [role=main], #root, #app, body");
+      return main ? (main as HTMLElement).outerHTML.slice(0, 4000) : "?";
+    })
+    .catch(() => "?");
   log(`step4: title="${step4Title}"`);
   log(`step4: headings=${JSON.stringify(step4Headings)}`);
   log(`step4: buttons=${JSON.stringify(step4Buttons)}`);
+  log(`step4: tags=${JSON.stringify(step4Tags)}`);
   log(`step4: body (first 3000): ${step4Body.slice(0, 3000).replace(/\s+/g, " ")}`);
+  log(`step4: html (first 4000): ${step4Html.replace(/\s+/g, " ")}`);
   const smsInput = page.locator('input[autocomplete="one-time-code"]').first();
   log("step5: waiting for SMS input visible");
   const smsVisible = await smsInput
