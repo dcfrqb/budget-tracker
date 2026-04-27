@@ -6,6 +6,7 @@ import type { BankAdapterMeta } from "@/lib/integrations/types";
 import type { IntegrationStatus } from "@prisma/client";
 import {
   connectAdapterAction,
+  loginAction,
   reloginAction,
   submitOtpAction,
   syncAction,
@@ -125,6 +126,17 @@ function ConnectDialog({
           input.password = password;
         }
         result = await connectAdapterAction(adapter.id, input);
+
+        // For login-flow adapters, connectAdapterAction only creates the
+        // credential row with empty secrets — it does NOT run adapter.login().
+        // Trigger the actual auth flow as a follow-up call so the user reaches
+        // NEEDS_OTP / CONNECTED in one click instead of staying at DISCONNECTED.
+        if (result.ok && adapter.supports.login) {
+          const created = result.data as { id?: string } | undefined;
+          if (created?.id) {
+            result = await loginAction(created.id, { username, password });
+          }
+        }
       }
 
       if (!result.ok) {
