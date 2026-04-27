@@ -46,13 +46,19 @@ export async function withTbankBrowser<T>(
       opts.headless ??
       (envHeadless === "false" || envHeadless === "0" ? false : true);
 
-    const context = await chromium.launchPersistentContext(profileDir, {
-      headless,
-      viewport: { width: 1280, height: 800 },
-      locale: "ru-RU",
-      timezoneId: "Europe/Moscow",
-      args: headless ? ["--no-sandbox"] : [],
-    });
+    let context: BrowserContext;
+    try {
+      context = await chromium.launchPersistentContext(profileDir, {
+        headless,
+        viewport: { width: 1280, height: 800 },
+        locale: "ru-RU",
+        timezoneId: "Europe/Moscow",
+        args: headless ? ["--no-sandbox"] : [],
+      });
+    } catch (err) {
+      console.error("[playwright-browser] launch failed:", err);
+      throw err;
+    }
 
     if (isFresh && opts.storageState) {
       try {
@@ -76,6 +82,9 @@ export async function withTbankBrowser<T>(
 
     try {
       return await fn({ context, page, saveStorageState });
+    } catch (err) {
+      console.error("[playwright-browser] callback failed:", err);
+      throw err;
     } finally {
       try {
         await context.close();

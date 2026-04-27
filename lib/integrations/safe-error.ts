@@ -40,6 +40,9 @@ const SENSITIVE_VALUE_PATTERNS: RegExp[] = [
   /\b\d{4}[\s\-]?\d{4}[\s\-]?\d{4}[\s\-]?\d{4}\b/g,
   // 6-digit OTP-like codes — applied last to reduce false positives
   /\b\d{6}\b/g,
+  // 4-digit PINs — only when preceded by a pin/code keyword (avoids years, amounts).
+  // Uses char-class boundaries instead of \b so Cyrillic пин/код are matched too.
+  /(?:^|[\s"':(,])(?:pin|пин|code|код)(?:[\s"':,)]|$)[^\d]{0,10}\d{4}(?=$|\D)/gi,
 ];
 
 const MAX_MESSAGE_LENGTH = 500;

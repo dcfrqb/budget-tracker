@@ -9,7 +9,7 @@ import type { AdapterContext } from "@/lib/integrations/types";
 import { findDuplicates } from "@/lib/import/dedupe";
 import { getSession } from "@/lib/integrations/playwright/session-registry";
 
-const POST_OTP_STATUS_POLL_MS = 8000;
+const POST_OTP_STATUS_POLL_MS = 20000;
 
 // ─────────────────────────────────────────────────────────────
 // Integration credential mutations — all guarded by assertAdminIntegrations
@@ -190,6 +190,10 @@ export async function submitOtpForCredential(
 
   const ctx = buildContext(userId, credentialId, secrets);
   const result = await adapter.submitOtp(ctx, input);
+
+  if (!result.ok && result.error === "no_pending_sms") {
+    await ctx.setStatus("ERROR", "session_expired");
+  }
 
   if (result.ok && cred.adapterId === "tinkoff-retail") {
     const session = getSession(credentialId);
