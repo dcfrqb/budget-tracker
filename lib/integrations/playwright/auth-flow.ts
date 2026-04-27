@@ -127,12 +127,37 @@ export async function runFullLogin(opts: {
   log("step4: waiting for /auth/step URL");
   await page.waitForURL(/id\.tbank\.ru\/auth\/step/, { timeout: 30_000 });
   log(`step4: at ${page.url()}`);
+  const step4Title = await page.title().catch(() => "?");
+  const step4Body = await page
+    .locator("body")
+    .innerText({ timeout: 2000 })
+    .catch(() => "?");
+  log(`step4: title="${step4Title}"`);
+  log(`step4: body (first 800): ${step4Body.slice(0, 800).replace(/\s+/g, " ")}`);
   const smsInput = page.locator('input[autocomplete="one-time-code"]').first();
-  await smsInput.waitFor({ state: "visible", timeout: 15_000 });
+  log("step5: waiting for SMS input visible");
+  const smsVisible = await smsInput
+    .waitFor({ state: "visible", timeout: 15_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!smsVisible) {
+    // Dump page state so we can see what T-Bank actually shows here.
+    const title = await page.title().catch(() => "?");
+    const bodyText = await page
+      .locator("body")
+      .innerText({ timeout: 2000 })
+      .catch(() => "?");
+    log(`step5: SMS input NOT visible. title="${title}"`);
+    log(`step5: body text (first 500 chars): ${bodyText.slice(0, 500).replace(/\s+/g, " ")}`);
+    throw new Error("sms_input_missing");
+  }
+  log("step5: SMS input visible");
   await detectCaptcha(page);
+  log("step5: no captcha; waiting for user to submit SMS code");
 
   // Step 5: get SMS code (no local timeout — sms-channel handles it)
   const sms = await smsResolver();
+  log(`step5: got SMS code (${sms.length} chars)`);
 
   // Step 6: fill SMS code; T-Bank may auto-submit
   await smsInput.fill(sms);
