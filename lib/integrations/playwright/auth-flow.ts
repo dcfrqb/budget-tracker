@@ -216,10 +216,13 @@ export async function runFullLogin(opts: {
   log(`step6: post-type URL=${page.url()}`);
 
   // Step 6.5: password screen — T-Bank may show "Введите пароль" after SMS.
-  // We probe for up to 5s; if not found we continue (some devices skip this step).
+  // T-Bank uses a custom Input component with automation-id="password-input"
+  // (phone uses automation-id="phone-input"; same convention). The input may
+  // be type="text" with CSS-only masking, so we cannot rely on type=password.
   log("step6.5: probing for password screen");
   const pwInput = page
-    .locator('input[type="password"]')
+    .locator('[automation-id="password-input"]')
+    .or(page.locator('input[type="password"]'))
     .or(page.locator('input[autocomplete="current-password"]'))
     .or(page.locator('input[name="password"]'))
     .first();
@@ -227,6 +230,31 @@ export async function runFullLogin(opts: {
     .waitFor({ state: "visible", timeout: 10_000 })
     .then(() => true)
     .catch(() => false);
+  if (!pwVisible) {
+    // Dump page state so we can see what selector T-Bank actually uses.
+    const url = page.url();
+    const title = await page.title().catch(() => "?");
+    const body = await page
+      .locator("body")
+      .innerText({ timeout: 2000 })
+      .catch(() => "?");
+    const inputAttrs = await page
+      .evaluate(() =>
+        Array.from(document.querySelectorAll("input")).map((el) => ({
+          type: el.type,
+          name: el.name,
+          autocomplete: el.autocomplete,
+          automationId: el.getAttribute("automation-id"),
+          placeholder: el.placeholder,
+          ariaLabel: el.getAttribute("aria-label"),
+        })),
+      )
+      .catch(() => [] as unknown[]);
+    log(
+      `step6.5: password screen NOT found. url=${url} title="${title}" inputs=${JSON.stringify(inputAttrs)}`,
+    );
+    log(`step6.5: body (first 600): ${body.slice(0, 600).replace(/\s+/g, " ")}`);
+  }
   if (pwVisible) {
     log("step6.5: password screen detected");
     await pwInput.click().catch(() => {});
