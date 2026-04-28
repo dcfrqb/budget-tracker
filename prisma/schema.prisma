@@ -157,6 +157,7 @@ model Account {
   // ── CREDIT (кредитные карты с лимитом/грейсом) ────────────────
   creditRatePct     Decimal? @db.Decimal(6, 3) // % годовых
   creditLimit       Decimal? @db.Decimal(28, 10) // лимит в валюте счёта
+  debtBalance       Decimal? @db.Decimal(28, 10) // Текущая задолженность по кредитной карте (от Тинькова и т.п.)
   gracePeriodDays   Int? // беспроцентный период в днях (0..365)
   statementDay      Int? // день выписки (1..31)
   minPaymentPercent Decimal? @db.Decimal(5, 2) // % от долга (если min payment задан процентом)

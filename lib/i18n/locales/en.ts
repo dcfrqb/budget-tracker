@@ -889,6 +889,7 @@ export const enDict: RuDictShape = {
         debt: "Debt",
         debt_inline: "Debt: {amount}",
         available: "Available",
+        limit: "Limit",
         no_limit: "No limit set",
       },
       form: {

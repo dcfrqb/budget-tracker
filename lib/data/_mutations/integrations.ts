@@ -251,9 +251,9 @@ export async function syncCredential(
       code: "NOT_FOUND",
     });
   }
-  if (!adapter.fetchTransactions) {
+  if (!adapter.fetchTransactions && !adapter.runSync) {
     throw Object.assign(
-      new Error(`Adapter ${cred.adapterId} does not support fetchTransactions`),
+      new Error(`Adapter ${cred.adapterId} does not support fetchTransactions or runSync`),
       { code: "CONFLICT" },
     );
   }
@@ -312,33 +312,69 @@ export async function syncCredential(
   let safeErr: { class: string; message: string } | undefined;
 
   try {
+    const FULL_SYNC_DAYS = 365;
+    const INCREMENTAL_BUFFER_HOURS = 24;
     const to = new Date();
-    const from = new Date(to.getTime() - 365 * 24 * 60 * 60 * 1000);
+    const fullFrom = new Date(to.getTime() - FULL_SYNC_DAYS * 24 * 60 * 60 * 1000);
+
+    let from: Date;
+    if (cred.lastSyncAt && cred.lastSyncAt.getTime() > fullFrom.getTime()) {
+      from = new Date(cred.lastSyncAt.getTime() - INCREMENTAL_BUFFER_HOURS * 60 * 60 * 1000);
+      console.log(`[playwright-tbank] sync: incremental from=${from.toISOString()} (lastSyncAt=${cred.lastSyncAt.toISOString()})`);
+    } else {
+      from = fullFrom;
+      console.log(`[playwright-tbank] sync: full backfill from=${from.toISOString()} (lastSyncAt=${cred.lastSyncAt?.toISOString() ?? "null"})`);
+    }
     const range = opts?.range ?? { from, to };
 
     const ctx = buildContext(userId, credentialId, secrets);
 
-    // ── Stage: refresh account metadata (balance, cardLast4, creditLimit, institutionId) ──
+    // ── Stage: fetch accounts + transactions ─────────────────────
     type ExternalsList = Awaited<ReturnType<NonNullable<typeof adapter.listExternalAccounts>>>;
     let externals: ExternalsList = [];
-    if (adapter.listExternalAccounts) {
+    let rows: Awaited<ReturnType<NonNullable<typeof adapter.fetchTransactions>>>;
+    let cardLast4ByExternal = new Map<string, string[]>();
+
+    if (adapter.runSync) {
+      // Single browser launch path (Tinkoff playwright adapter)
       try {
-        externals = await adapter.listExternalAccounts(ctx);
-        await refreshLinkedAccounts(userId, credentialId, externals);
-        console.log(`[playwright-tbank] sync: accounts_refresh ok count=${externals.length}`);
+        const result = await adapter.runSync(ctx, range);
+        externals = result.externals;
+        rows = result.rows;
+        cardLast4ByExternal = result.cardLast4ByExternal;
       } catch (err) {
-        console.error(`[playwright-tbank] sync: accounts_refresh failed: ${err instanceof Error ? err.message : String(err)}`);
-        // Soft-fail: continue to fetchTransactions. Existing data still useful.
+        console.error(`[playwright-tbank] sync: runSync failed: ${err instanceof Error ? err.message : String(err)}`);
+        throw err;
+      }
+    } else {
+      // Legacy two-call path for adapters without runSync (CSV, email-forward)
+      if (adapter.listExternalAccounts) {
+        try {
+          externals = await adapter.listExternalAccounts(ctx);
+        } catch (err) {
+          console.error(`[playwright-tbank] sync: accounts_refresh failed: ${err instanceof Error ? err.message : String(err)}`);
+          // soft-fail
+        }
+      }
+      try {
+        rows = await adapter.fetchTransactions!(ctx, range);
+      } catch (err) {
+        console.error(`[playwright-tbank] sync: fetch_transactions failed: ${err instanceof Error ? err.message : String(err)}`);
+        throw err;
       }
     }
 
-    // ── Stage: fetch transactions ─────────────────────────────────
-    let rows: Awaited<ReturnType<NonNullable<typeof adapter.fetchTransactions>>>;
-    try {
-      rows = await adapter.fetchTransactions(ctx, range);
-    } catch (err) {
-      console.error(`[playwright-tbank] sync: fetch_transactions failed: ${err instanceof Error ? err.message : String(err)}`);
-      throw err;
+    // Merge cardLast4 from operations into externals before refresh
+    for (const ext of externals) {
+      const fromOps = cardLast4ByExternal.get(ext.externalAccountId);
+      if (fromOps && fromOps.length > 0) {
+        ext.cardLast4 = Array.from(new Set([...(ext.cardLast4 ?? []), ...fromOps]));
+      }
+    }
+
+    if (externals.length > 0) {
+      await refreshLinkedAccounts(userId, credentialId, externals);
+      console.log(`[playwright-tbank] sync: accounts_refresh ok count=${externals.length}`);
     }
 
     if (rows.length > 0) {
@@ -843,10 +879,7 @@ export async function createAccountAndLink(
 /**
  * Refresh metadata on already-linked Accounts using fresh data from
  * adapter.listExternalAccounts. Updates balance, cardLast4, creditLimit,
- * minPaymentFixed, and backfills institutionId if missing.
- *
- * NOTE: Account schema does NOT have a debtBalance field — incoming debtBalance
- * is logged as a TODO and skipped until db-migrator adds the column.
+ * debtBalance, minPaymentFixed, and backfills institutionId if missing.
  */
 async function refreshLinkedAccounts(
   userId: string,
@@ -865,8 +898,6 @@ async function refreshLinkedAccounts(
     select: { externalAccountId: true, accountId: true },
   });
   const byExternal = new Map(links.map((l) => [l.externalAccountId, l.accountId]));
-
-  let debtBalanceTodoLogged = false;
 
   for (const ext of externals) {
     const accountId = byExternal.get(ext.externalAccountId);
@@ -900,9 +931,8 @@ async function refreshLinkedAccounts(
       updateData.minPaymentFixed = ext.currentMinimalPayment;
     }
 
-    if (ext.debtBalance !== undefined && !debtBalanceTodoLogged) {
-      console.log(`[playwright-tbank] refreshLinkedAccounts: TODO — Account.debtBalance field not in schema; skipping debtBalance for account=${accountId}. Call db-migrator to add it.`);
-      debtBalanceTodoLogged = true;
+    if (ext.debtBalance !== undefined) {
+      updateData.debtBalance = ext.debtBalance;
     }
 
     if (account.institutionId === null) {

@@ -61,9 +61,8 @@ export function Institutions({ institutions }: Props) {
                         <>
                           <span className="acc-updated dim">{t("wallet.account.credit.available")}</span>
                           <span className="acc-val pos">{a.creditAvailable}</span>
-                          <span className="acc-updated dim">
-                            {t("wallet.account.credit.debt_inline", { vars: { amount: a.creditDebt } })}
-                          </span>
+                          <span className="acc-updated dim">{t("wallet.account.credit.limit")}: {a.creditLimit}</span>
+                          <span className="acc-updated dim">{t("wallet.account.credit.debt")}: <span className="neg">{a.creditDebt}</span></span>
                         </>
                       )}
                     </>

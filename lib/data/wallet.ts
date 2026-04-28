@@ -230,7 +230,7 @@ export async function getWalletTotals(
   const [accounts, rates] = await Promise.all([
     db.account.findMany({
       where: { userId, deletedAt: null, isArchived: false, includeInAnalytics: true },
-      select: { id: true, kind: true, currencyCode: true, balance: true },
+      select: { id: true, kind: true, currencyCode: true, balance: true, debtBalance: true, creditLimit: true },
     }),
     getLatestRatesMap(),
   ]);
@@ -247,19 +247,39 @@ export async function getWalletTotals(
     // LOAN accounts represent liabilities — excluded from all money aggregates.
     if (a.kind === "LOAN") continue;
 
+    // CREDIT accounts: subtract debt from net worth; do NOT include in liquid bucket.
+    if (a.kind === "CREDIT") {
+      let debt: Prisma.Decimal;
+      if (a.debtBalance != null) {
+        // Authoritative field synced from T-Bank: use directly.
+        debt = new Prisma.Decimal(a.debtBalance);
+      } else if (a.creditLimit != null) {
+        // Derive: debt = creditLimit - balance (balance = available credit).
+        const bal = new Prisma.Decimal(a.balance);
+        const lim = new Prisma.Decimal(a.creditLimit);
+        const derived = lim.minus(bal);
+        debt = derived.lt(0) ? new Prisma.Decimal(0) : derived;
+      } else {
+        // Legacy fallback: treat balance magnitude as debt.
+        console.warn(`[wallet] CREDIT account ${a.id} has no debtBalance/creditLimit; treating balance as debt (legacy fallback)`);
+        const bal = new Prisma.Decimal(a.balance);
+        debt = bal.lt(0) ? bal.abs() : bal;
+      }
+      const debtInBase = convertToBase(debt, a.currencyCode, baseCcy, rates);
+      if (!debtInBase) {
+        console.warn(`[wallet] skip acc ${a.id}: no rate ${a.currencyCode}→${baseCcy}`);
+        continue;
+      }
+      totals.net.valueBase = totals.net.valueBase.minus(debtInBase);
+      totals.net.accountsCount += 1;
+      continue;
+    }
+
     const inBase = convertToBase(a.balance, a.currencyCode, baseCcy, rates);
     if (!inBase) {
       console.warn(
         `[wallet] skip acc ${a.id}: no rate ${a.currencyCode}→${baseCcy}`,
       );
-      continue;
-    }
-
-    // CREDIT accounts: balance = current debt (positive number = money owed).
-    // Subtract from net as a liability; do NOT include in liquid bucket.
-    if (a.kind === "CREDIT") {
-      totals.net.valueBase = totals.net.valueBase.minus(inBase);
-      totals.net.accountsCount += 1;
       continue;
     }
 
@@ -315,7 +335,7 @@ export async function getBalancesByCurrency(
 ): Promise<Map<string, Prisma.Decimal>> {
   const accounts = await db.account.findMany({
     where: { userId, deletedAt: null, isArchived: false, includeInAnalytics: true },
-    select: { kind: true, currencyCode: true, balance: true },
+    select: { id: true, kind: true, currencyCode: true, balance: true, debtBalance: true, creditLimit: true },
   });
 
   const map = new Map<string, Prisma.Decimal>();
@@ -325,8 +345,20 @@ export async function getBalancesByCurrency(
 
     const prev = map.get(a.currencyCode) ?? new Prisma.Decimal(0);
     if (a.kind === "CREDIT") {
-      // CREDIT balance = current debt (positive = owed). Subtract as liability.
-      map.set(a.currencyCode, prev.minus(new Prisma.Decimal(a.balance)));
+      let debt: Prisma.Decimal;
+      if (a.debtBalance != null) {
+        debt = new Prisma.Decimal(a.debtBalance);
+      } else if (a.creditLimit != null) {
+        const bal = new Prisma.Decimal(a.balance);
+        const lim = new Prisma.Decimal(a.creditLimit);
+        const derived = lim.minus(bal);
+        debt = derived.lt(0) ? new Prisma.Decimal(0) : derived;
+      } else {
+        console.warn(`[wallet] CREDIT account ${a.id} has no debtBalance/creditLimit; treating balance as debt (legacy fallback)`);
+        const bal = new Prisma.Decimal(a.balance);
+        debt = bal.lt(0) ? bal.abs() : bal;
+      }
+      map.set(a.currencyCode, prev.minus(debt));
     } else {
       map.set(a.currencyCode, prev.plus(new Prisma.Decimal(a.balance)));
     }

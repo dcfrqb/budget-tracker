@@ -33,6 +33,7 @@ export type AccountView = {
   // CREDIT-specific display fields (only set when kind === "CREDIT")
   creditDebt?: string;
   creditAvailable?: string;
+  creditLimit?: string;
   creditNoLimit?: boolean;
 };
 
@@ -100,20 +101,29 @@ export function toAccountView(
 
   const colPill = a.customPillLabel ?? COL_PILL[a.kind];
 
-  // CREDIT-specific fields: balance < 0 means debt
+  // CREDIT-specific fields
   let creditDebt: string | undefined;
   let creditAvailable: string | undefined;
+  let creditLimit: string | undefined;
   let creditNoLimit: boolean | undefined;
 
   if (a.kind === "CREDIT") {
     const bal = new Prisma.Decimal(a.balance);
-    const debtAmt = bal.lt(0) ? bal.abs() : new Prisma.Decimal(0);
+
+    let debtAmt: Prisma.Decimal;
+    if (a.debtBalance != null) {
+      debtAmt = new Prisma.Decimal(a.debtBalance);
+    } else {
+      debtAmt = bal.lt(0) ? bal.abs() : new Prisma.Decimal(0);
+    }
     creditDebt = formatAmount(debtAmt, a.currency);
 
     if (a.creditLimit != null) {
-      const available = new Prisma.Decimal(a.creditLimit).plus(bal);
+      const lim = new Prisma.Decimal(a.creditLimit);
+      const available = lim.minus(debtAmt);
       const availableClamped = available.lt(0) ? new Prisma.Decimal(0) : available;
       creditAvailable = formatAmount(availableClamped, a.currency);
+      creditLimit = formatAmount(lim, a.currency);
       creditNoLimit = false;
     } else {
       creditNoLimit = true;
@@ -134,6 +144,7 @@ export function toAccountView(
     excludedFromAnalytics: !a.includeInAnalytics,
     creditDebt,
     creditAvailable,
+    creditLimit,
     creditNoLimit,
   };
 }

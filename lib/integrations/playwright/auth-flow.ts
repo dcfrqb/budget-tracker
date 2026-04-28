@@ -595,10 +595,10 @@ export async function runFullLogin(opts: {
       log(`loop[${i}]: mybank reached, capturing storageState`);
       const storageState = JSON.stringify(await page.context().storageState());
       log(`loop[${i}]: storageState captured (${storageState.length} chars)`);
-      log(`mybank: waiting for SPA to settle and fire API calls`);
-      await page.waitForLoadState("networkidle", { timeout: 8_000 }).catch(() => {
-        log(`mybank: networkidle timed out (8s) — proceeding anyway`);
-      });
+      // Post-mybank networkidle wait removed: extractSessionAuth's cookie path reads
+      // already-set cookies (no network dependency); the harvest-listener fallback
+      // arms BEFORE navigation, so it doesn't need post-arrival quiescence either.
+      // Saves ~8s × 2 launches = up to 16s wall-time.
       const sessionAuth = await extractSessionAuth(page);
       return { storageState, sessionAuth };
     }
@@ -631,10 +631,10 @@ export async function runFastLogin(opts: {
     const currentUrl = page.url();
 
     if (currentUrl.includes("tbank.ru/mybank")) {
-      log(`mybank: waiting for SPA to settle and fire API calls`);
-      await page.waitForLoadState("networkidle", { timeout: 8_000 }).catch(() => {
-        log(`mybank: networkidle timed out (8s) — proceeding anyway`);
-      });
+      // Post-mybank networkidle wait removed: extractSessionAuth's cookie path reads
+      // already-set cookies (no network dependency); the harvest-listener fallback
+      // arms BEFORE navigation, so it doesn't need post-arrival quiescence either.
+      // Saves ~8s × 2 launches = up to 16s wall-time.
       const sessionAuth = await extractSessionAuth(page);
       return { sessionAuth };
     }
@@ -648,10 +648,10 @@ export async function runFastLogin(opts: {
       await fillPinInputs(page, pin);
       await humanDelay();
       await page.waitForURL(/^https:\/\/www\.tbank\.ru\/mybank/, { timeout: 30_000 });
-      log(`mybank: waiting for SPA to settle and fire API calls`);
-      await page.waitForLoadState("networkidle", { timeout: 8_000 }).catch(() => {
-        log(`mybank: networkidle timed out (8s) — proceeding anyway`);
-      });
+      // Post-mybank networkidle wait removed: extractSessionAuth's cookie path reads
+      // already-set cookies (no network dependency); the harvest-listener fallback
+      // arms BEFORE navigation, so it doesn't need post-arrival quiescence either.
+      // Saves ~8s × 2 launches = up to 16s wall-time.
       const sessionAuth = await extractSessionAuth(page);
       return { sessionAuth };
     }

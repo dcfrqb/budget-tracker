@@ -83,6 +83,14 @@ export type BankAdapter = {
       currentMinimalPayment?: string;
     }>
   >;
+  runSync?: (
+    ctx: AdapterContext,
+    range: { from: Date; to: Date },
+  ) => Promise<{
+    externals: Awaited<ReturnType<NonNullable<BankAdapter["listExternalAccounts"]>>>;
+    rows: ImportRow[];
+    cardLast4ByExternal: Map<string, string[]>;
+  }>;
   refreshSession?: (ctx: AdapterContext) => Promise<void>;
   disconnect?: (ctx: AdapterContext) => Promise<void>;
 };

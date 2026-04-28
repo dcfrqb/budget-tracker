@@ -197,6 +197,12 @@ function readSecrets(ctx: AdapterContext): TinkoffPlaywrightSecrets {
   return ctx.secrets as TinkoffPlaywrightSecrets;
 }
 
+function extractLast4(masked: string | undefined): string | undefined {
+  if (!masked) return undefined;
+  const last4 = masked.replace(/\D/g, "").slice(-4);
+  return /^\d{4}$/.test(last4) ? last4 : undefined;
+}
+
 export const tinkoffRetailAdapter: BankAdapter = {
   id: "tinkoff-retail",
   displayName: "settings.integrations.adapter.tinkoff_retail",
@@ -540,14 +546,15 @@ export const tinkoffRetailAdapter: BankAdapter = {
           // RUNTIME-PROBE: dump raw masked card strings so owner can verify the last-4 regex handles credit-card masks
           if (cardSources.length > 0) log(`listExternalAccounts: cardSourcesRaw=${JSON.stringify(cardSources)}`);
         }
+        if (TBANK_API_DEBUG) {
+          for (const a of accounts) {
+            if (a.accountType === "Credit" || a.accountType === "CreditCard") {
+              log(`listExternalAccounts: FULL_PAYLOAD_PROBE account=${a.id} type=${a.accountType}: ${JSON.stringify(a)}`);
+            }
+          }
+        }
 
         const result = accounts.map((acct) => {
-          const extractLast4 = (masked: string | undefined): string | undefined => {
-            if (!masked) return undefined;
-            const last4 = masked.replace(/\D/g, "").slice(-4);
-            return /^\d{4}$/.test(last4) ? last4 : undefined;
-          };
-
           const cardSources: string[] = [];
           if (acct.cardNumber) cardSources.push(acct.cardNumber);
           if (Array.isArray(acct.cards)) {
@@ -581,6 +588,153 @@ export const tinkoffRetailAdapter: BankAdapter = {
         } satisfies TinkoffPlaywrightSecrets);
 
         return result;
+      },
+    );
+  },
+
+  async runSync(ctx, range) {
+    const secrets = readSecrets(ctx);
+    if (!secrets.storageState) {
+      await ctx.setStatus("NEEDS_OTP", "no_session");
+      throw new Error("no_session");
+    }
+
+    const links = await listAccountLinks(ctx.credentialId);
+    log(`runSync: enter credentialId=${ctx.credentialId} links=${links.length} range=${range.from.toISOString()}..${range.to.toISOString()}`);
+
+    return withTbankBrowser(
+      { credentialId: ctx.credentialId, storageState: secrets.storageState },
+      async ({ page, saveStorageState }) => {
+        let sessionAuth: TinkoffSessionAuth;
+        try {
+          ({ sessionAuth } = await runFastLogin({ page, pin: secrets.pin }));
+        } catch (err) {
+          if (err instanceof Error && err.message === "session_expired") {
+            await ctx.setStatus("NEEDS_OTP", "session_expired");
+            throw err;
+          }
+          if (err instanceof Error && err.message === "captcha_required") {
+            await ctx.setStatus("ERROR", "captcha_required");
+            throw err;
+          }
+          throw err;
+        }
+
+        // Stage 1: harvest accounts_light_ib (SPA fires it on /mybank/).
+        const detachLogger1 = attachApiResponseLogger(page, "runSync.accounts");
+        let accountsResponse: { status: number; body: string };
+        try {
+          const harvestPromise = harvestSpaApiResponse(
+            page,
+            /\/api\/[^?]*accounts_light_ib/i,
+            "runSync.accounts",
+            { timeout: 20_000 },
+          );
+          await elevateSessionViaSpa(page, "https://www.tbank.ru/mybank/", "runSync.accounts");
+          try {
+            const harvested = await harvestPromise;
+            accountsResponse = { status: harvested.status, body: harvested.body };
+            log(`runSync.accounts: harvested SPA response — using it`);
+          } catch (err) {
+            log(`runSync.accounts: harvest failed (${err instanceof Error ? err.message : String(err)}) — falling back to direct fetch`);
+            const url = buildApiUrl("accounts_light_ib", sessionAuth);
+            accountsResponse = await tbankApiGetViaPage(page, url, sessionAuth, "runSync.accounts");
+          }
+        } finally {
+          detachLogger1();
+        }
+
+        if (accountsResponse.status !== 200) {
+          log(`runSync.accounts: non-200 — body (first 1000): ${accountsResponse.body.slice(0, 1000)}`);
+          throw new Error(`accounts_light_ib HTTP ${accountsResponse.status}`);
+        }
+
+        const accountsJson = JSON.parse(accountsResponse.body);
+        const { payload: accountsPayload } = parseTinkoffResponse<TinkoffAccountSummary[]>(accountsJson);
+        log(`runSync.accounts: payload count=${accountsPayload.length}`);
+        // [Phase A coder adds the FULL_PAYLOAD_PROBE log here — do NOT touch]
+
+        // Build externals (same shape as listExternalAccounts).
+        const externals = accountsPayload.map((acct) => {
+          const cardSources: string[] = [];
+          if (acct.cardNumber) cardSources.push(acct.cardNumber);
+          if (Array.isArray(acct.cards)) for (const c of acct.cards) if (c?.number) cardSources.push(c.number);
+          const cardLast4 = Array.from(new Set(cardSources.map(extractLast4).filter((v): v is string => v !== undefined)));
+          return {
+            externalAccountId: acct.id,
+            label: `${acct.name} (${acct.currency.name})`,
+            currencyCode: acct.currency.name,
+            accountType: acct.accountType,
+            balance: acct.moneyAmount?.value !== undefined ? String(acct.moneyAmount.value) : undefined,
+            cardLast4: cardLast4.length > 0 ? cardLast4 : undefined,
+            creditLimit: acct.creditLimit?.value !== undefined ? String(acct.creditLimit.value) : undefined,
+            debtBalance: acct.debtBalance?.value !== undefined ? String(acct.debtBalance.value) : undefined,
+            currentMinimalPayment: acct.currentMinimalPayment?.value !== undefined ? String(acct.currentMinimalPayment.value) : undefined,
+          };
+        });
+
+        // Stage 2: per-link operations — DIRECT FETCH only (SPA never fires operations on /mybank/).
+        const rows: ImportRow[] = [];
+        const cardLast4ByExternal = new Map<string, string[]>();
+
+        for (const link of links) {
+          log(`runSync.operations: link accountId=${link.accountId} external=${link.externalAccountId} range=${range.from.toISOString()}..${range.to.toISOString()} — direct fetch (no harvest)`);
+          const url = buildApiUrl("operations", sessionAuth, {
+            account: link.externalAccountId,
+            start: range.from.getTime(),
+            end: range.to.getTime(),
+          });
+          const response = await tbankApiGetViaPage(page, url, sessionAuth, "runSync.operations");
+          if (response.status !== 200) {
+            log(`runSync.operations: non-200 — body (first 1000): ${response.body.slice(0, 1000)}`);
+            throw new Error(`operations HTTP ${response.status}`);
+          }
+          const opsJson = JSON.parse(response.body);
+          const { payload: ops } = parseTinkoffResponse<TinkoffOperation[]>(opsJson);
+          log(`runSync.operations: link external=${link.externalAccountId} ops=${ops.length}`);
+
+          const cardLast4Set = new Set<string>();
+          for (const op of ops) {
+            const cardLast4Raw = op.cardNumber != null
+              ? String(op.cardNumber).replace(/^\*+/, "").replace(/\D/g, "").slice(-4)
+              : undefined;
+            const last4 = cardLast4Raw !== undefined && /^\d{4}$/.test(cardLast4Raw) ? cardLast4Raw : undefined;
+            if (last4) cardLast4Set.add(last4);
+
+            rows.push({
+              externalId: op.id,
+              occurredAt: new Date(op.operationTime.milliseconds).toISOString(),
+              amount: Math.abs(op.amount.value).toFixed(2),
+              currencyCode: op.amount.currency.name,
+              kind: op.type === "Credit" ? "INCOME" : "EXPENSE",
+              direction: op.type === "Credit" ? "in" : "out",
+              description: op.description,
+              accountId: link.accountId,
+              ...(last4 ? { cardLast4: last4 } : {}),
+              ...(op.spendingCategory?.name !== undefined ? { rawCategory: op.spendingCategory.name } : {}),
+              raw: {
+                tinkoffId: op.id,
+                ...(op.mccString !== undefined ? { mccString: op.mccString } : {}),
+                ...(op.cardNumber !== undefined ? { cardNumber: op.cardNumber } : {}),
+                ...(op.spendingCategory?.name !== undefined ? { rawCategory: op.spendingCategory.name } : {}),
+              },
+            });
+          }
+          cardLast4ByExternal.set(link.externalAccountId, [...cardLast4Set]);
+        }
+
+        log(`runSync: total rows=${rows.length} across ${links.length} links`);
+
+        const freshStorageState = await saveStorageState();
+        await ctx.saveSecrets({
+          ...secrets,
+          storageState: freshStorageState,
+          sessionid: sessionAuth.sessionid,
+          wuid: sessionAuth.wuid,
+          lastFastLoginAt: Date.now(),
+        } satisfies TinkoffPlaywrightSecrets);
+
+        return { externals, rows, cardLast4ByExternal };
       },
     );
   },
