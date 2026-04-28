@@ -83,6 +83,43 @@ function buildApiUrl(
 
 const log = (msg: string) => console.log(`[playwright-tbank] ${msg}`);
 
+const TBANK_API_DEBUG = process.env.DEBUG_PLAYWRIGHT !== "false";
+
+/**
+ * Performs a T-Bank API GET via the page's own fetch context. Critical because
+ * page.request.get() bypasses the SPA's auth/CSRF/Origin/Referer setup; T-Bank
+ * accepts the request at HTTP level (200) but the application layer rejects
+ * with INSUFFICIENT_PRIVILEGES. Routing through page.evaluate(fetch) makes the
+ * call indistinguishable from one the SPA would issue itself — same Origin,
+ * same Referer, same automatic cookie+CSRF semantics.
+ */
+async function tbankApiGetViaPage(
+  page: import("playwright").Page,
+  url: string,
+  sessionAuth: TinkoffSessionAuth,
+  label: string,
+): Promise<{ status: number; body: string }> {
+  const redactedUrl = url.replace(sessionAuth.sessionid, "[REDACTED]");
+  log(`${label}: tbankApiGetViaPage url=${redactedUrl}`);
+  const result = await page.evaluate(async (fetchUrl) => {
+    try {
+      const r = await fetch(fetchUrl, {
+        credentials: "include",
+        headers: { Accept: "application/json,text/plain,*/*" },
+      });
+      const body = await r.text();
+      return { status: r.status, body };
+    } catch (err) {
+      return { status: 0, body: `fetch threw: ${err instanceof Error ? err.message : String(err)}` };
+    }
+  }, url);
+  log(`${label}: tbankApiGetViaPage HTTP ${result.status} bodyLen=${result.body.length}`);
+  if (TBANK_API_DEBUG) {
+    log(`${label}: tbankApiGetViaPage body (first 1500 chars): ${result.body.slice(0, 1500)}`);
+  }
+  return result;
+}
+
 function readSecrets(ctx: AdapterContext): TinkoffPlaywrightSecrets {
   return ctx.secrets as TinkoffPlaywrightSecrets;
 }
@@ -261,15 +298,20 @@ export const tinkoffRetailAdapter: BankAdapter = {
             end: range.to.getTime(),
           });
 
-          const response = await page.request.get(url);
-          if (response.status() !== 200) {
-            const body = await response.text();
-            log(`fetchTransactions: HTTP ${response.status()} url=${url.replace(sessionAuth.sessionid, "[REDACTED]")} — non-200 body (first 1000 chars): ${body.slice(0, 1000)}`);
-            throw new Error(`operations HTTP ${response.status()}`);
+          const response = await tbankApiGetViaPage(page, url, sessionAuth, "fetchTransactions");
+          if (response.status !== 200) {
+            log(`fetchTransactions: non-200 — body (first 1000): ${response.body.slice(0, 1000)}`);
+            throw new Error(`operations HTTP ${response.status}`);
           }
-          const json = await response.json();
+          let json: unknown;
+          try {
+            json = JSON.parse(response.body);
+          } catch (err) {
+            log(`fetchTransactions: JSON.parse failed (first 500 of body): ${response.body.slice(0, 500)}`);
+            throw err;
+          }
           const { payload: ops } = parseTinkoffResponse<TinkoffOperation[]>(json);
-          log(`fetchTransactions: HTTP ${response.status()} url=${url.replace(sessionAuth.sessionid, "[REDACTED]")} ops=${ops.length}`);
+          log(`fetchTransactions: ops=${ops.length}`);
 
           for (const op of ops) {
             const cardLast4Raw = op.cardNumber != null
@@ -352,14 +394,18 @@ export const tinkoffRetailAdapter: BankAdapter = {
 
         log(`listExternalAccounts: starting api call sessionAuth=${sessionAuth.sessionid.slice(0, 6)}…(len=${sessionAuth.sessionid.length})`);
         const url = buildApiUrl("accounts_light_ib", sessionAuth);
-        const response = await page.request.get(url);
-        log(`listExternalAccounts: HTTP ${response.status()} url=${url.replace(sessionAuth.sessionid, "[REDACTED]")}`);
-        if (response.status() !== 200) {
-          const body = await response.text();
-          log(`listExternalAccounts: non-200 body (first 1000 chars): ${body.slice(0, 1000)}`);
-          throw new Error(`accounts_light_ib HTTP ${response.status()}`);
+        const response = await tbankApiGetViaPage(page, url, sessionAuth, "listExternalAccounts");
+        if (response.status !== 200) {
+          log(`listExternalAccounts: non-200 — body (first 1000): ${response.body.slice(0, 1000)}`);
+          throw new Error(`accounts_light_ib HTTP ${response.status}`);
         }
-        const json = await response.json();
+        let json: unknown;
+        try {
+          json = JSON.parse(response.body);
+        } catch (err) {
+          log(`listExternalAccounts: JSON.parse failed (first 500 of body): ${response.body.slice(0, 500)}`);
+          throw err;
+        }
         const { payload: accounts } =
           parseTinkoffResponse<TinkoffAccountSummary[]>(json);
         log(`listExternalAccounts: raw payload count=${accounts.length}`);
