@@ -31,14 +31,25 @@ type ActOnContext = { phone: string; pin: string; password?: string };
 
 export type TinkoffSessionAuth = { sessionid: string; wuid: string };
 
-const COOKIE_NAME_SESSIONID_CANDIDATES = ["sessionid"]; // RUNTIME-PROBE: confirm exact name
-const COOKIE_NAME_WUID_CANDIDATES = ["__P__wuid", "wuid"]; // POC saw __P__wuid
+// Cookie name candidates for the sessionid URL param. POC capture had value
+// "JkvvUt....authenticon-..." which matches JSESSIONID/SpringSecurity sticky-route
+// format. Live diagnostic 2026-04-28 confirmed there is no cookie literally named
+// "sessionid"; SSO_SESSION is the most plausible match per design-doc cookie list.
+const COOKIE_NAME_SESSIONID_CANDIDATES = [
+  "SSO_SESSION",
+  "sso_api_session",
+  "psid",
+  "ssoId",
+  "api_sso_id",
+  "sessionid",
+];
+const COOKIE_NAME_WUID_CANDIDATES = ["__P__wuid", "wuid"]; // confirmed __P__wuid
 
-export async function extractSessionCookies(page: Page): Promise<TinkoffSessionAuth> {
+export async function extractSessionAuth(page: Page): Promise<TinkoffSessionAuth> {
   const cookies = await page.context().cookies();
   const tbankCookies = cookies.filter((c) => /(^|\.)tbank\.ru$/.test(c.domain));
   const names = tbankCookies.map((c) => c.name).sort();
-  log(`cookies after auth: ${JSON.stringify(names)}`);
+  log(`extractSessionAuth: cookies after auth: ${JSON.stringify(names)}`);
 
   const findOne = (candidates: string[]) =>
     candidates
@@ -48,19 +59,44 @@ export async function extractSessionCookies(page: Page): Promise<TinkoffSessionA
   const sessionCookie = findOne(COOKIE_NAME_SESSIONID_CANDIDATES);
   const wuidCookie = findOne(COOKIE_NAME_WUID_CANDIDATES);
 
-  if (!sessionCookie || !wuidCookie) {
+  if (sessionCookie && wuidCookie) {
+    const preview = (v: string) => `${v.slice(0, 6)}…(len=${v.length})`;
     log(
-      `extractSessionCookies: MISSING sessionid_found=${Boolean(sessionCookie)} wuid_found=${Boolean(wuidCookie)} cookieNames=${JSON.stringify(names)}`,
+      `extractSessionAuth: cookie path won — sessionid<-${sessionCookie.name}=${preview(sessionCookie.value)} wuid<-${wuidCookie.name}=${preview(wuidCookie.value)}`,
+    );
+    return { sessionid: sessionCookie.value, wuid: wuidCookie.value };
+  }
+
+  log(
+    `extractSessionAuth: cookie path FAILED sid_found=${Boolean(sessionCookie)} wuid_found=${Boolean(wuidCookie)} — falling back to traffic listener`,
+  );
+  return harvestSessionAuthFromTraffic(page);
+}
+
+export async function harvestSessionAuthFromTraffic(
+  page: Page,
+  opts: { timeout?: number } = {},
+): Promise<TinkoffSessionAuth> {
+  const timeout = opts.timeout ?? 8_000;
+  log(`harvestSessionAuthFromTraffic: armed listener, timeout=${timeout}ms`);
+  const req = await page.waitForRequest(
+    (r) => /tbank\.ru\/api\//.test(r.url()) && /[?&]sessionid=/i.test(r.url()),
+    { timeout },
+  );
+  const u = new URL(req.url());
+  const sessionid = u.searchParams.get("sessionid") ?? "";
+  const wuid = u.searchParams.get("wuid") ?? "";
+  if (!sessionid || !wuid) {
+    log(
+      `harvestSessionAuthFromTraffic: matched URL but missing params sid_present=${Boolean(sessionid)} wuid_present=${Boolean(wuid)}`,
     );
     throw new Error("tinkoff_session_cookies_missing");
   }
-
   const preview = (v: string) => `${v.slice(0, 6)}…(len=${v.length})`;
   log(
-    `extractSessionCookies: sessionid<-${sessionCookie.name}=${preview(sessionCookie.value)} wuid<-${wuidCookie.name}=${preview(wuidCookie.value)}`,
+    `harvestSessionAuthFromTraffic: source=request sessionid=${preview(sessionid)} wuid=${preview(wuid)}`,
   );
-
-  return { sessionid: sessionCookie.value, wuid: wuidCookie.value };
+  return { sessionid, wuid };
 }
 
 const MAX_TRANSITIONS = 8;
@@ -559,7 +595,11 @@ export async function runFullLogin(opts: {
       log(`loop[${i}]: mybank reached, capturing storageState`);
       const storageState = JSON.stringify(await page.context().storageState());
       log(`loop[${i}]: storageState captured (${storageState.length} chars)`);
-      const sessionAuth = await extractSessionCookies(page);
+      log(`mybank: waiting for SPA to settle and fire API calls`);
+      await page.waitForLoadState("networkidle", { timeout: 8_000 }).catch(() => {
+        log(`mybank: networkidle timed out (8s) — proceeding anyway`);
+      });
+      const sessionAuth = await extractSessionAuth(page);
       return { storageState, sessionAuth };
     }
 
@@ -591,7 +631,11 @@ export async function runFastLogin(opts: {
     const currentUrl = page.url();
 
     if (currentUrl.includes("tbank.ru/mybank")) {
-      const sessionAuth = await extractSessionCookies(page);
+      log(`mybank: waiting for SPA to settle and fire API calls`);
+      await page.waitForLoadState("networkidle", { timeout: 8_000 }).catch(() => {
+        log(`mybank: networkidle timed out (8s) — proceeding anyway`);
+      });
+      const sessionAuth = await extractSessionAuth(page);
       return { sessionAuth };
     }
 
@@ -604,7 +648,11 @@ export async function runFastLogin(opts: {
       await fillPinInputs(page, pin);
       await humanDelay();
       await page.waitForURL(/^https:\/\/www\.tbank\.ru\/mybank/, { timeout: 30_000 });
-      const sessionAuth = await extractSessionCookies(page);
+      log(`mybank: waiting for SPA to settle and fire API calls`);
+      await page.waitForLoadState("networkidle", { timeout: 8_000 }).catch(() => {
+        log(`mybank: networkidle timed out (8s) — proceeding anyway`);
+      });
+      const sessionAuth = await extractSessionAuth(page);
       return { sessionAuth };
     }
 
