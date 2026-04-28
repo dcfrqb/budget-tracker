@@ -222,7 +222,11 @@ export const getHomeDashboard = cache(async (
       // getWalletTotals / getBalancesByCurrency / toAccountView.
       if (acc.kind === "CREDIT") {
         const state = resolveCreditState(acc);
-        addBalance(acc.currencyCode, state.available.minus(state.debt));
+        // Net worth: subtract ONLY debt. Credit-available is potential borrowing
+        // capacity, not your money — counting it as a positive offset would
+        // misrepresent net worth (and disagrees with /wallet's "Чистая сумма").
+        addBalance(acc.currencyCode, state.debt.negated());
+        // Liquidity is separate: credit-available IS spendable right now.
         addLiquid(acc.currencyCode, state.available);
       } else {
         const bal = new Prisma.Decimal(acc.balance);

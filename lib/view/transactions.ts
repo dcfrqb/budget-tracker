@@ -378,18 +378,29 @@ function dayTotalsFromTxns(
     return kindIsInflow || kindIsOutflow;
   });
   if (!inflowTotal.isZero() || !outflowTotal.isZero() || hasSettled) {
+    // Three separate badges per day: outflow (info/blue), inflow (pos/green), net (warn/orange).
+    // Owner explicitly asked for split — easier to scan than a single signed net.
+    if (!outflowTotal.isZero()) {
+      totals.push({
+        label: "",
+        value: `${prefix}−${formatRub(outflowTotal)}`,
+        tone: "info",
+      });
+    }
+    if (!inflowTotal.isZero()) {
+      totals.push({
+        label: "",
+        value: `${prefix}+${formatRub(inflowTotal)}`,
+        tone: "pos",
+      });
+    }
     const net = inflowTotal.minus(outflowTotal);
     const absNet = net.abs();
-    const sign = net.greaterThanOrEqualTo(0) ? "+" : "−";
-    const tone: TxnDayTotal["tone"] = net.greaterThan(0)
-      ? "pos"
-      : net.lessThan(0)
-        ? "info"
-        : "mut";
+    const netSign = net.greaterThanOrEqualTo(0) ? "+" : "−";
     totals.push({
       label: "",
-      value: `${prefix}${sign}${formatRub(absNet)}`,
-      tone,
+      value: `${prefix}${netSign}${formatRub(absNet)}`,
+      tone: "warn",
     });
   }
   if (plannedCount > 0) {
