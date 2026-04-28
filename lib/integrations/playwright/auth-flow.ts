@@ -29,6 +29,40 @@ type ClassifiedScreen = {
 
 type ActOnContext = { phone: string; pin: string; password?: string };
 
+export type TinkoffSessionAuth = { sessionid: string; wuid: string };
+
+const COOKIE_NAME_SESSIONID_CANDIDATES = ["sessionid"]; // RUNTIME-PROBE: confirm exact name
+const COOKIE_NAME_WUID_CANDIDATES = ["__P__wuid", "wuid"]; // POC saw __P__wuid
+
+export async function extractSessionCookies(page: Page): Promise<TinkoffSessionAuth> {
+  const cookies = await page.context().cookies();
+  const tbankCookies = cookies.filter((c) => /(^|\.)tbank\.ru$/.test(c.domain));
+  const names = tbankCookies.map((c) => c.name).sort();
+  log(`cookies after auth: ${JSON.stringify(names)}`);
+
+  const findOne = (candidates: string[]) =>
+    candidates
+      .map((n) => tbankCookies.find((c) => c.name === n))
+      .find((c) => c !== undefined);
+
+  const sessionCookie = findOne(COOKIE_NAME_SESSIONID_CANDIDATES);
+  const wuidCookie = findOne(COOKIE_NAME_WUID_CANDIDATES);
+
+  if (!sessionCookie || !wuidCookie) {
+    log(
+      `extractSessionCookies: MISSING sessionid_found=${Boolean(sessionCookie)} wuid_found=${Boolean(wuidCookie)} cookieNames=${JSON.stringify(names)}`,
+    );
+    throw new Error("tinkoff_session_cookies_missing");
+  }
+
+  const preview = (v: string) => `${v.slice(0, 6)}…(len=${v.length})`;
+  log(
+    `extractSessionCookies: sessionid<-${sessionCookie.name}=${preview(sessionCookie.value)} wuid<-${wuidCookie.name}=${preview(wuidCookie.value)}`,
+  );
+
+  return { sessionid: sessionCookie.value, wuid: wuidCookie.value };
+}
+
 const MAX_TRANSITIONS = 8;
 const NETWORKIDLE_TIMEOUT_MS = 5_000;
 const WAIT_FOR_CHANGE_TIMEOUT_MS = 8_000;
@@ -384,7 +418,7 @@ export async function runFullLogin(opts: {
   pin: string;
   password: string;
   smsResolver: SmsResolver;
-}): Promise<{ storageState: string }> {
+}): Promise<{ storageState: string; sessionAuth: TinkoffSessionAuth }> {
   const { page, phone, pin, password, smsResolver } = opts;
 
   // Step 1: navigate to login
@@ -525,7 +559,8 @@ export async function runFullLogin(opts: {
       log(`loop[${i}]: mybank reached, capturing storageState`);
       const storageState = JSON.stringify(await page.context().storageState());
       log(`loop[${i}]: storageState captured (${storageState.length} chars)`);
-      return { storageState };
+      const sessionAuth = await extractSessionCookies(page);
+      return { storageState, sessionAuth };
     }
 
     const prevUrl = page.url();
@@ -544,7 +579,7 @@ export async function runFullLogin(opts: {
 export async function runFastLogin(opts: {
   page: Page;
   pin: string;
-}): Promise<void> {
+}): Promise<{ sessionAuth: TinkoffSessionAuth }> {
   const { page, pin } = opts;
 
   await page.goto("https://www.tbank.ru/mybank/", { waitUntil: "domcontentloaded" });
@@ -556,7 +591,8 @@ export async function runFastLogin(opts: {
     const currentUrl = page.url();
 
     if (currentUrl.includes("tbank.ru/mybank")) {
-      return;
+      const sessionAuth = await extractSessionCookies(page);
+      return { sessionAuth };
     }
 
     const numericCount = await page
@@ -568,7 +604,8 @@ export async function runFastLogin(opts: {
       await fillPinInputs(page, pin);
       await humanDelay();
       await page.waitForURL(/^https:\/\/www\.tbank\.ru\/mybank/, { timeout: 30_000 });
-      return;
+      const sessionAuth = await extractSessionCookies(page);
+      return { sessionAuth };
     }
 
     // Check for SMS-only screen (single one-time-code input without being a 4+ PIN array)

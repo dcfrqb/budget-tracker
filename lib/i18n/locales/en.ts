@@ -222,6 +222,7 @@ export const enDict: RuDictShape = {
           browser_unavailable: "The internal browser failed to start. This is on our side.",
           invalid_session: "Saved session is corrupted. Reconnect the integration.",
           lk_password_required: "Enter your T-Bank online banking password.",
+          tinkoff_session_cookies_missing: "Failed to extract T-Bank session cookies. Reconnect the integration.",
         },
         action: {
           relogin: "Reconnect",

@@ -230,6 +230,7 @@ export const ruDict = {
           browser_unavailable: "Внутренний браузер не запустился. Это проблема на нашей стороне.",
           invalid_session: "Сохранённая сессия повреждена. Подключи интеграцию заново.",
           lk_password_required: "Введите пароль от ЛК Т-Банка.",
+          tinkoff_session_cookies_missing: "Не удалось извлечь сессионные куки T-Bank. Переподключи интеграцию.",
         },
         action: {
           relogin: "Переподключить",

@@ -8,6 +8,7 @@ import { normalizeRuPhone } from "@/lib/format/phone";
 import { listAccountLinks } from "@/lib/data/_queries/integrations";
 import { withTbankBrowser, profileDirFor } from "@/lib/integrations/playwright/browser";
 import { runFullLogin, runFastLogin } from "@/lib/integrations/playwright/auth-flow";
+import type { TinkoffSessionAuth } from "@/lib/integrations/playwright/auth-flow";
 import {
   waitForSms,
   cancelSms,
@@ -56,6 +57,7 @@ function classifyAdapterError(err: unknown): string {
   if (msg.includes("Failed to launch") || msg.includes("Executable doesn't exist")) return "browser_unavailable";
   // Storage state corruption (thrown by browser.ts)
   if (msg === "invalid storageState JSON") return "invalid_session";
+  if (msg === "tinkoff_session_cookies_missing") return "tinkoff_session_cookies_missing";
   return "unknown";
 }
 
@@ -66,10 +68,13 @@ const TINKOFF_COMMON_QUERY =
 
 function buildApiUrl(
   endpoint: string,
+  sessionAuth: TinkoffSessionAuth,
   extra: Record<string, string | number> = {},
 ): string {
   const url = new URL(`${TINKOFF_API_BASE}/${endpoint}`);
   url.search = TINKOFF_COMMON_QUERY;
+  url.searchParams.set("sessionid", sessionAuth.sessionid);
+  url.searchParams.set("wuid", sessionAuth.wuid);
   for (const [k, v] of Object.entries(extra)) {
     url.searchParams.set(k, String(v));
   }
@@ -133,18 +138,17 @@ export const tinkoffRetailAdapter: BankAdapter = {
 
     const task = (async () => {
       try {
-        const storageState = await withTbankBrowser(
+        const { storageState, sessionAuth } = await withTbankBrowser(
           { credentialId, storageState: null },
           async ({ context, page }) => {
             browserCtxRef.current = context;
-            const { storageState } = await runFullLogin({
+            return runFullLogin({
               page,
               phone,
               pin,
               password: lkPassword,
               smsResolver: () => waitForSms(credentialId),
             });
-            return storageState;
           },
         );
 
@@ -153,6 +157,8 @@ export const tinkoffRetailAdapter: BankAdapter = {
           pin,
           password: lkPassword,
           storageState,
+          sessionid: sessionAuth.sessionid,
+          wuid: sessionAuth.wuid,
           lastFullLoginAt: Date.now(),
         };
         await ctx.saveSecrets(freshSecrets);
@@ -228,8 +234,9 @@ export const tinkoffRetailAdapter: BankAdapter = {
     return withTbankBrowser(
       { credentialId: ctx.credentialId, storageState: secrets.storageState },
       async ({ page, saveStorageState }) => {
+        let sessionAuth: TinkoffSessionAuth;
         try {
-          await runFastLogin({ page, pin: secrets.pin });
+          ({ sessionAuth } = await runFastLogin({ page, pin: secrets.pin }));
         } catch (err) {
           if (err instanceof Error && err.message === "session_expired") {
             await ctx.setStatus("NEEDS_OTP", "session_expired");
@@ -245,7 +252,7 @@ export const tinkoffRetailAdapter: BankAdapter = {
         const results: ImportRow[] = [];
 
         for (const link of links) {
-          const url = buildApiUrl("operations", {
+          const url = buildApiUrl("operations", sessionAuth, {
             account: link.externalAccountId,
             start: range.from.getTime(),
             end: range.to.getTime(),
@@ -296,6 +303,8 @@ export const tinkoffRetailAdapter: BankAdapter = {
         await ctx.saveSecrets({
           ...secrets,
           storageState: freshStorageState,
+          sessionid: sessionAuth.sessionid,
+          wuid: sessionAuth.wuid,
           lastFastLoginAt: Date.now(),
         } satisfies TinkoffPlaywrightSecrets);
 
@@ -315,8 +324,9 @@ export const tinkoffRetailAdapter: BankAdapter = {
     return withTbankBrowser(
       { credentialId: ctx.credentialId, storageState: secrets.storageState },
       async ({ page, saveStorageState }) => {
+        let sessionAuth: TinkoffSessionAuth;
         try {
-          await runFastLogin({ page, pin: secrets.pin });
+          ({ sessionAuth } = await runFastLogin({ page, pin: secrets.pin }));
         } catch (err) {
           if (err instanceof Error && err.message === "session_expired") {
             await ctx.setStatus("NEEDS_OTP", "session_expired");
@@ -329,7 +339,7 @@ export const tinkoffRetailAdapter: BankAdapter = {
           throw err;
         }
 
-        const url = buildApiUrl("accounts_light_ib");
+        const url = buildApiUrl("accounts_light_ib", sessionAuth);
         const response = await page.request.get(url);
         const json = await response.json();
         const { payload: accounts } =
@@ -346,6 +356,8 @@ export const tinkoffRetailAdapter: BankAdapter = {
         await ctx.saveSecrets({
           ...secrets,
           storageState: freshStorageState,
+          sessionid: sessionAuth.sessionid,
+          wuid: sessionAuth.wuid,
           lastFastLoginAt: Date.now(),
         } satisfies TinkoffPlaywrightSecrets);
 
@@ -365,11 +377,13 @@ export const tinkoffRetailAdapter: BankAdapter = {
       await withTbankBrowser(
         { credentialId: ctx.credentialId, storageState: secrets.storageState },
         async ({ page, saveStorageState }) => {
-          await runFastLogin({ page, pin: secrets.pin });
+          const { sessionAuth } = await runFastLogin({ page, pin: secrets.pin });
           const freshStorageState = await saveStorageState();
           await ctx.saveSecrets({
             ...secrets,
             storageState: freshStorageState,
+            sessionid: sessionAuth.sessionid,
+            wuid: sessionAuth.wuid,
             lastFastLoginAt: Date.now(),
           } satisfies TinkoffPlaywrightSecrets);
         },

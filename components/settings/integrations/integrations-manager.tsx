@@ -68,7 +68,8 @@ type TinkoffErrorKey =
   | "settings.integrations.tinkoff_retail.error.invalid_password"
   | "settings.integrations.tinkoff_retail.error.too_many_attempts"
   | "settings.integrations.tinkoff_retail.error.pin_screen_missing"
-  | "settings.integrations.tinkoff_retail.error.mybank_redirect_missing";
+  | "settings.integrations.tinkoff_retail.error.mybank_redirect_missing"
+  | "settings.integrations.tinkoff_retail.error.tinkoff_session_cookies_missing";
 
 function mapAdapterError(code: string | null | undefined): TinkoffErrorKey {
   if (!code) return "settings.integrations.tinkoff_retail.error.unknown";
@@ -102,6 +103,7 @@ function mapAdapterError(code: string | null | undefined): TinkoffErrorKey {
     TOO_MANY_ATTEMPTS: "settings.integrations.tinkoff_retail.error.too_many_attempts",
     PIN_SCREEN_MISSING: "settings.integrations.tinkoff_retail.error.pin_screen_missing",
     MYBANK_REDIRECT_MISSING: "settings.integrations.tinkoff_retail.error.mybank_redirect_missing",
+    TINKOFF_SESSION_COOKIES_MISSING: "settings.integrations.tinkoff_retail.error.tinkoff_session_cookies_missing",
   };
   return map[head] ?? "settings.integrations.tinkoff_retail.error.unknown";
 }

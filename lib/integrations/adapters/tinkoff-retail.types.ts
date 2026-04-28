@@ -5,6 +5,8 @@ export type TinkoffPlaywrightSecrets = {
   pin: string;
   password?: string;
   storageState?: string;
+  sessionid?: string;
+  wuid?: string;
   lastFastLoginAt?: number;
   lastFullLoginAt?: number;
 };
