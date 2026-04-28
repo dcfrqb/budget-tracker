@@ -227,9 +227,6 @@ async function fillPinInputs(page: Page, pin: string): Promise<void> {
   if (count >= 4) {
     for (let i = 0; i < pin.length && i < count; i++) {
       const digitInput = pinLocator.nth(i);
-      await digitInput.click({ timeout: 3_000 }).catch((err) => {
-        log(`fillPinInputs[${i}]: click failed (continuing): ${err instanceof Error ? err.message : String(err)}`);
-      });
       try {
         await digitInput.pressSequentially(pin[i], { delay: 60, timeout: 3_000 });
         log(`fillPinInputs[${i}]: keystroke ok`);
@@ -288,6 +285,37 @@ async function actOn(page: Page, screen: ClassifiedScreen, ctx: ActOnContext): P
       log(`actOn[${screen.kind}]: start url=${page.url()}`);
       await fillPinInputs(page, ctx.pin);
       await humanDelay();
+      // T-Bank's "Придумайте код" screen does NOT auto-advance after 4 digits —
+      // it is an optional device-bind dialog with explicit "Установить" / "Не сейчас"
+      // buttons. Per design doc, "Не сейчас" returns "unknown auth scenario", so we
+      // must click "Установить" (or its sibling "Войти"/"Подтвердить" on confirm/fast).
+      const submitCandidates = [
+        'button:has-text("Установить")',
+        'button:has-text("Подтвердить")',
+        'button:has-text("Войти")',
+        'button:has-text("Продолжить")',
+        'button[automation-id="button-submit"]',
+      ];
+      let clicked = false;
+      for (const sel of submitCandidates) {
+        const btn = page.locator(sel).first();
+        const visible = await btn.isVisible({ timeout: 800 }).catch(() => false);
+        if (!visible) continue;
+        const enabled = await btn.isEnabled({ timeout: 500 }).catch(() => false);
+        if (!enabled) {
+          log(`actOn[${screen.kind}]: button "${sel}" visible but disabled — skipping`);
+          continue;
+        }
+        log(`actOn[${screen.kind}]: clicking "${sel}"`);
+        await btn.click({ timeout: 2_000 }).catch((err) => {
+          log(`actOn[${screen.kind}]: click "${sel}" failed: ${err instanceof Error ? err.message : String(err)}`);
+        });
+        clicked = true;
+        break;
+      }
+      if (!clicked) {
+        log(`actOn[${screen.kind}]: no submit button found — relying on auto-advance (may stall)`);
+      }
       log(`actOn[${screen.kind}]: done url=${page.url()}`);
       return;
     }
