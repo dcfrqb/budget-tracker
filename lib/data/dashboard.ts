@@ -56,6 +56,7 @@ export type HomeDashboard = {
   safeUntilDays: number | null;
   reservedBase: string;
   freeBase: string;
+  liquidBase: string;
   planFactMonth: {
     inflowPlanBase: string;
     inflowFactBase: string;
@@ -201,6 +202,13 @@ export const getHomeDashboard = cache(async (
   const addBalance = (ccy: string, amount: Prisma.Decimal) => {
     balanceMap.set(ccy, (balanceMap.get(ccy) ?? new Prisma.Decimal(0)).plus(amount));
   };
+  // Liquid = "доступно сейчас" — sum of spendable money across debit/credit-available/cash/crypto.
+  // Differs from balanceMap (net) in that CREDIT contributes ONLY `available`, not `available - debt`.
+  let liquidBase = new Prisma.Decimal(0);
+  const addLiquid = (ccy: string, amount: Prisma.Decimal) => {
+    const inBase = convertToBase(amount, ccy, baseCcy, rates);
+    if (inBase && inBase.greaterThan(0)) liquidBase = liquidBase.plus(inBase);
+  };
 
   for (const inst of institutions) {
     for (const acc of inst.accounts) {
@@ -215,15 +223,20 @@ export const getHomeDashboard = cache(async (
       if (acc.kind === "CREDIT") {
         const state = resolveCreditState(acc);
         addBalance(acc.currencyCode, state.available.minus(state.debt));
+        addLiquid(acc.currencyCode, state.available);
       } else {
-        addBalance(acc.currencyCode, new Prisma.Decimal(acc.balance));
+        const bal = new Prisma.Decimal(acc.balance);
+        addBalance(acc.currencyCode, bal);
+        addLiquid(acc.currencyCode, bal);
       }
     }
   }
   for (const acc of cash) {
     // Cash accounts excluded from analytics (default for CASH per D8 spec)
     if (!acc.includeInAnalytics) continue;
-    addBalance(acc.currencyCode, new Prisma.Decimal(acc.balance));
+    const bal = new Prisma.Decimal(acc.balance);
+    addBalance(acc.currencyCode, bal);
+    addLiquid(acc.currencyCode, bal);
   }
 
   let totalBalanceBase = new Prisma.Decimal(0);
@@ -542,6 +555,7 @@ export const getHomeDashboard = cache(async (
     safeUntilDays,
     reservedBase: reservedBase.toString(),
     freeBase: freeBase.toString(),
+    liquidBase: liquidBase.toString(),
     planFactMonth: {
       inflowPlanBase: inflowPlanBase.toString(),
       inflowFactBase: inflowFactBase.toString(),

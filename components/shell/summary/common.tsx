@@ -33,6 +33,8 @@ export type AvailableData = {
   freeBase: number;
   totalBase: number;
   reservedBase: number;
+  /** Sum of spendable money (debit + credit-available + cash + crypto). Optional — falls back to freeBase. */
+  liquidBase?: number;
 };
 
 export type BalanceData = {
@@ -89,6 +91,9 @@ export async function AvailableBlock({ data }: { data?: AvailableData }) {
   const freeBase = resolved?.freeBase ?? 0;
   const totalBase = resolved?.totalBase ?? 0;
   const reservedBase = resolved?.reservedBase ?? 0;
+  // Big number shows liquid (sum of spendable money: debit + credit-available + cash + crypto).
+  // Falls back to freeBase for legacy callers that haven't plumbed liquidBase yet.
+  const displayBase = resolved?.liquidBase ?? freeBase;
 
   return (
     <div className="sum-block avail">
@@ -96,7 +101,7 @@ export async function AvailableBlock({ data }: { data?: AvailableData }) {
         <span>{t("shell.summary.avail.label")}</span>
       </div>
       <div className="big2 mono">
-        ₽ <CountUp to={freeBase} />
+        ₽ <CountUp to={displayBase} />
       </div>
       <div className="sub">
         <span>

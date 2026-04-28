@@ -1528,6 +1528,18 @@ export const enDict: RuDictShape = {
       meta:  "current month",
       // === wave-3 polish ===
       no_plan: "no plan set",
+      period_label: {
+        "7d":  "last 7d",
+        "30d": "last 30d",
+        "90d": "last 90d",
+        "1y":  "last year",
+      },
+      period_meta: {
+        "7d":  "last 7 days",
+        "30d": "current month",
+        "90d": "last 90 days",
+        "1y":  "last year",
+      },
     },
     status_strip: {
       mode_label:   "MODE",

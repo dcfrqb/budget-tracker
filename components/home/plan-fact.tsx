@@ -2,6 +2,7 @@ import { getT } from "@/lib/i18n/server";
 import { CountUp } from "@/components/count-up";
 import type { HomePlanFactCell } from "@/lib/view/home";
 import type { TKey } from "@/lib/i18n/t";
+import type { HomePeriod } from "@/lib/data/dashboard";
 
 const BAR_COLOR = {
   pos:  "var(--pos)",
@@ -25,18 +26,34 @@ const MONTH_KEYS: TKey[] = [
   "common.month.short.12",
 ];
 
-export async function PlanFact({ cells }: { cells: HomePlanFactCell[] }) {
+export async function PlanFact({
+  cells,
+  period = "30d",
+}: {
+  cells: HomePlanFactCell[];
+  period?: HomePeriod;
+}) {
   const t = await getT();
-  const now = new Date();
-  const monthLabel = `${t(MONTH_KEYS[now.getMonth()])} ${now.getFullYear()}`;
+  // 30d ≈ calendar month: keep the familiar "АПР 2026" label for parity with prior UX.
+  // Other periods get an explicit "посл. Nд / посл. год" label so they don't lie.
+  let dimLabel: string;
+  let metaKey: TKey;
+  if (period === "30d") {
+    const now = new Date();
+    dimLabel = `${t(MONTH_KEYS[now.getMonth()])} ${now.getFullYear()}`;
+    metaKey = "home.plan_fact.meta";
+  } else {
+    dimLabel = t(`home.plan_fact.period_label.${period}` as TKey);
+    metaKey = `home.plan_fact.period_meta.${period}` as TKey;
+  }
   return (
     <div className="section fade-in" style={{ animationDelay: "120ms" }}>
       <div className="section-hd">
         <div className="ttl mono">
           <b>{t("home.plan_fact.title")}</b>{" "}
-          <span className="dim">· {monthLabel}</span>
+          <span className="dim">· {dimLabel}</span>
         </div>
-        <div className="meta mono">{t("home.plan_fact.meta")}</div>
+        <div className="meta mono">{t(metaKey)}</div>
       </div>
       <div className="section-body flush">
         <div className="pf-grid">

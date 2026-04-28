@@ -57,6 +57,8 @@ export type HomeAvailableView = {
   freeBase: number;
   totalBase: number;
   reservedBase: number;
+  /** Sum of spendable money across debit/credit-available/cash/crypto — display value for "Доступно сейчас". */
+  liquidBase: number;
 };
 
 export type HomeView = {
@@ -167,6 +169,7 @@ export function toHomeView(dashboard: HomeDashboard): HomeView {
   const totalBase = Number(new Prisma.Decimal(dashboard.totalBalanceBase).toFixed(0));
   const reservedBase = Number(new Prisma.Decimal(dashboard.reservedBase).toFixed(0));
   const freeBase = Number(new Prisma.Decimal(dashboard.freeBase).toFixed(0));
+  const liquidBase = Number(new Prisma.Decimal(dashboard.liquidBase).toFixed(0));
 
   const inflowFact = Number(new Prisma.Decimal(dashboard.planFactMonth.inflowFactBase).toFixed(0));
   const inflowPlan = Number(new Prisma.Decimal(dashboard.planFactMonth.inflowPlanBase).toFixed(0));
@@ -231,6 +234,7 @@ export function toHomeView(dashboard: HomeDashboard): HomeView {
       freeBase,
       totalBase,
       reservedBase,
+      liquidBase,
     },
     planFact,
     obligations: dashboard.upcomingObligations30d.map(toObligationView),
