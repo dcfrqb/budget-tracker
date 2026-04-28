@@ -39,6 +39,7 @@ export type TinkoffOperation = {
   spendingCategory?: TinkoffSpendingCategory;
   mccString?: string;
   cardNumber?: string;
+  payment?: { providerId?: string };
   // Fields we don't consume are omitted
 };
 

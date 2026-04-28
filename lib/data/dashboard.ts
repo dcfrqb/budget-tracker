@@ -17,6 +17,7 @@ import {
   computeSafeUntil,
   computeFreeAmount,
 } from "@/lib/forecast";
+import { resolveCreditState } from "@/lib/data/wallet";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -96,18 +97,38 @@ function confirmedAmt(t: {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Period helpers
+// ─────────────────────────────────────────────────────────────
+
+export type HomePeriod = "7d" | "30d" | "90d" | "1y";
+
+export function parseHomePeriod(raw: string | undefined): HomePeriod {
+  if (raw === "7d" || raw === "30d" || raw === "90d" || raw === "1y") return raw;
+  return "30d";
+}
+
+function periodToDays(p: HomePeriod): number {
+  return p === "7d" ? 7 : p === "30d" ? 30 : p === "90d" ? 90 : 365;
+}
+
+// ─────────────────────────────────────────────────────────────
 // Main aggregator
 // ─────────────────────────────────────────────────────────────
 
 export const getHomeDashboard = cache(async (
   userId: string,
   baseCcy: string,
+  period: HomePeriod = "30d",
 ): Promise<HomeDashboard> => {
   const now = new Date();
+  const periodDays = periodToDays(period);
   const window30End = addDays(now, 30);
+  const periodStart = addDays(now, -periodDays);
+  const periodEnd = now;
+  // Keep calendar-month aliases for top-category delta (always compares current vs prev month)
   const monthStart = startOfMonth(now);
   const monthEnd = endOfMonth(now);
-  const prev30Start = addDays(now, -30);
+  const prev30Start = periodStart;
 
   // ── Параллельные запросы ──────────────────────────────────
   const [
@@ -121,7 +142,7 @@ export const getHomeDashboard = cache(async (
     plannedEvents30d,
     // Транзакции для plan/fact (текущий месяц)
     monthTxns,
-    // Транзакции для avg daily spend (последние 30д)
+    // Транзакции для avg daily spend (за период)
     last30Txns,
     // Топ категорий: текущий и предыдущий месяц
     prevMonthStart,
@@ -140,7 +161,7 @@ export const getHomeDashboard = cache(async (
       where: {
         userId,
         deletedAt: null,
-        occurredAt: { gte: monthStart, lte: monthEnd },
+        occurredAt: { gte: periodStart, lte: periodEnd },
         kind: { in: [TransactionKind.INCOME, TransactionKind.EXPENSE] },
       },
       select: {
@@ -155,7 +176,7 @@ export const getHomeDashboard = cache(async (
       where: {
         userId,
         deletedAt: null,
-        occurredAt: { gte: prev30Start, lte: now },
+        occurredAt: { gte: periodStart, lte: periodEnd },
         kind: TransactionKind.EXPENSE,
         status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
       },
@@ -187,9 +208,13 @@ export const getHomeDashboard = cache(async (
       if (acc.kind === "LOAN") continue;
       // Accounts excluded from analytics don't count towards safe-until / available
       if (!acc.includeInAnalytics) continue;
-      // CREDIT accounts: balance = current debt — subtract as liability.
+      // CREDIT accounts: net contribution = available - debt (per resolveCreditState).
+      // For T-Bank synced accounts, `balance` is "available to spend" and `debtBalance`
+      // is the actual liability — use the unified helper to avoid drift with
+      // getWalletTotals / getBalancesByCurrency / toAccountView.
       if (acc.kind === "CREDIT") {
-        addBalance(acc.currencyCode, new Prisma.Decimal(acc.balance).negated());
+        const state = resolveCreditState(acc);
+        addBalance(acc.currencyCode, state.available.minus(state.debt));
       } else {
         addBalance(acc.currencyCode, new Prisma.Decimal(acc.balance));
       }
@@ -221,7 +246,7 @@ export const getHomeDashboard = cache(async (
     const inBase = convertToBase(actual, t.currencyCode, baseCcy, rates);
     if (inBase) totalExpenseLast30 = totalExpenseLast30.plus(inBase);
   }
-  const avgDailySpend = totalExpenseLast30.div(30);
+  const avgDailySpend = totalExpenseLast30.div(periodDays);
 
   // ── Upcoming inflow/outflow 30d (PLANNED transactions) ───
   const plannedTxns30d = await db.transaction.findMany({

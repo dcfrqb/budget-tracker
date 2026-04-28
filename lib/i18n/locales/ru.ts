@@ -859,7 +859,7 @@ export const ruDict = {
     totals: {
       net_label:         "чистая сумма",
       net_sub:           "всего по {n} счетам",
-      banks_crypto_label: "счета и крипто",
+      banks_crypto_label: "доступно в банках и крипто",
       banks_crypto_sub:  "доступно в банках и крипто",
       savings_label:     "подушка / вклады",
       savings_sub:       "{n} накопительных",

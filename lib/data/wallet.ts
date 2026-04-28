@@ -9,6 +9,57 @@ export type AccountWithCurrency = Account & { currency: Currency };
 export type InstitutionWithAccounts = Institution & { accounts: AccountWithCurrency[] };
 export type FxRateRow = ExchangeRate & { delta24hPct: Prisma.Decimal | null };
 
+// ─────────────────────────────────────────────
+// CREDIT STATE HELPER
+// ─────────────────────────────────────────────
+
+type CreditStateInput = {
+  balance: Prisma.Decimal | string | number;
+  debtBalance?: Prisma.Decimal | string | number | null;
+  creditLimit?: Prisma.Decimal | string | number | null;
+};
+
+export type CreditState = {
+  /** Current debt amount, always non-negative. */
+  debt: Prisma.Decimal;
+  /** Available to spend right now (moneyAmount or computed from limit-debt). */
+  available: Prisma.Decimal;
+  /** Credit limit, null when unset (legacy / manual cards). */
+  limit: Prisma.Decimal | null;
+  /** Whether limit is set. */
+  hasLimit: boolean;
+  /** "synced" = debtBalance present; "derived" = computed from limit-balance; "legacy" = balance treated as debt. */
+  source: "synced" | "derived" | "legacy";
+};
+
+export function resolveCreditState(a: CreditStateInput): CreditState {
+  const balance = new Prisma.Decimal(a.balance);
+  const limit = a.creditLimit != null ? new Prisma.Decimal(a.creditLimit) : null;
+  const synced = a.debtBalance != null ? new Prisma.Decimal(a.debtBalance) : null;
+  const hasLimit = limit !== null && !limit.isZero();
+
+  if (synced !== null) {
+    const debt = synced.lessThan(0) ? new Prisma.Decimal(0) : synced;
+    const rawAvail = hasLimit ? limit.minus(debt) : balance;
+    const available = rawAvail.greaterThan(0) ? rawAvail : new Prisma.Decimal(0);
+    return { debt, available, limit, hasLimit, source: "synced" };
+  }
+  if (hasLimit) {
+    const rawDebt = limit.minus(balance);
+    const debt = rawDebt.greaterThan(0) ? rawDebt : new Prisma.Decimal(0);
+    const available = balance;
+    return { debt, available, limit, hasLimit, source: "derived" };
+  }
+  // Legacy fallback: no limit, no synced debtBalance — treat |balance| as debt.
+  return {
+    debt: balance.abs(),
+    available: new Prisma.Decimal(0),
+    limit: null,
+    hasLimit: false,
+    source: "legacy",
+  };
+}
+
 // Minimal account projection for QuickDrawer forms (id, name, currencyCode).
 // Excludes archived and deleted accounts.
 export async function listAccountsForQuickDrawer(
@@ -247,31 +298,24 @@ export async function getWalletTotals(
     // LOAN accounts represent liabilities — excluded from all money aggregates.
     if (a.kind === "LOAN") continue;
 
-    // CREDIT accounts: subtract debt from net worth; do NOT include in liquid bucket.
+    // CREDIT accounts: subtract debt from net worth; add available to liquid bucket.
     if (a.kind === "CREDIT") {
-      let debt: Prisma.Decimal;
-      if (a.debtBalance != null) {
-        // Authoritative field synced from T-Bank: use directly.
-        debt = new Prisma.Decimal(a.debtBalance);
-      } else if (a.creditLimit != null) {
-        // Derive: debt = creditLimit - balance (balance = available credit).
-        const bal = new Prisma.Decimal(a.balance);
-        const lim = new Prisma.Decimal(a.creditLimit);
-        const derived = lim.minus(bal);
-        debt = derived.lt(0) ? new Prisma.Decimal(0) : derived;
-      } else {
-        // Legacy fallback: treat balance magnitude as debt.
-        console.warn(`[wallet] CREDIT account ${a.id} has no debtBalance/creditLimit; treating balance as debt (legacy fallback)`);
-        const bal = new Prisma.Decimal(a.balance);
-        debt = bal.lt(0) ? bal.abs() : bal;
+      const state = resolveCreditState(a);
+      if (state.source === "legacy") {
+        console.warn(`[wallet] CREDIT account ${a.id} legacy fallback (no debtBalance/creditLimit); treating |balance| as debt`);
       }
-      const debtInBase = convertToBase(debt, a.currencyCode, baseCcy, rates);
+      const debtInBase = convertToBase(state.debt, a.currencyCode, baseCcy, rates);
+      const availableInBase = convertToBase(state.available, a.currencyCode, baseCcy, rates);
       if (!debtInBase) {
         console.warn(`[wallet] skip acc ${a.id}: no rate ${a.currencyCode}→${baseCcy}`);
         continue;
       }
       totals.net.valueBase = totals.net.valueBase.minus(debtInBase);
       totals.net.accountsCount += 1;
+      if (availableInBase && availableInBase.greaterThan(0)) {
+        totals.liquid.valueBase = totals.liquid.valueBase.plus(availableInBase);
+        totals.liquid.accountsCount += 1;
+      }
       continue;
     }
 
@@ -345,20 +389,11 @@ export async function getBalancesByCurrency(
 
     const prev = map.get(a.currencyCode) ?? new Prisma.Decimal(0);
     if (a.kind === "CREDIT") {
-      let debt: Prisma.Decimal;
-      if (a.debtBalance != null) {
-        debt = new Prisma.Decimal(a.debtBalance);
-      } else if (a.creditLimit != null) {
-        const bal = new Prisma.Decimal(a.balance);
-        const lim = new Prisma.Decimal(a.creditLimit);
-        const derived = lim.minus(bal);
-        debt = derived.lt(0) ? new Prisma.Decimal(0) : derived;
-      } else {
-        console.warn(`[wallet] CREDIT account ${a.id} has no debtBalance/creditLimit; treating balance as debt (legacy fallback)`);
-        const bal = new Prisma.Decimal(a.balance);
-        debt = bal.lt(0) ? bal.abs() : bal;
+      const state = resolveCreditState(a);
+      if (state.source === "legacy") {
+        console.warn(`[wallet] CREDIT account ${a.id} legacy fallback (no debtBalance/creditLimit); treating |balance| as debt`);
       }
-      map.set(a.currencyCode, prev.minus(debt));
+      map.set(a.currencyCode, prev.plus(state.available).minus(state.debt));
     } else {
       map.set(a.currencyCode, prev.plus(new Prisma.Decimal(a.balance)));
     }

@@ -4,7 +4,7 @@ import { QuickActions } from "@/components/home/quick-actions";
 import { Signals } from "@/components/home/signals";
 import { StatusStrip } from "@/components/home/status-strip";
 import { TopCategories } from "@/components/home/top-categories";
-import { getHomeDashboard } from "@/lib/data/dashboard";
+import { getHomeDashboard, parseHomePeriod } from "@/lib/data/dashboard";
 import { toHomeView } from "@/lib/view/home";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { getCurrentUserId } from "@/lib/api/auth";
@@ -13,11 +13,15 @@ import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-export default async function HomePage() {
+type PageProps = { searchParams: Promise<{ period?: string }> };
+
+export default async function HomePage({ searchParams }: PageProps) {
   const userId = await getCurrentUserId();
+  const { period: rawPeriod } = await searchParams;
+  const period = parseHomePeriod(rawPeriod);
 
   const [dashboard, categories, activeAccounts] = await Promise.all([
-    getHomeDashboard(userId, DEFAULT_CURRENCY),
+    getHomeDashboard(userId, DEFAULT_CURRENCY, period),
     getCategories(userId),
     db.account.findMany({
       where: { userId, deletedAt: null, isArchived: false },
@@ -37,7 +41,7 @@ export default async function HomePage() {
 
   return (
     <>
-      <StatusStrip />
+      <StatusStrip activePeriod={period} />
       <QuickActions
         defaultAccountId={defaultAccount?.id}
         defaultCurrency={defaultAccount?.currencyCode ?? DEFAULT_CURRENCY}

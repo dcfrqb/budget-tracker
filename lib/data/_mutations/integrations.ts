@@ -439,7 +439,9 @@ export async function syncCredential(
                 for (let i = 0; i < chunk.length; i++) {
                   const row = chunk[i];
                   const kind =
-                    row.kind === "INCOME" ? TransactionKind.INCOME : TransactionKind.EXPENSE;
+                    row.kind === "INCOME" ? TransactionKind.INCOME :
+                    row.kind === "TRANSFER" ? TransactionKind.TRANSFER :
+                    TransactionKind.EXPENSE;
                   const name = (row.description ?? row.rawCategory ?? "Sync import").substring(0, 240);
 
                   if (row.externalId) {
@@ -453,6 +455,7 @@ export async function syncCredential(
                         },
                       },
                       update: {
+                        kind,
                         amount: row.amount,
                         name,
                         occurredAt: new Date(row.occurredAt),
@@ -558,7 +561,9 @@ export async function syncCredential(
               for (let i = 0; i < chunk.length; i++) {
                 const row = chunk[i];
                 const kind =
-                  row.kind === "INCOME" ? TransactionKind.INCOME : TransactionKind.EXPENSE;
+                  row.kind === "INCOME" ? TransactionKind.INCOME :
+                  row.kind === "TRANSFER" ? TransactionKind.TRANSFER :
+                  TransactionKind.EXPENSE;
                 const name = (row.description ?? row.rawCategory ?? "Sync import").substring(0, 240);
 
                 if (row.externalId) {
@@ -572,6 +577,7 @@ export async function syncCredential(
                       },
                     },
                     update: {
+                      kind,
                       amount: row.amount,
                       name,
                       occurredAt: new Date(row.occurredAt),

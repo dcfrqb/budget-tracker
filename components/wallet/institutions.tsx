@@ -22,10 +22,7 @@ export function Institutions({ institutions }: Props) {
                 </div>
               </div>
               <div>
-                <div className="inst-total mono">
-                  {inst.total}
-                  <span className="rub mono">{inst.share}</span>
-                </div>
+                <div className="inst-total mono">{inst.total}</div>
               </div>
             </div>
             {inst.accounts.map((a) => (

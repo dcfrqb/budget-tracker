@@ -5,21 +5,14 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Segmented } from "@/components/segmented";
 import { useT, useLocale } from "@/lib/i18n/context";
 import { formatMonthLong } from "@/lib/format/date";
+import {
+  type AnalyticsPeriod,
+  DEFAULT_ANALYTICS_PERIOD,
+  parseAnalyticsPeriod,
+} from "@/lib/analytics/period";
 
-// ─────────────────────────────────────────────────────────────
-// Period type — maps to URL param ?p=
-// ─────────────────────────────────────────────────────────────
-
-export type AnalyticsPeriod = "1m" | "3m" | "6m" | "12m" | "ytd";
-
-export const DEFAULT_ANALYTICS_PERIOD: AnalyticsPeriod = "3m";
-
-export function parseAnalyticsPeriod(raw: string | undefined): AnalyticsPeriod {
-  if (raw === "1m" || raw === "3m" || raw === "6m" || raw === "12m" || raw === "ytd") {
-    return raw;
-  }
-  return DEFAULT_ANALYTICS_PERIOD;
-}
+export type { AnalyticsPeriod };
+export { DEFAULT_ANALYTICS_PERIOD, parseAnalyticsPeriod };
 
 // ─────────────────────────────────────────────────────────────
 // Compare type — client-only, does not affect server data fetch

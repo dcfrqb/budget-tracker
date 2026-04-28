@@ -1,5 +1,6 @@
 import { AnalyticsKpiRow } from "@/components/analytics/kpi-row";
-import { AnalyticsStatusStrip, parseAnalyticsPeriod, DEFAULT_ANALYTICS_PERIOD } from "@/components/analytics/status-strip";
+import { AnalyticsStatusStrip } from "@/components/analytics/status-strip";
+import { parseAnalyticsPeriod, DEFAULT_ANALYTICS_PERIOD } from "@/lib/analytics/period";
 import { CategoryPie } from "@/components/analytics/category-pie";
 import { Compare } from "@/components/analytics/compare";
 import { Forecast } from "@/components/analytics/forecast";

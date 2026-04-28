@@ -851,7 +851,7 @@ export const enDict: RuDictShape = {
     totals: {
       net_label:         "net total",
       net_sub:           "across {n} accounts",
-      banks_crypto_label: "accounts & crypto",
+      banks_crypto_label: "available in banks & crypto",
       banks_crypto_sub:  "available in banks and crypto",
       savings_label:     "buffer / savings",
       savings_sub:       "{n} savings accounts",

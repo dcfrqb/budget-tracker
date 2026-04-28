@@ -4,7 +4,7 @@ import { formatAmount, formatRate, formatRubPrefix } from "@/lib/format/money";
 import { formatRelative } from "@/lib/format/relative-time";
 import type { Locale, TOptions } from "@/lib/i18n/types";
 import type { TKey } from "@/lib/i18n/t";
-import { convertToBase } from "@/lib/data/wallet";
+import { convertToBase, resolveCreditState } from "@/lib/data/wallet";
 import type {
   AccountWithCurrency,
   FxRateRow,
@@ -108,26 +108,11 @@ export function toAccountView(
   let creditNoLimit: boolean | undefined;
 
   if (a.kind === "CREDIT") {
-    const bal = new Prisma.Decimal(a.balance);
-
-    let debtAmt: Prisma.Decimal;
-    if (a.debtBalance != null) {
-      debtAmt = new Prisma.Decimal(a.debtBalance);
-    } else {
-      debtAmt = bal.lt(0) ? bal.abs() : new Prisma.Decimal(0);
-    }
-    creditDebt = formatAmount(debtAmt, a.currency);
-
-    if (a.creditLimit != null) {
-      const lim = new Prisma.Decimal(a.creditLimit);
-      const available = lim.minus(debtAmt);
-      const availableClamped = available.lt(0) ? new Prisma.Decimal(0) : available;
-      creditAvailable = formatAmount(availableClamped, a.currency);
-      creditLimit = formatAmount(lim, a.currency);
-      creditNoLimit = false;
-    } else {
-      creditNoLimit = true;
-    }
+    const state = resolveCreditState(a);
+    creditDebt = formatAmount(state.debt, a.currency);
+    creditAvailable = formatAmount(state.available, a.currency);
+    creditLimit = state.hasLimit ? formatAmount(state.limit!, a.currency) : undefined;
+    creditNoLimit = !state.hasLimit;
   }
 
   return {
@@ -160,7 +145,6 @@ export type InstitutionView = {
   name: string;
   sub: string;
   total: string;
-  share: string;
   accounts: AccountView[];
 };
 
@@ -182,17 +166,21 @@ export function toInstitutionView(
 ): InstitutionView {
   const accounts = inst.accounts.map((a) => toAccountView(a, rates, baseCcy, locale));
 
-  // Сумма этой институции в base.
+  // Сумма этой институции в base. Для CREDIT учитываем net (available − debt)
+  // через resolveCreditState — иначе display завышается на available, который
+  // не «деньги юзера», а потенциал кредитного лимита.
   let instTotal = new Prisma.Decimal(0);
   for (const a of inst.accounts) {
-    const v = convertToBase(a.balance, a.currencyCode, baseCcy, rates);
-    if (v) instTotal = instTotal.plus(v);
+    if (a.kind === "CREDIT") {
+      const state = resolveCreditState(a);
+      const net = state.available.minus(state.debt);
+      const v = convertToBase(net, a.currencyCode, baseCcy, rates);
+      if (v) instTotal = instTotal.plus(v);
+    } else {
+      const v = convertToBase(a.balance, a.currencyCode, baseCcy, rates);
+      if (v) instTotal = instTotal.plus(v);
+    }
   }
-
-  const sharePct =
-    grandTotalBase.isZero()
-      ? ""
-      : `${instTotal.div(grandTotalBase).times(100).toFixed(0)}% от итого`;
 
   const logo =
     inst.logo && KNOWN_LOGOS.has(inst.logo) ? inst.logo : "default";
@@ -204,7 +192,6 @@ export function toInstitutionView(
     name: inst.name,
     sub: inst.sub ?? "",
     total: formatRubPrefix(new Prisma.Decimal(instTotal.toFixed(0))),
-    share: sharePct,
     accounts,
   };
 }
