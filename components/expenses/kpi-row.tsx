@@ -33,8 +33,8 @@ export function ExpensesKpiRow({ kpi }: { kpi: ExpensesKpiData }) {
             <div className="s">{kpi.utilities.sub}</div>
           </div>
           <div className="kpi">
-            <div className="c tax">{kpi.taxes.label}</div>
-            <div className="v acc">₽ <CountUp to={kpi.taxes.value} /></div>
+            <div className="c warn">{kpi.taxes.label}</div>
+            <div className="v warn">₽ <CountUp to={kpi.taxes.value} /></div>
             <div className="s">{kpi.taxes.sub}</div>
           </div>
           <div className="kpi">

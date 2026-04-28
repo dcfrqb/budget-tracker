@@ -429,11 +429,11 @@ a { color: inherit; text-decoration: none; }
 }
 /* per-kind icon colors */
 .qa-btn[data-qa="inc"] .qa-inner svg { color: var(--pos); }
-.qa-btn[data-qa="exp"] .qa-inner svg { color: var(--neg); }
+.qa-btn[data-qa="exp"] .qa-inner svg { color: var(--info); }
 .qa-btn[data-qa="txn"] .qa-inner svg { color: var(--muted); }
 .qa-btn:hover { background: var(--bg); }
 .qa-btn[data-qa="inc"]:hover .qa-inner svg { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--pos) 70%, transparent)); }
-.qa-btn[data-qa="exp"]:hover .qa-inner svg { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--neg) 70%, transparent)); }
+.qa-btn[data-qa="exp"]:hover .qa-inner svg { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--info) 70%, transparent)); }
 .qa-btn[data-qa="txn"]:hover .qa-inner svg { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--muted) 50%, transparent)); }
 .qa-btn .k { color: var(--dim); font-size: 11px; }
 
@@ -814,7 +814,7 @@ a { color: inherit; text-decoration: none; }
 .period-cell .val.inflow  { color: var(--pos); }
 .period-cell .val.outflow { color: var(--info); }
 .period-cell .val.xfr     { color: var(--warn); }
-.period-cell .val.net     { color: var(--accent); }
+.period-cell .val.net     { color: var(--text); }
 .period-cell .val.net-pos { color: var(--pos); }
 .period-cell .val.net-neg { color: var(--neg); }
 .period-cell .meta {

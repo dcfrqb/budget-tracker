@@ -25,7 +25,7 @@ function reverseSymbol(formatted: string): string {
 export function toDebtView(debt: DebtWithTxns & DebtProgress): DebtView {
   const dir = debt.direction === "LENT" ? "out" : "in";
   const dirLabel = dir === "out" ? "выдал" : "взял";
-  const amountTone = dir === "out" ? "neg" : "pos";
+  const amountTone = dir === "out" ? "pos" : "neg";
 
   const principal = new Prisma.Decimal(debt.principal);
   const returned = debt.returnedAmount;

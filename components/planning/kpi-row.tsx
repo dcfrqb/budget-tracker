@@ -39,8 +39,8 @@ export function PlanningKpiRow({
             <div className="s">{k.next.sub}</div>
           </div>
           <div className="kpi">
-            <div className="c info">{k.hours.label}</div>
-            <div className="v info"><CountUp to={k.hours.value} format="int" /> ч</div>
+            <div className="c">{k.hours.label}</div>
+            <div className="v"><CountUp to={k.hours.value} format="int" /> ч</div>
             <div className="s">{k.hours.sub}</div>
           </div>
         </div>
