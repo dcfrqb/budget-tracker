@@ -120,6 +120,30 @@ async function tbankApiGetViaPage(
   return result;
 }
 
+/**
+ * Navigate the page to a /mybank/* sub-route so T-Bank's SPA performs its
+ * level-up dance (anonymous landing → level 35 trusted-device session). The
+ * SPA fires the necessary internal upgrade calls itself; we just need to BE
+ * ON the right page when we then issue our own API request. Without this,
+ * accounts_light_ib responds with INSUFFICIENT_PRIVILEGES (requires level 35).
+ */
+async function elevateSessionViaSpa(
+  page: import("playwright").Page,
+  url: string,
+  label: string,
+): Promise<void> {
+  log(`${label}: elevateSessionViaSpa goto ${url}`);
+  try {
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 15_000 });
+  } catch (err) {
+    log(`${label}: elevateSessionViaSpa goto failed (continuing): ${err instanceof Error ? err.message : String(err)}`);
+  }
+  await page.waitForLoadState("networkidle", { timeout: 12_000 }).catch(() => {
+    log(`${label}: elevateSessionViaSpa networkidle timed out (12s) — proceeding`);
+  });
+  log(`${label}: elevateSessionViaSpa settled at ${page.url()}`);
+}
+
 function readSecrets(ctx: AdapterContext): TinkoffPlaywrightSecrets {
   return ctx.secrets as TinkoffPlaywrightSecrets;
 }
@@ -298,6 +322,11 @@ export const tinkoffRetailAdapter: BankAdapter = {
             end: range.to.getTime(),
           });
 
+          await elevateSessionViaSpa(
+            page,
+            `https://www.tbank.ru/mybank/accounts/${link.externalAccountId}/`,
+            "fetchTransactions",
+          );
           const response = await tbankApiGetViaPage(page, url, sessionAuth, "fetchTransactions");
           if (response.status !== 200) {
             log(`fetchTransactions: non-200 — body (first 1000): ${response.body.slice(0, 1000)}`);
@@ -393,6 +422,7 @@ export const tinkoffRetailAdapter: BankAdapter = {
         }
 
         log(`listExternalAccounts: starting api call sessionAuth=${sessionAuth.sessionid.slice(0, 6)}…(len=${sessionAuth.sessionid.length})`);
+        await elevateSessionViaSpa(page, "https://www.tbank.ru/mybank/accounts/", "listExternalAccounts");
         const url = buildApiUrl("accounts_light_ib", sessionAuth);
         const response = await tbankApiGetViaPage(page, url, sessionAuth, "listExternalAccounts");
         if (response.status !== 200) {
