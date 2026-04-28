@@ -8,6 +8,7 @@ import {
   listUserAccountsAction,
   linkExternalAccountAction,
   unlinkExternalAccountAction,
+  createAccountAndLinkAction,
 } from "@/app/(shell)/settings/integrations/actions";
 
 // ─────────────────────────────────────────────────────────────
@@ -18,6 +19,7 @@ type ExternalAccount = {
   externalAccountId: string;
   label: string;
   currencyCode: string;
+  accountType?: string;
 };
 
 type AccountLink = {
@@ -58,6 +60,8 @@ export function LinkAccountsDialog({ credentialId, onClose, onDone }: Props) {
   const [selections, setSelections] = useState<Record<string, string>>({});
 
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [createdAccounts, setCreatedAccounts] = useState<Set<string>>(new Set());
+  const [createErrors, setCreateErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -120,6 +124,24 @@ export function LinkAccountsDialog({ credentialId, onClose, onDone }: Props) {
 
   function handleSelectionChange(externalAccountId: string, accountId: string) {
     setSelections((prev) => ({ ...prev, [externalAccountId]: accountId }));
+  }
+
+  function handleCreateAndLink(ea: ExternalAccount) {
+    setCreateErrors((prev) => { const n = { ...prev }; delete n[ea.externalAccountId]; return n; });
+    startTransition(async () => {
+      const result = await createAccountAndLinkAction({
+        credentialId,
+        externalAccountId: ea.externalAccountId,
+        label: ea.label,
+        currencyCode: ea.currencyCode,
+        accountType: ea.accountType ?? "Current",
+      });
+      if (!result.ok) {
+        setCreateErrors((prev) => ({ ...prev, [ea.externalAccountId]: t("settings.integrations.tinkoff_retail.error.create_and_link_failed") }));
+        return;
+      }
+      setCreatedAccounts((prev) => new Set(prev).add(ea.externalAccountId));
+    });
   }
 
   function handleSave() {
@@ -272,6 +294,9 @@ export function LinkAccountsDialog({ credentialId, onClose, onDone }: Props) {
                   (la) => la.currencyCode === ea.currencyCode,
                 );
                 const options = matchingLocal.length > 0 ? matchingLocal : localAccounts;
+                const isAlreadyLinked = existingLinks.some((l) => l.externalAccountId === ea.externalAccountId);
+                const justCreated = createdAccounts.has(ea.externalAccountId);
+                const createError = createErrors[ea.externalAccountId];
 
                 return (
                   <tr key={ea.externalAccountId}>
@@ -309,23 +334,47 @@ export function LinkAccountsDialog({ credentialId, onClose, onDone }: Props) {
                         borderBottom: "1px solid var(--border)",
                       }}
                     >
-                      <select
-                        className="settings-input mono"
-                        style={{ fontSize: 11, width: "100%" }}
-                        value={selections[ea.externalAccountId] ?? ""}
-                        onChange={(e) =>
-                          handleSelectionChange(ea.externalAccountId, e.target.value)
-                        }
-                      >
-                        <option value="">
-                          {t("settings.integrations.tinkoff_retail.link.unlinked_option")}
-                        </option>
-                        {options.map((la) => (
-                          <option key={la.id} value={la.id}>
-                            {la.name} ({la.currencyCode})
-                          </option>
-                        ))}
-                      </select>
+                      {justCreated ? (
+                        <span className="mono" style={{ fontSize: 10, color: "var(--pos)" }}>
+                          {t("settings.integrations.tinkoff_retail.link.created")}
+                        </span>
+                      ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                          <select
+                            className="settings-input mono"
+                            style={{ fontSize: 11, width: "100%" }}
+                            value={selections[ea.externalAccountId] ?? ""}
+                            onChange={(e) =>
+                              handleSelectionChange(ea.externalAccountId, e.target.value)
+                            }
+                          >
+                            <option value="">
+                              {t("settings.integrations.tinkoff_retail.link.unlinked_option")}
+                            </option>
+                            {options.map((la) => (
+                              <option key={la.id} value={la.id}>
+                                {la.name} ({la.currencyCode})
+                              </option>
+                            ))}
+                          </select>
+                          {!isAlreadyLinked && (
+                            <button
+                              className="btn"
+                              type="button"
+                              onClick={() => handleCreateAndLink(ea)}
+                              disabled={isPending}
+                              style={{ fontSize: 10, padding: "3px 8px" }}
+                            >
+                              {t("settings.integrations.tinkoff_retail.link.create_and_link")}
+                            </button>
+                          )}
+                          {createError && (
+                            <span className="mono" style={{ fontSize: 10, color: "var(--neg)" }}>
+                              {createError}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </td>
                   </tr>
                 );

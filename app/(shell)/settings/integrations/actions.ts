@@ -15,6 +15,7 @@ import {
   listAccountLinksForCredential,
   listExternalAccountsForCredential,
   reloginCredential,
+  createAccountAndLink,
 } from "@/lib/data/_mutations/integrations";
 import { listAccountsForQuickDrawer } from "@/lib/data/wallet";
 import {
@@ -26,6 +27,7 @@ import {
   linkExternalAccountSchema,
   unlinkExternalAccountSchema,
   reloginSchema,
+  createAccountAndLinkSchema,
   toValidationFailure,
 } from "@/lib/validation/integrations";
 
@@ -266,6 +268,33 @@ export async function listUserAccountsAction(): Promise<ActionResult> {
   try {
     const userId = await getCurrentUserId();
     const result = await listAccountsForQuickDrawer(userId);
+    return { ok: true, data: result };
+  } catch (e) {
+    const safe = toSafeError(e);
+    return { ok: false, error: safe.message };
+  }
+}
+
+/**
+ * Create a new Account from external metadata and atomically link it to the
+ * credential's external account. One-click alternative to the two-step
+ * "create account first, then pick it in the dropdown" flow.
+ */
+export async function createAccountAndLinkAction(input: {
+  credentialId: string;
+  externalAccountId: string;
+  label: string;
+  currencyCode: string;
+  accountType: string;
+}): Promise<ActionResult> {
+  const parsed = createAccountAndLinkSchema.safeParse(input);
+  if (!parsed.success) return toValidationFailure(parsed.error);
+
+  try {
+    const userId = await getCurrentUserId();
+    const result = await createAccountAndLink(userId, parsed.data);
+    revalidatePath("/settings/integrations");
+    revalidatePath("/wallet");
     return { ok: true, data: result };
   } catch (e) {
     const safe = toSafeError(e);

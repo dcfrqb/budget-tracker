@@ -81,6 +81,8 @@ function buildApiUrl(
   return url.toString();
 }
 
+const log = (msg: string) => console.log(`[playwright-tbank] ${msg}`);
+
 function readSecrets(ctx: AdapterContext): TinkoffPlaywrightSecrets {
   return ctx.secrets as TinkoffPlaywrightSecrets;
 }
@@ -252,6 +254,7 @@ export const tinkoffRetailAdapter: BankAdapter = {
         const results: ImportRow[] = [];
 
         for (const link of links) {
+          log(`fetchTransactions: link accountId=${link.accountId} external=${link.externalAccountId} range=${range.from.toISOString()}..${range.to.toISOString()}`);
           const url = buildApiUrl("operations", sessionAuth, {
             account: link.externalAccountId,
             start: range.from.getTime(),
@@ -259,8 +262,14 @@ export const tinkoffRetailAdapter: BankAdapter = {
           });
 
           const response = await page.request.get(url);
+          if (response.status() !== 200) {
+            const body = await response.text();
+            log(`fetchTransactions: HTTP ${response.status()} url=${url.replace(sessionAuth.sessionid, "[REDACTED]")} — non-200 body (first 1000 chars): ${body.slice(0, 1000)}`);
+            throw new Error(`operations HTTP ${response.status()}`);
+          }
           const json = await response.json();
           const { payload: ops } = parseTinkoffResponse<TinkoffOperation[]>(json);
+          log(`fetchTransactions: HTTP ${response.status()} url=${url.replace(sessionAuth.sessionid, "[REDACTED]")} ops=${ops.length}`);
 
           for (const op of ops) {
             const cardLast4Raw = op.cardNumber != null
@@ -298,6 +307,8 @@ export const tinkoffRetailAdapter: BankAdapter = {
             results.push(row);
           }
         }
+
+        log(`fetchTransactions: total ImportRows=${results.length} across ${links.length} links`);
 
         const freshStorageState = await saveStorageState();
         await ctx.saveSecrets({
@@ -339,11 +350,20 @@ export const tinkoffRetailAdapter: BankAdapter = {
           throw err;
         }
 
+        log(`listExternalAccounts: starting api call sessionAuth=${sessionAuth.sessionid.slice(0, 6)}…(len=${sessionAuth.sessionid.length})`);
         const url = buildApiUrl("accounts_light_ib", sessionAuth);
         const response = await page.request.get(url);
+        log(`listExternalAccounts: HTTP ${response.status()} url=${url.replace(sessionAuth.sessionid, "[REDACTED]")}`);
+        if (response.status() !== 200) {
+          const body = await response.text();
+          log(`listExternalAccounts: non-200 body (first 1000 chars): ${body.slice(0, 1000)}`);
+          throw new Error(`accounts_light_ib HTTP ${response.status()}`);
+        }
         const json = await response.json();
         const { payload: accounts } =
           parseTinkoffResponse<TinkoffAccountSummary[]>(json);
+        log(`listExternalAccounts: raw payload count=${accounts.length}`);
+        for (const a of accounts) log(`listExternalAccounts: external id=${a.id} name="${a.name}" currency=${a.currency.name} type=${a.accountType}`);
 
         const result = accounts.map((acct) => ({
           externalAccountId: acct.id,
@@ -351,6 +371,7 @@ export const tinkoffRetailAdapter: BankAdapter = {
           currencyCode: acct.currency.name,
           accountType: acct.accountType,
         }));
+        log(`listExternalAccounts: returning ${result.length} normalized rows`);
 
         const freshStorageState = await saveStorageState();
         await ctx.saveSecrets({

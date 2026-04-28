@@ -7,6 +7,9 @@ import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
+// Source label for all CSV imports (Tinkoff CSV format).
+const CSV_SOURCE = "tinkoff-csv";
+
 // Postgres has a hard cap on parameters per statement (~65535). Each row binds
 // ~11 params, so 2000 rows per chunk keeps us well under the limit and also
 // bounds memory / time per statement for very large imports.
@@ -105,7 +108,14 @@ export async function POST(req: Request) {
     const errors: Array<{ rowIndex: number; code: string; message?: string }> =
       [];
 
-    // Transactions to batch-create (non-transfer plain rows)
+    // Plain rows to persist: split by whether they have externalId.
+    // Rows with externalId → individual upserts (dedupe via importDedupe constraint).
+    // Rows without externalId → batch createMany (no dedupe possible).
+    type PlainRow = Prisma.TransactionCreateManyInput & {
+      externalId?: string | null;
+      source?: string | null;
+    };
+    const toUpsert: PlainRow[] = [];
     const toCreateMany: Prisma.TransactionCreateManyInput[] = [];
 
     // Transfer pairs to create one-by-one inside tx
@@ -138,7 +148,13 @@ export async function POST(req: Request) {
             validCategoryIds,
             errors,
           );
-          if (plain) toCreateMany.push(plain);
+          if (plain) {
+            if (plain.externalId) {
+              toUpsert.push(plain);
+            } else {
+              toCreateMany.push(plain);
+            }
+          }
         }
         continue;
       }
@@ -160,7 +176,13 @@ export async function POST(req: Request) {
             validCategoryIds,
             errors,
           );
-          if (plain) toCreateMany.push(plain);
+          if (plain) {
+            if (plain.externalId) {
+              toUpsert.push(plain);
+            } else {
+              toCreateMany.push(plain);
+            }
+          }
         }
         continue;
       }
@@ -200,7 +222,7 @@ export async function POST(req: Request) {
           rawCategoryId && validCategoryIds.has(rawCategoryId)
             ? rawCategoryId
             : null;
-        toCreateMany.push({
+        const plain: PlainRow = {
           userId: DEFAULT_USER_ID,
           accountId: row.accountId,
           categoryId,
@@ -210,8 +232,14 @@ export async function POST(req: Request) {
           currencyCode: row.currencyCode,
           occurredAt: new Date(row.occurredAt),
           name: buildName(row.description, row.rawCategory, row.counterparty),
-          note: row.externalId ? `import:${row.externalId}` : null,
-        });
+          externalId: row.externalId ?? null,
+          source: row.externalId ? CSV_SOURCE : null,
+        };
+        if (plain.externalId) {
+          toUpsert.push(plain);
+        } else {
+          toCreateMany.push(plain);
+        }
         continue;
       }
 
@@ -222,7 +250,13 @@ export async function POST(req: Request) {
         validCategoryIds,
         errors,
       );
-      if (plain) toCreateMany.push(plain);
+      if (plain) {
+        if (plain.externalId) {
+          toUpsert.push(plain);
+        } else {
+          toCreateMany.push(plain);
+        }
+      }
     }
 
     // ── 6. Execute all writes in a single Prisma transaction ────────────────
@@ -255,7 +289,9 @@ export async function POST(req: Request) {
             select: { id: true },
           });
 
-          // Create two TRANSFER transactions linked to the Transfer entity
+          // Create two TRANSFER transactions linked to the Transfer entity.
+          // Transfer legs use createMany (no individual dedupe — Transfer entity
+          // is the authoritative deduplication boundary for paired transfers).
           await tx.transaction.createMany({
             data: [
               {
@@ -272,9 +308,8 @@ export async function POST(req: Request) {
                   pair.outRow.rawCategory,
                   pair.outRow.counterparty,
                 ) || "Между своими счетами",
-                note: pair.outRow.externalId
-                  ? `import:${pair.outRow.externalId}`
-                  : null,
+                externalId: pair.outRow.externalId ?? null,
+                source: pair.outRow.externalId ? CSV_SOURCE : null,
                 transferId: transfer.id,
               },
               {
@@ -291,9 +326,8 @@ export async function POST(req: Request) {
                   pair.inRow.rawCategory,
                   pair.inRow.counterparty,
                 ) || "Между своими счетами",
-                note: pair.inRow.externalId
-                  ? `import:${pair.inRow.externalId}`
-                  : null,
+                externalId: pair.inRow.externalId ?? null,
+                source: pair.inRow.externalId ? CSV_SOURCE : null,
                 transferId: transfer.id,
               },
             ],
@@ -303,7 +337,39 @@ export async function POST(req: Request) {
           transfersCreated += 1;
         }
 
-        // Batch-create plain transactions in chunks
+        // Upsert rows that have externalId (dedupe via importDedupe unique constraint).
+        for (const row of toUpsert) {
+          await tx.transaction.upsert({
+            where: {
+              importDedupe: {
+                accountId: row.accountId as string,
+                source: row.source as string,
+                externalId: row.externalId as string,
+              },
+            },
+            update: {
+              amount: row.amount,
+              name: row.name as string,
+              occurredAt: row.occurredAt as Date,
+            },
+            create: {
+              userId: DEFAULT_USER_ID,
+              accountId: row.accountId as string,
+              categoryId: row.categoryId as string | null | undefined,
+              kind: row.kind as TransactionKind,
+              status: row.status as TransactionStatus,
+              amount: row.amount,
+              currencyCode: row.currencyCode as string,
+              occurredAt: row.occurredAt as Date,
+              name: row.name as string,
+              externalId: row.externalId as string,
+              source: row.source as string,
+            },
+          });
+          created++;
+        }
+
+        // Batch-create plain transactions without externalId in chunks.
         for (let i = 0; i < toCreateMany.length; i += CHUNK) {
           const slice = toCreateMany.slice(i, i + CHUNK);
           const res = await tx.transaction.createMany({ data: slice });
@@ -325,6 +391,11 @@ export async function POST(req: Request) {
 // Helpers
 // ─────────────────────────────────────────────────────────────
 
+type PlainTransactionResult = Prisma.TransactionCreateManyInput & {
+  externalId?: string | null;
+  source?: string | null;
+};
+
 function buildPlainTransaction(
   row: {
     kind: "INCOME" | "EXPENSE" | "TRANSFER";
@@ -343,7 +414,7 @@ function buildPlainTransaction(
   categoryMapping: Record<string, string | null> | undefined,
   validCategoryIds: Set<string>,
   errors: Array<{ rowIndex: number; code: string; message?: string }>,
-): Prisma.TransactionCreateManyInput | null {
+): PlainTransactionResult | null {
   const rawCategoryId =
     row.selectedCategoryId ?? categoryMapping?.[String(idx)] ?? null;
 
@@ -372,7 +443,8 @@ function buildPlainTransaction(
     currencyCode: row.currencyCode,
     occurredAt: new Date(row.occurredAt),
     name: buildName(row.description, row.rawCategory, row.counterparty),
-    note: row.externalId ? `import:${row.externalId}` : null,
+    externalId: row.externalId ?? null,
+    source: row.externalId ? CSV_SOURCE : null,
   };
 }
 

@@ -193,6 +193,8 @@ export const enDict: RuDictShape = {
           manage_button: "Manage links",
           linked_count: "Linked accounts: {count}",
           loading: "Loading accounts from T-Bank…",
+          create_and_link: "Create account and link",
+          created: "Created and linked",
         },
         error: {
           insufficient_privileges: "Insufficient privileges on this T-Bank account.",
@@ -223,6 +225,7 @@ export const enDict: RuDictShape = {
           invalid_session: "Saved session is corrupted. Reconnect the integration.",
           lk_password_required: "Enter your T-Bank online banking password.",
           tinkoff_session_cookies_missing: "Failed to extract T-Bank session cookies. Reconnect the integration.",
+          create_and_link_failed: "Failed to create account. Try again.",
         },
         action: {
           relogin: "Reconnect",

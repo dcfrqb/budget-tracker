@@ -125,6 +125,18 @@ export const reloginSchema = z.object({
   password: z.string().min(1).max(200),
 });
 
+// ── Create account and link ───────────────────────────────────
+
+export const createAccountAndLinkSchema = z.object({
+  credentialId: zCuid,
+  externalAccountId: z.string().min(1).max(64),
+  label: z.string().min(1).max(120),
+  currencyCode: z.string().min(3).max(10),
+  accountType: z.string().min(1).max(64),
+});
+
+export type CreateAccountAndLinkInput = z.infer<typeof createAccountAndLinkSchema>;
+
 // ── Disconnect / Delete ───────────────────────────────────────
 
 export const disconnectInputSchema = z.object({

@@ -1,4 +1,4 @@
-import { IntegrationStatus, TransactionKind, TransactionStatus } from "@prisma/client";
+import { AccountKind, IntegrationStatus, TransactionKind, TransactionStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { encrypt, decrypt } from "@/lib/integrations/crypto";
 import { assertAdminIntegrations } from "@/lib/integrations/guard";
@@ -295,7 +295,7 @@ export async function syncCredential(
 
   try {
     const to = new Date();
-    const from = new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const from = new Date(to.getTime() - 365 * 24 * 60 * 60 * 1000);
     const range = opts?.range ?? { from, to };
 
     const ctx = buildContext(userId, credentialId, secrets);
@@ -339,44 +339,86 @@ export async function syncCredential(
               occurredAt: { gte: range.from, lte: range.to },
               deletedAt: null,
             },
-            select: { id: true, note: true, occurredAt: true, amount: true, accountId: true },
+            select: { id: true, externalId: true, occurredAt: true, amount: true, accountId: true },
           });
 
           const existingForDedupe = existing.map((t) => ({
-            externalId: t.note?.startsWith("import:") ? t.note.slice(7) : undefined,
+            externalId: t.externalId ?? undefined,
             occurredAt: t.occurredAt,
             amount: t.amount.toString(),
             accountId: t.accountId,
           }));
 
-          const duplicateIndices = findDuplicates(groupRows, existingForDedupe, accountId);
+          // Rows with externalId are deduped via DB upsert (importDedupe constraint).
+          // Rows without externalId use fuzzy dedupe to prevent near-duplicates.
+          const rowsWithoutExtId = groupRows.filter((r) => !r.externalId);
+          const fuzzyDuplicateIndices = findDuplicates(rowsWithoutExtId, existingForDedupe, accountId);
+
+          const countBefore = await db.transaction.count({ where: { userId, accountId, source: "tinkoff-retail" } });
 
           await db.$transaction(async (tx) => {
             for (let i = 0; i < groupRows.length; i++) {
-              if (duplicateIndices.has(i)) {
-                rowsSkipped++;
-                continue;
-              }
               const row = groupRows[i];
               const kind =
                 row.kind === "INCOME" ? TransactionKind.INCOME : TransactionKind.EXPENSE;
-              const name = row.description ?? row.rawCategory ?? "Sync import";
-              await tx.transaction.create({
-                data: {
-                  userId,
-                  accountId,
-                  kind,
-                  status: TransactionStatus.DONE,
-                  amount: row.amount,
-                  currencyCode: row.currencyCode,
-                  occurredAt: new Date(row.occurredAt),
-                  name: name.substring(0, 240),
-                  note: row.externalId ? `import:${row.externalId}` : null,
-                },
-              });
+              const name = (row.description ?? row.rawCategory ?? "Sync import").substring(0, 240);
+
+              if (row.externalId) {
+                // Upsert: DB constraint importDedupe(accountId, source, externalId) handles dedupe.
+                await tx.transaction.upsert({
+                  where: {
+                    importDedupe: {
+                      accountId,
+                      source: "tinkoff-retail",
+                      externalId: row.externalId,
+                    },
+                  },
+                  update: {
+                    amount: row.amount,
+                    name,
+                    occurredAt: new Date(row.occurredAt),
+                  },
+                  create: {
+                    userId,
+                    accountId,
+                    kind,
+                    status: TransactionStatus.DONE,
+                    amount: row.amount,
+                    currencyCode: row.currencyCode,
+                    occurredAt: new Date(row.occurredAt),
+                    name,
+                    externalId: row.externalId,
+                    source: "tinkoff-retail",
+                  },
+                });
+              } else {
+                // No externalId — fuzzy dedupe to avoid near-duplicate plain rows.
+                const localIdx = rowsWithoutExtId.indexOf(row);
+                if (localIdx !== -1 && fuzzyDuplicateIndices.has(localIdx)) {
+                  rowsSkipped++;
+                  continue;
+                }
+                await tx.transaction.create({
+                  data: {
+                    userId,
+                    accountId,
+                    kind,
+                    status: TransactionStatus.DONE,
+                    amount: row.amount,
+                    currencyCode: row.currencyCode,
+                    occurredAt: new Date(row.occurredAt),
+                    name,
+                  },
+                });
+              }
               rowsCreated++;
             }
           });
+
+          const countAfter = await db.transaction.count({ where: { userId, accountId, source: "tinkoff-retail" } });
+          const insertedCount = countAfter - countBefore;
+          const updatedCount = groupRows.filter((r) => r.externalId).length - insertedCount;
+          console.log(`[playwright-tbank] persistImportRows: total=${groupRows.length} inserted=${insertedCount} updated=${Math.max(0, updatedCount)} skipped=${rowsSkipped}`);
         }
       }
 
@@ -405,41 +447,76 @@ export async function syncCredential(
             occurredAt: { gte: range.from, lte: range.to },
             deletedAt: null,
           },
-          select: { id: true, note: true, occurredAt: true, amount: true, accountId: true },
+          select: { id: true, externalId: true, occurredAt: true, amount: true, accountId: true },
         });
 
         const existingForDedupe = existing.map((t) => ({
-          externalId: t.note?.startsWith("import:") ? t.note.slice(7) : undefined,
+          externalId: t.externalId ?? undefined,
           occurredAt: t.occurredAt,
           amount: t.amount.toString(),
           accountId: t.accountId,
         }));
 
-        const duplicateIndices = findDuplicates(rowsWithoutAccountId, existingForDedupe, accountId);
+        // Rows with externalId are deduped via DB upsert (importDedupe constraint).
+        // Rows without externalId use fuzzy dedupe to prevent near-duplicates.
+        const rowsWithoutExtIdB = rowsWithoutAccountId.filter((r) => !r.externalId);
+        const fuzzyDuplicateIndicesB = findDuplicates(rowsWithoutExtIdB, existingForDedupe, accountId);
 
         await db.$transaction(async (tx) => {
           for (let i = 0; i < rowsWithoutAccountId.length; i++) {
-            if (duplicateIndices.has(i)) {
-              rowsSkipped++;
-              continue;
-            }
             const row = rowsWithoutAccountId[i];
             const kind =
               row.kind === "INCOME" ? TransactionKind.INCOME : TransactionKind.EXPENSE;
-            const name = row.description ?? row.rawCategory ?? "Sync import";
-            await tx.transaction.create({
-              data: {
-                userId,
-                accountId,
-                kind,
-                status: TransactionStatus.DONE,
-                amount: row.amount,
-                currencyCode: row.currencyCode,
-                occurredAt: new Date(row.occurredAt),
-                name: name.substring(0, 240),
-                note: row.externalId ? `import:${row.externalId}` : null,
-              },
-            });
+            const name = (row.description ?? row.rawCategory ?? "Sync import").substring(0, 240);
+
+            if (row.externalId) {
+              // Upsert: DB constraint importDedupe(accountId, source, externalId) handles dedupe.
+              await tx.transaction.upsert({
+                where: {
+                  importDedupe: {
+                    accountId,
+                    source: "tinkoff-retail",
+                    externalId: row.externalId,
+                  },
+                },
+                update: {
+                  amount: row.amount,
+                  name,
+                  occurredAt: new Date(row.occurredAt),
+                },
+                create: {
+                  userId,
+                  accountId,
+                  kind,
+                  status: TransactionStatus.DONE,
+                  amount: row.amount,
+                  currencyCode: row.currencyCode,
+                  occurredAt: new Date(row.occurredAt),
+                  name,
+                  externalId: row.externalId,
+                  source: "tinkoff-retail",
+                },
+              });
+            } else {
+              // No externalId — fuzzy dedupe to avoid near-duplicate plain rows.
+              const localIdx = rowsWithoutExtIdB.indexOf(row);
+              if (localIdx !== -1 && fuzzyDuplicateIndicesB.has(localIdx)) {
+                rowsSkipped++;
+                continue;
+              }
+              await tx.transaction.create({
+                data: {
+                  userId,
+                  accountId,
+                  kind,
+                  status: TransactionStatus.DONE,
+                  amount: row.amount,
+                  currencyCode: row.currencyCode,
+                  occurredAt: new Date(row.occurredAt),
+                  name,
+                },
+              });
+            }
             rowsCreated++;
           }
         });
@@ -620,6 +697,68 @@ export async function listAccountLinksForCredential(
     accountName: l.account.name,
     accountCurrency: l.account.currencyCode,
   }));
+}
+
+/**
+ * Create an Account from external metadata and atomically link it to the credential.
+ * Intended for the "Создать счёт и привязать" one-click flow when the DB has no
+ * pre-existing Account row for the external account.
+ */
+export async function createAccountAndLink(
+  userId: string,
+  input: {
+    credentialId: string;
+    externalAccountId: string;
+    label: string;
+    currencyCode: string;
+    accountType: string;
+  },
+): Promise<{ accountId: string; linkId: string }> {
+  assertAdminIntegrations(userId);
+
+  const cred = await db.integrationCredential.findFirst({
+    where: { id: input.credentialId, userId },
+    select: { id: true },
+  });
+  if (!cred) {
+    throw Object.assign(new Error("Credential not found"), { code: "NOT_FOUND" });
+  }
+
+  function mapAccountType(t: string): AccountKind {
+    const upper = t.toUpperCase();
+    if (["CURRENT", "DEBIT", "DEBITCARD"].includes(upper)) return AccountKind.CARD;
+    if (["CREDIT", "CREDITCARD"].includes(upper)) return AccountKind.CREDIT;
+    if (["SAVING", "DEPOSIT", "SAVINGSACCOUNT"].includes(upper)) return AccountKind.SAVINGS;
+    console.warn(`[playwright-tbank] createAccountAndLink: unknown accountType="${t}", defaulting to CARD`);
+    return AccountKind.CARD;
+  }
+
+  const kind = mapAccountType(input.accountType);
+
+  return db.$transaction(async (tx) => {
+    const newAccount = await tx.account.create({
+      data: {
+        userId,
+        name: input.label,
+        currencyCode: input.currencyCode,
+        kind,
+        balance: 0,
+        includeInAnalytics: true,
+        sortOrder: 0,
+      },
+    });
+
+    const newLink = await tx.integrationAccountLink.create({
+      data: {
+        credentialId: input.credentialId,
+        externalAccountId: input.externalAccountId,
+        accountId: newAccount.id,
+        label: input.label,
+      },
+    });
+
+    return { accountId: newAccount.id, linkId: newLink.id };
+  });
 }
 
 /** Re-run the login flow for an existing credential (e.g. after session expiry). */

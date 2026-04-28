@@ -295,6 +295,11 @@ model Transaction {
   reimbursementFromName String?
   expectedReimbursement Decimal? @db.Decimal(28, 10)
 
+  // Import deduplication: внешний ID транзакции (из T-Bank, Sber, и т.д.)
+  // и источник импорта для уникальной идентификации.
+  externalId String?
+  source     String?
+
   // Связи с доменными объектами
   transferId     String?
   loanId         String?
@@ -328,6 +333,7 @@ model Transaction {
   facts          TransactionFact[]
   reimbursements ReimbursementFact[]
 
+  @@unique([accountId, source, externalId], name: "importDedupe")
   @@index([userId, occurredAt])
   @@index([accountId])
   @@index([categoryId])

@@ -201,6 +201,8 @@ export const ruDict = {
           manage_button: "Привязки счетов",
           linked_count: "Связано счетов: {count}",
           loading: "Загружаем счета из T-Банка…",
+          create_and_link: "Создать счёт и привязать",
+          created: "Создан и привязан",
         },
         error: {
           insufficient_privileges: "Недостаточно прав на этом аккаунте Т-Банка.",
@@ -231,6 +233,7 @@ export const ruDict = {
           invalid_session: "Сохранённая сессия повреждена. Подключи интеграцию заново.",
           lk_password_required: "Введите пароль от ЛК Т-Банка.",
           tinkoff_session_cookies_missing: "Не удалось извлечь сессионные куки T-Bank. Переподключи интеграцию.",
+          create_and_link_failed: "Не удалось создать счёт. Попробуй ещё раз.",
         },
         action: {
           relogin: "Переподключить",
