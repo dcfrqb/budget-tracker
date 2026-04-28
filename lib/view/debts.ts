@@ -2,11 +2,14 @@ import { Prisma } from "@prisma/client";
 import type { DebtWithTxns, DebtProgress } from "@/lib/data/debts";
 import { formatAmount } from "@/lib/format/money";
 import { formatDateRu } from "@/lib/view/transactions";
+import type { TKey } from "@/lib/i18n/t";
+
+type TFn = (key: TKey, options?: { vars?: Record<string, string | number> }) => string;
 
 export type DebtView = {
   id: string;
   dir: "out" | "in";
-  dirLabel: "выдал" | "взял";
+  dirLabel: string;
   name: string;
   sub: string;
   since: string;
@@ -22,9 +25,18 @@ function reverseSymbol(formatted: string): string {
   return `${formatted.slice(idx + 1)} ${formatted.slice(0, idx)}`;
 }
 
-export function toDebtView(debt: DebtWithTxns & DebtProgress): DebtView {
+function returnsSuffix(n: number, t: TFn): string {
+  if (n === 1) return t("debts.returns_suffix.one");
+  if (n < 5) return t("debts.returns_suffix.few");
+  return t("debts.returns_suffix.many");
+}
+
+export function toDebtView(
+  debt: DebtWithTxns & DebtProgress,
+  t: TFn,
+): DebtView {
   const dir = debt.direction === "LENT" ? "out" : "in";
-  const dirLabel = dir === "out" ? "выдал" : "взял";
+  const dirLabel = dir === "out" ? t("debts.dir.out") : t("debts.dir.in");
   const amountTone = dir === "out" ? "pos" : "neg";
 
   const principal = new Prisma.Decimal(debt.principal);
@@ -33,23 +45,40 @@ export function toDebtView(debt: DebtWithTxns & DebtProgress): DebtView {
   const name = `${debt.counterparty}${debt.note ? ` · ${debt.note}` : ""}`;
 
   const sub = debt.nextExpected
-    ? `следующий ${reverseSymbol(formatAmount(debt.nextExpected.amount, debt.currency))} на ${
-        debt.nextExpected.plannedAt ? formatDateRu(debt.nextExpected.plannedAt) : "—"
-      }`
+    ? debt.nextExpected.plannedAt
+      ? t("debts.next_payment", {
+          vars: {
+            amount: reverseSymbol(formatAmount(debt.nextExpected.amount, debt.currency)),
+            date: formatDateRu(debt.nextExpected.plannedAt),
+          },
+        })
+      : t("debts.next_payment_no_date", {
+          vars: {
+            amount: reverseSymbol(formatAmount(debt.nextExpected.amount, debt.currency)),
+          },
+        })
     : debt.returnsCount > 0
-      ? `${debt.returnsCount} возврат${debt.returnsCount === 1 ? "" : debt.returnsCount < 5 ? "а" : "ов"}`
-      : "без возвратов";
+      ? t("debts.returns_count", {
+          vars: {
+            n: String(debt.returnsCount),
+            suffix: returnsSuffix(debt.returnsCount, t),
+          },
+        })
+      : t("debts.no_returns");
 
   const since = formatDateRu(debt.openedAt);
-  const until = debt.dueAt ? formatDateRu(debt.dueAt) : "без срока";
+  const until = debt.dueAt ? formatDateRu(debt.dueAt) : t("common.no_deadline");
 
-  // Для OUT знак "−" (деньги ушли), для IN — "+" (деньги пришли).
   const amtSign = dir === "out" ? "−" : "+";
   const amountFormatted = reverseSymbol(formatAmount(principal, debt.currency));
   const amount = `${amtSign}${amountFormatted}`;
 
-  // Прогресс-лейбл: для OUT показываем возвращено / principal, для IN тоже.
-  const progressLabel = `возвращено ${Math.floor(returned.toNumber())} / ${Math.floor(principal.toNumber())}`;
+  const progressLabel = t("debts.progress_label", {
+    vars: {
+      returned: String(Math.floor(returned.toNumber())),
+      total: String(Math.floor(principal.toNumber())),
+    },
+  });
 
   return {
     id: debt.id,

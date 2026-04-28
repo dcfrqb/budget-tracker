@@ -102,11 +102,17 @@ export default async function PlanningPage() {
     ? Math.round(totalRemaining.div(hourlyRate).toNumber())
     : 0;
 
+  const fundsCount = funds.length;
+
   const kpi: PlanningKpiData = {
+    sectionTitle: t("planning.kpi.section_title"),
+    sectionSubtitle: t("planning.kpi.section_subtitle"),
+    fundsCountLabel: t("planning.kpi.funds_count", { vars: { n: String(fundsCount) } }),
+    hoursUnit: t("common.unit.hour"),
     saved: {
       label: t("planning.kpi.saved"),
       value: Number(totalSaved.toFixed(0)),
-      sub: t("planning.kpi.saved_sub", { vars: { count: String(funds.length) } }),
+      sub: t("planning.kpi.saved_sub", { vars: { count: String(fundsCount) } }),
     },
     monthly: {
       label: t("planning.kpi.monthly"),
@@ -256,7 +262,7 @@ export default async function PlanningPage() {
   return (
     <>
       <PlanningStatusStrip />
-      <PlanningKpiRow kpi={kpi} fundsCount={funds.length} />
+      <PlanningKpiRow kpi={kpi} />
       <HoursCalculator
         hourlyRate={hourlyRate ? hourlyRate.toFixed(2) : null}
         sourceName={primaryWorkSource?.name ?? null}

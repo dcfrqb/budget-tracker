@@ -1,6 +1,8 @@
 import { CountUp } from "@/components/count-up";
 
 export type ExpensesKpiData = {
+  sectionTitle: string;
+  sectionMeta: string;
   loans: { label: string; value: number; sub: string };
   subs: { label: string; value: number; sub: string };
   utilities: { label: string; value: number; sub: string };
@@ -12,8 +14,8 @@ export function ExpensesKpiRow({ kpi }: { kpi: ExpensesKpiData }) {
   return (
     <div className="section fade-in" style={{ animationDelay: "60ms" }}>
       <div className="section-hd">
-        <div className="ttl mono"><b>обзор обязательств</b></div>
-        <div className="meta mono">текущий месяц</div>
+        <div className="ttl mono"><b>{kpi.sectionTitle}</b></div>
+        <div className="meta mono">{kpi.sectionMeta}</div>
       </div>
       <div className="section-body flush">
         <div className="kpi-row" style={{ ["--kpi-cols" as string]: 5 } as React.CSSProperties}>

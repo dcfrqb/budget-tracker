@@ -197,6 +197,8 @@ export default async function ExpensesPage({
 
   // ── Build KPI ───────────────────────────────────────────────
   const kpi = {
+    sectionTitle: t("expenses.kpi.section_title"),
+    sectionMeta: t("expenses.kpi.section_meta"),
     loans: {
       label: t("expenses.kpi.loans"),
       value: Number(loanMonthly.toFixed(0)),

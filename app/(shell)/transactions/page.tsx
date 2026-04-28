@@ -5,7 +5,7 @@ import { TxnStatusStrip } from "@/components/transactions/status-strip";
 import { TxnToolbar } from "@/components/transactions/toolbar";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { getCurrentUserId } from "@/lib/api/auth";
-import { getT } from "@/lib/i18n/server";
+import { getT, getLocale } from "@/lib/i18n/server";
 import {
   getTransactionsGroupedByDay,
   getTransactionsPeriodSummary,
@@ -74,7 +74,8 @@ export default async function TransactionsPage({
   searchParams: SearchParams;
 }) {
   const sp = await searchParams;
-  const [userId, t] = await Promise.all([getCurrentUserId(), getT()]);
+  const locale = await getLocale();
+  const [userId, t] = await Promise.all([getCurrentUserId(), getT(locale)]);
 
   const { from, to } = parsePeriod(sp.period);
   const kindFilter = parseKindFilter(sp.type);
@@ -111,7 +112,7 @@ export default async function TransactionsPage({
     toTxnDayView(r, today, rates, DEFAULT_CURRENCY, t),
   );
   const summaryView = toPeriodSummaryView(summary);
-  const debtViews = debts.map(toDebtView);
+  const debtViews = debts.map((d) => toDebtView(d, t));
 
   // net по долгам: Σ(remaining) для OUT минус Σ(remaining) для IN (в base).
   let netDebt = new Prisma.Decimal(0);

@@ -37,7 +37,7 @@ export type TxnView = {
 export type TxnDayTotal = {
   label: string;
   value: string;
-  tone: "pos" | "info" | "warn" | "mut";
+  tone: "pos" | "neg" | "info" | "warn" | "mut";
 };
 
 export type TxnDayView = {
@@ -378,29 +378,18 @@ function dayTotalsFromTxns(
     return kindIsInflow || kindIsOutflow;
   });
   if (!inflowTotal.isZero() || !outflowTotal.isZero() || hasSettled) {
-    // Three separate badges per day: outflow (info/blue), inflow (pos/green), net (warn/orange).
-    // Owner explicitly asked for split — easier to scan than a single signed net.
-    if (!outflowTotal.isZero()) {
-      totals.push({
-        label: "",
-        value: `${prefix}−${formatRub(outflowTotal)}`,
-        tone: "info",
-      });
-    }
-    if (!inflowTotal.isZero()) {
-      totals.push({
-        label: "",
-        value: `${prefix}+${formatRub(inflowTotal)}`,
-        tone: "pos",
-      });
-    }
     const net = inflowTotal.minus(outflowTotal);
     const absNet = net.abs();
-    const netSign = net.greaterThanOrEqualTo(0) ? "+" : "−";
+    const netSign = net.greaterThan(0) ? "+" : net.lessThan(0) ? "−" : "";
+    const netTone: TxnDayTotal["tone"] = net.isZero()
+      ? "mut"
+      : net.greaterThan(0)
+      ? "pos"
+      : "neg";
     totals.push({
       label: "",
       value: `${prefix}${netSign}${formatRub(absNet)}`,
-      tone: "warn",
+      tone: netTone,
     });
   }
   if (plannedCount > 0) {

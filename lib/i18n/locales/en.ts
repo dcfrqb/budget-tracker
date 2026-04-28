@@ -414,6 +414,8 @@ export const enDict: RuDictShape = {
       taxes_sub: "pay manually",
       projects: "LONG PROJECTS",
       projects_sub: "active · {budget} budget",
+      section_title: "obligations overview",
+      section_meta: "current month",
     },
     category: {
       usage_label: "{pct}% of total expenses",
@@ -569,6 +571,9 @@ export const enDict: RuDictShape = {
       next_event_none: "no events",
       hours: "HOURS TO GOAL",
       hours_no_rate: "rate not set",
+      section_title: "future plan",
+      section_subtitle: "overview",
+      funds_count: "{n} funds",
     },
     fund_kind: {
       TRIP: "trip",
@@ -1842,5 +1847,21 @@ export const enDict: RuDictShape = {
       no_account: "Please select an account",
       mapping_incomplete: "Please specify date and amount columns",
     },
+  },
+  debts: {
+    dir: {
+      out: "lent",
+      in: "borrowed",
+    },
+    next_payment: "next {amount} on {date}",
+    next_payment_no_date: "next {amount} on —",
+    returns_count: "{n} return{suffix}",
+    returns_suffix: {
+      one: "",
+      few: "s",
+      many: "s",
+    },
+    no_returns: "no returns",
+    progress_label: "returned {returned} / {total}",
   },
 };

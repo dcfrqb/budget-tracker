@@ -1,25 +1,23 @@
 import { CountUp } from "@/components/count-up";
 
 export type PlanningKpiData = {
+  sectionTitle: string;
+  sectionSubtitle: string;
+  fundsCountLabel: string;
+  hoursUnit: string;
   saved: { label: string; value: number; sub: string };
   monthly: { label: string; value: number; sub: string };
   next: { label: string; label2: string; sub: string };
   hours: { label: string; value: number; sub: string };
 };
 
-export function PlanningKpiRow({
-  kpi,
-  fundsCount = 0,
-}: {
-  kpi: PlanningKpiData;
-  fundsCount?: number;
-}) {
+export function PlanningKpiRow({ kpi }: { kpi: PlanningKpiData }) {
   const k = kpi;
   return (
     <div className="section fade-in" style={{ animationDelay: "60ms" }}>
       <div className="section-hd">
-        <div className="ttl mono"><b>план будущего</b> <span className="dim">· обзор</span></div>
-        <div className="meta mono">{fundsCount} накоплений</div>
+        <div className="ttl mono"><b>{k.sectionTitle}</b> <span className="dim">· {k.sectionSubtitle}</span></div>
+        <div className="meta mono">{k.fundsCountLabel}</div>
       </div>
       <div className="section-body flush">
         <div className="kpi-row">
@@ -40,7 +38,7 @@ export function PlanningKpiRow({
           </div>
           <div className="kpi">
             <div className="c">{k.hours.label}</div>
-            <div className="v"><CountUp to={k.hours.value} format="int" /> ч</div>
+            <div className="v"><CountUp to={k.hours.value} format="int" /> {k.hoursUnit}</div>
             <div className="s">{k.hours.sub}</div>
           </div>
         </div>

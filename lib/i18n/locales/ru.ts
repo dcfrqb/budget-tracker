@@ -422,6 +422,8 @@ export const ruDict = {
       taxes_sub: "платить вручную",
       projects: "ДОЛГИЕ ПРОЕКТЫ",
       projects_sub: "активно · {budget} бюджет",
+      section_title: "обзор обязательств",
+      section_meta: "текущий месяц",
     },
     category: {
       usage_label: "{pct}% от общих расходов",
@@ -577,6 +579,9 @@ export const ruDict = {
       next_event_none: "нет событий",
       hours: "ЧАСОВ ДО ЦЕЛИ",
       hours_no_rate: "ставка не задана",
+      section_title: "план будущего",
+      section_subtitle: "обзор",
+      funds_count: "{n} накоплений",
     },
     fund_kind: {
       TRIP: "трип",
@@ -1851,6 +1856,22 @@ export const ruDict = {
       no_account: "Выберите счёт",
       mapping_incomplete: "Укажите колонки для даты и суммы",
     },
+  },
+  debts: {
+    dir: {
+      out: "выдал",
+      in: "взял",
+    },
+    next_payment: "следующий {amount} на {date}",
+    next_payment_no_date: "следующий {amount} на —",
+    returns_count: "{n} возврат{suffix}",
+    returns_suffix: {
+      one: "",
+      few: "а",
+      many: "ов",
+    },
+    no_returns: "без возвратов",
+    progress_label: "возвращено {returned} / {total}",
   },
 } as const;
 
