@@ -370,11 +370,10 @@ export const tinkoffRetailAdapter: BankAdapter = {
               "fetchTransactions",
               { timeout: 20_000 },
             );
-            await elevateSessionViaSpa(
-              page,
-              `https://www.tbank.ru/mybank/accounts/${link.externalAccountId}/`,
-              "fetchTransactions",
-            );
+            // /mybank/accounts/<id>/ may also 404; stay at /mybank/ and let
+            // the SPA navigate internally. If we identify the right per-account
+            // URL later, plumb it through.
+            await elevateSessionViaSpa(page, "https://www.tbank.ru/mybank/", "fetchTransactions");
             try {
               const harvested = await harvestPromise;
               response = { status: harvested.status, body: harvested.body };
@@ -494,7 +493,10 @@ export const tinkoffRetailAdapter: BankAdapter = {
             "listExternalAccounts",
             { timeout: 20_000 },
           );
-          await elevateSessionViaSpa(page, "https://www.tbank.ru/mybank/accounts/", "listExternalAccounts");
+          // NOTE: /mybank/accounts/ returns 404 (T-Bank changed routing).
+          // /mybank/ is the dashboard which renders the accounts widget — its
+          // mount triggers accounts_light_ib naturally.
+          await elevateSessionViaSpa(page, "https://www.tbank.ru/mybank/", "listExternalAccounts");
           try {
             const harvested = await harvestPromise;
             response = { status: harvested.status, body: harvested.body };
