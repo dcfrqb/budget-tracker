@@ -16,6 +16,8 @@ import {
   listAccountLinksAction,
 } from "@/app/(shell)/settings/integrations/actions";
 import { LinkAccountsDialog } from "./link-accounts-dialog";
+import { SyncCompletionDialog } from "./sync-completion-dialog";
+import type { SyncResult } from "@/app/(shell)/settings/integrations/actions";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -519,6 +521,8 @@ function CredentialCard({
   const [reloginAdapter, setReloginAdapter] = useState<BankAdapterMeta | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [accountLinks, setAccountLinks] = useState<LinkRow[]>([]);
+  const [syncResult, setSyncResult] = useState<null | { created: number; updated: number; skipped: number; errorClass: string | null }>(null);
+  const [showCompletionDialog, setShowCompletionDialog] = useState(false);
 
   const supportsLinking = adapter?.supports.listExternalAccounts === true;
 
@@ -543,17 +547,19 @@ function CredentialCard({
   function doSync() {
     setFeedback(null);
     startTransition(async () => {
-      const result = await syncAction(cred.id);
-      if (!result.ok) {
-        setFeedback(t(mapAdapterError(result.error)));
+      const result: SyncResult = await syncAction(cred.id);
+      if (result.ok) {
+        const data = result.data;
+        setSyncResult({
+          created: data.created ?? 0,
+          updated: data.updated ?? 0,
+          skipped: data.skipped ?? 0,
+          errorClass: data.errorClass ?? null,
+        });
       } else {
-        const data = result.data as { created: number; skipped: number } | undefined;
-        setFeedback(
-          data
-            ? t("settings.integrations.sync.result", { vars: { created: String(data.created), skipped: String(data.skipped) } })
-            : t("settings.integrations.sync.ok"),
-        );
+        setSyncResult({ created: 0, updated: 0, skipped: 0, errorClass: result.error ?? "unknown" });
       }
+      setShowCompletionDialog(true);
       onRefresh();
     });
   }
@@ -642,8 +648,26 @@ function CredentialCard({
         {/* Actions */}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
           {canSync && (
-            <button className="btn" type="button" onClick={doSync} disabled={isPending}>
-              {t("settings.integrations.action.sync")}
+            <button
+              className="btn"
+              type="button"
+              onClick={doSync}
+              disabled={isPending}
+            >
+              {isPending ? (
+                <span
+                  style={{
+                    animation: "heartbeat 1.2s ease-in-out infinite",
+                    display: "inline-block",
+                    color: "var(--dim)",
+                    opacity: 0.7,
+                  }}
+                >
+                  {t("settings.integrations.sync.in_progress")}
+                </span>
+              ) : (
+                t("settings.integrations.action.sync")
+              )}
             </button>
           )}
           {canOtp && (
@@ -731,6 +755,12 @@ function CredentialCard({
           }}
         />
       )}
+
+      <SyncCompletionDialog
+        open={showCompletionDialog}
+        result={syncResult}
+        onClose={() => setShowCompletionDialog(false)}
+      />
     </>
   );
 }

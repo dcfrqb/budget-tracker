@@ -237,13 +237,23 @@ export const ruDict = {
         },
         action: {
           relogin: "Переподключить",
-          manage_links: "Связи счетов",
+          manage_links: "Импортировать счета",
         },
       },
       sync: {
         result: "+{created} / пропущено {skipped}",
         ok: "ok",
         last_sync: "синк:",
+        in_progress: "Синхронизация…",
+        completion: {
+          title_ok: "Синхронизация завершена",
+          title_error: "Синхронизация прошла с ошибкой",
+          created: "Создано {count}",
+          updated: "Обновлено {count}",
+          errors: "Ошибок {count}",
+          go_transactions: "Перейти в транзакции",
+          close: "Закрыть",
+        },
       },
     },
     export: {

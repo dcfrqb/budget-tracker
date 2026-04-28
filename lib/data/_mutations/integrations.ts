@@ -1,4 +1,4 @@
-import { AccountKind, IntegrationStatus, TransactionKind, TransactionStatus } from "@prisma/client";
+import { AccountKind, IntegrationStatus, TransactionKind, TransactionStatus, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { encrypt, decrypt } from "@/lib/integrations/crypto";
 import { assertAdminIntegrations } from "@/lib/integrations/guard";
@@ -11,6 +11,23 @@ import { getSession } from "@/lib/integrations/playwright/session-registry";
 
 // Increased from 20 000 — state machine path through password+pin_setup+pin_confirm can take up to 45s in worst case.
 const POST_OTP_STATUS_POLL_MS = 45_000;
+
+// Max transactions per DB transaction to avoid Prisma 5s default timeout on large syncs.
+const PERSIST_CHUNK_SIZE = 200;
+
+type DbOrTx = typeof db | Prisma.TransactionClient;
+
+async function ensureTbankInstitution(client: DbOrTx, userId: string): Promise<string> {
+  const existing = await client.institution.findFirst({
+    where: { userId, name: "Т банк", kind: "BANK" },
+    select: { id: true },
+  });
+  if (existing) return existing.id;
+  const created = await client.institution.create({
+    data: { userId, name: "Т банк", kind: "BANK" },
+  });
+  return created.id;
+}
 
 // ─────────────────────────────────────────────────────────────
 // Integration credential mutations — all guarded by assertAdminIntegrations
@@ -290,6 +307,7 @@ export async function syncCredential(
   });
 
   let rowsCreated = 0;
+  let rowsUpdated = 0;
   let rowsSkipped = 0;
   let safeErr: { class: string; message: string } | undefined;
 
@@ -299,7 +317,29 @@ export async function syncCredential(
     const range = opts?.range ?? { from, to };
 
     const ctx = buildContext(userId, credentialId, secrets);
-    const rows = await adapter.fetchTransactions(ctx, range);
+
+    // ── Stage: refresh account metadata (balance, cardLast4, creditLimit, institutionId) ──
+    type ExternalsList = Awaited<ReturnType<NonNullable<typeof adapter.listExternalAccounts>>>;
+    let externals: ExternalsList = [];
+    if (adapter.listExternalAccounts) {
+      try {
+        externals = await adapter.listExternalAccounts(ctx);
+        await refreshLinkedAccounts(userId, credentialId, externals);
+        console.log(`[playwright-tbank] sync: accounts_refresh ok count=${externals.length}`);
+      } catch (err) {
+        console.error(`[playwright-tbank] sync: accounts_refresh failed: ${err instanceof Error ? err.message : String(err)}`);
+        // Soft-fail: continue to fetchTransactions. Existing data still useful.
+      }
+    }
+
+    // ── Stage: fetch transactions ─────────────────────────────────
+    let rows: Awaited<ReturnType<NonNullable<typeof adapter.fetchTransactions>>>;
+    try {
+      rows = await adapter.fetchTransactions(ctx, range);
+    } catch (err) {
+      console.error(`[playwright-tbank] sync: fetch_transactions failed: ${err instanceof Error ? err.message : String(err)}`);
+      throw err;
+    }
 
     if (rows.length > 0) {
       // ── Split rows into two buckets ───────────────────────────
@@ -330,7 +370,7 @@ export async function syncCredential(
           groups.get(aid)!.push(row);
         }
 
-        // Run dedupe + insert for each per-account group.
+        // Run dedupe + chunked insert for each per-account group.
         for (const [accountId, groupRows] of groups) {
           const existing = await db.transaction.findMany({
             where: {
@@ -356,69 +396,80 @@ export async function syncCredential(
 
           const countBefore = await db.transaction.count({ where: { userId, accountId, source: "tinkoff-retail" } });
 
-          await db.$transaction(async (tx) => {
-            for (let i = 0; i < groupRows.length; i++) {
-              const row = groupRows[i];
-              const kind =
-                row.kind === "INCOME" ? TransactionKind.INCOME : TransactionKind.EXPENSE;
-              const name = (row.description ?? row.rawCategory ?? "Sync import").substring(0, 240);
+          for (let chunkStart = 0; chunkStart < groupRows.length; chunkStart += PERSIST_CHUNK_SIZE) {
+            const chunk = groupRows.slice(chunkStart, chunkStart + PERSIST_CHUNK_SIZE);
+            try {
+              await db.$transaction(async (tx) => {
+                for (let i = 0; i < chunk.length; i++) {
+                  const row = chunk[i];
+                  const kind =
+                    row.kind === "INCOME" ? TransactionKind.INCOME : TransactionKind.EXPENSE;
+                  const name = (row.description ?? row.rawCategory ?? "Sync import").substring(0, 240);
 
-              if (row.externalId) {
-                // Upsert: DB constraint importDedupe(accountId, source, externalId) handles dedupe.
-                await tx.transaction.upsert({
-                  where: {
-                    importDedupe: {
-                      accountId,
-                      source: "tinkoff-retail",
-                      externalId: row.externalId,
-                    },
-                  },
-                  update: {
-                    amount: row.amount,
-                    name,
-                    occurredAt: new Date(row.occurredAt),
-                  },
-                  create: {
-                    userId,
-                    accountId,
-                    kind,
-                    status: TransactionStatus.DONE,
-                    amount: row.amount,
-                    currencyCode: row.currencyCode,
-                    occurredAt: new Date(row.occurredAt),
-                    name,
-                    externalId: row.externalId,
-                    source: "tinkoff-retail",
-                  },
-                });
-              } else {
-                // No externalId — fuzzy dedupe to avoid near-duplicate plain rows.
-                const localIdx = rowsWithoutExtId.indexOf(row);
-                if (localIdx !== -1 && fuzzyDuplicateIndices.has(localIdx)) {
-                  rowsSkipped++;
-                  continue;
+                  if (row.externalId) {
+                    // Upsert: DB constraint importDedupe(accountId, source, externalId) handles dedupe.
+                    await tx.transaction.upsert({
+                      where: {
+                        importDedupe: {
+                          accountId,
+                          source: "tinkoff-retail",
+                          externalId: row.externalId,
+                        },
+                      },
+                      update: {
+                        amount: row.amount,
+                        name,
+                        occurredAt: new Date(row.occurredAt),
+                      },
+                      create: {
+                        userId,
+                        accountId,
+                        kind,
+                        status: TransactionStatus.DONE,
+                        amount: row.amount,
+                        currencyCode: row.currencyCode,
+                        occurredAt: new Date(row.occurredAt),
+                        name,
+                        externalId: row.externalId,
+                        source: "tinkoff-retail",
+                      },
+                    });
+                  } else {
+                    // No externalId — fuzzy dedupe to avoid near-duplicate plain rows.
+                    const localIdx = rowsWithoutExtId.indexOf(row);
+                    if (localIdx !== -1 && fuzzyDuplicateIndices.has(localIdx)) {
+                      rowsSkipped++;
+                      continue;
+                    }
+                    await tx.transaction.create({
+                      data: {
+                        userId,
+                        accountId,
+                        kind,
+                        status: TransactionStatus.DONE,
+                        amount: row.amount,
+                        currencyCode: row.currencyCode,
+                        occurredAt: new Date(row.occurredAt),
+                        name,
+                      },
+                    });
+                  }
                 }
-                await tx.transaction.create({
-                  data: {
-                    userId,
-                    accountId,
-                    kind,
-                    status: TransactionStatus.DONE,
-                    amount: row.amount,
-                    currencyCode: row.currencyCode,
-                    occurredAt: new Date(row.occurredAt),
-                    name,
-                  },
-                });
-              }
-              rowsCreated++;
+              }, { timeout: 30_000 });
+              console.log(`[playwright-tbank] sync: chunk ok account=${accountId} ${chunkStart}-${chunkStart + chunk.length}/${groupRows.length}`);
+            } catch (err) {
+              console.error(`[playwright-tbank] sync: chunk_persist failed account=${accountId} range=${chunkStart}-${chunkStart + chunk.length}: ${err instanceof Error ? err.message : String(err)}`);
+              throw err;
             }
-          });
+          }
 
+          // True insert/update split via row-count delta (upsert path) + plain-create count (no-extId path).
           const countAfter = await db.transaction.count({ where: { userId, accountId, source: "tinkoff-retail" } });
           const insertedCount = countAfter - countBefore;
-          const updatedCount = groupRows.filter((r) => r.externalId).length - insertedCount;
-          console.log(`[playwright-tbank] persistImportRows: total=${groupRows.length} inserted=${insertedCount} updated=${Math.max(0, updatedCount)} skipped=${rowsSkipped}`);
+          const updatedCount = Math.max(0, groupRows.filter((r) => r.externalId).length - insertedCount);
+          rowsCreated += insertedCount;
+          rowsUpdated += updatedCount;
+          console.log(`[playwright-tbank] persistImportRows: total=${groupRows.length} inserted=${insertedCount} updated=${updatedCount} skipped=${rowsSkipped}`);
         }
       }
 
@@ -462,64 +513,82 @@ export async function syncCredential(
         const rowsWithoutExtIdB = rowsWithoutAccountId.filter((r) => !r.externalId);
         const fuzzyDuplicateIndicesB = findDuplicates(rowsWithoutExtIdB, existingForDedupe, accountId);
 
-        await db.$transaction(async (tx) => {
-          for (let i = 0; i < rowsWithoutAccountId.length; i++) {
-            const row = rowsWithoutAccountId[i];
-            const kind =
-              row.kind === "INCOME" ? TransactionKind.INCOME : TransactionKind.EXPENSE;
-            const name = (row.description ?? row.rawCategory ?? "Sync import").substring(0, 240);
+        const countBeforeB = await db.transaction.count({ where: { userId, accountId } });
 
-            if (row.externalId) {
-              // Upsert: DB constraint importDedupe(accountId, source, externalId) handles dedupe.
-              await tx.transaction.upsert({
-                where: {
-                  importDedupe: {
-                    accountId,
-                    source: "tinkoff-retail",
-                    externalId: row.externalId,
-                  },
-                },
-                update: {
-                  amount: row.amount,
-                  name,
-                  occurredAt: new Date(row.occurredAt),
-                },
-                create: {
-                  userId,
-                  accountId,
-                  kind,
-                  status: TransactionStatus.DONE,
-                  amount: row.amount,
-                  currencyCode: row.currencyCode,
-                  occurredAt: new Date(row.occurredAt),
-                  name,
-                  externalId: row.externalId,
-                  source: "tinkoff-retail",
-                },
-              });
-            } else {
-              // No externalId — fuzzy dedupe to avoid near-duplicate plain rows.
-              const localIdx = rowsWithoutExtIdB.indexOf(row);
-              if (localIdx !== -1 && fuzzyDuplicateIndicesB.has(localIdx)) {
-                rowsSkipped++;
-                continue;
+        for (let chunkStart = 0; chunkStart < rowsWithoutAccountId.length; chunkStart += PERSIST_CHUNK_SIZE) {
+          const chunk = rowsWithoutAccountId.slice(chunkStart, chunkStart + PERSIST_CHUNK_SIZE);
+          try {
+            await db.$transaction(async (tx) => {
+              for (let i = 0; i < chunk.length; i++) {
+                const row = chunk[i];
+                const kind =
+                  row.kind === "INCOME" ? TransactionKind.INCOME : TransactionKind.EXPENSE;
+                const name = (row.description ?? row.rawCategory ?? "Sync import").substring(0, 240);
+
+                if (row.externalId) {
+                  // Upsert: DB constraint importDedupe(accountId, source, externalId) handles dedupe.
+                  await tx.transaction.upsert({
+                    where: {
+                      importDedupe: {
+                        accountId,
+                        source: "tinkoff-retail",
+                        externalId: row.externalId,
+                      },
+                    },
+                    update: {
+                      amount: row.amount,
+                      name,
+                      occurredAt: new Date(row.occurredAt),
+                    },
+                    create: {
+                      userId,
+                      accountId,
+                      kind,
+                      status: TransactionStatus.DONE,
+                      amount: row.amount,
+                      currencyCode: row.currencyCode,
+                      occurredAt: new Date(row.occurredAt),
+                      name,
+                      externalId: row.externalId,
+                      source: "tinkoff-retail",
+                    },
+                  });
+                } else {
+                  // No externalId — fuzzy dedupe to avoid near-duplicate plain rows.
+                  const localIdx = rowsWithoutExtIdB.indexOf(row);
+                  if (localIdx !== -1 && fuzzyDuplicateIndicesB.has(localIdx)) {
+                    rowsSkipped++;
+                    continue;
+                  }
+                  await tx.transaction.create({
+                    data: {
+                      userId,
+                      accountId,
+                      kind,
+                      status: TransactionStatus.DONE,
+                      amount: row.amount,
+                      currencyCode: row.currencyCode,
+                      occurredAt: new Date(row.occurredAt),
+                      name,
+                    },
+                  });
+                }
               }
-              await tx.transaction.create({
-                data: {
-                  userId,
-                  accountId,
-                  kind,
-                  status: TransactionStatus.DONE,
-                  amount: row.amount,
-                  currencyCode: row.currencyCode,
-                  occurredAt: new Date(row.occurredAt),
-                  name,
-                },
-              });
-            }
-            rowsCreated++;
+            }, { timeout: 30_000 });
+            console.log(`[playwright-tbank] sync: chunk ok account=${accountId} ${chunkStart}-${chunkStart + chunk.length}/${rowsWithoutAccountId.length}`);
+          } catch (err) {
+            console.error(`[playwright-tbank] sync: chunk_persist failed account=${accountId} range=${chunkStart}-${chunkStart + chunk.length}: ${err instanceof Error ? err.message : String(err)}`);
+            throw err;
           }
-        });
+        }
+
+        // True insert/update split via row-count delta.
+        const countAfterB = await db.transaction.count({ where: { userId, accountId } });
+        const insertedCountB = countAfterB - countBeforeB;
+        const updatedCountB = Math.max(0, rowsWithoutAccountId.filter((r) => r.externalId).length - insertedCountB);
+        rowsCreated += insertedCountB;
+        rowsUpdated += updatedCountB;
+        console.log(`[playwright-tbank] persistImportRows: total=${rowsWithoutAccountId.length} inserted=${insertedCountB} updated=${updatedCountB} skipped=${rowsSkipped}`);
       }
     }
 
@@ -551,7 +620,13 @@ export async function syncCredential(
     });
   }
 
-  return { created: rowsCreated, skipped: rowsSkipped };
+  return {
+    created: rowsCreated,
+    updated: rowsUpdated,
+    skipped: rowsSkipped,
+    errorClass: safeErr?.class ?? null,
+    syncLogId: syncLog.id,
+  };
 }
 
 /** Disconnect: clear secrets, set status to DISCONNECTED. */
@@ -737,9 +812,11 @@ export async function createAccountAndLink(
   const kind = mapAccountType(input.accountType);
 
   return db.$transaction(async (tx) => {
+    const institutionId = await ensureTbankInstitution(tx, userId);
     const newAccount = await tx.account.create({
       data: {
         userId,
+        institutionId,
         name: input.label,
         currencyCode: input.currencyCode,
         kind,
@@ -764,34 +841,79 @@ export async function createAccountAndLink(
 }
 
 /**
- * Refresh balances on already-linked Accounts using fresh data from
- * adapter.listExternalAccounts. Called from listExternalAccountsForCredential
- * so that clicking "Связи счетов" refreshes balances on the existing accounts.
+ * Refresh metadata on already-linked Accounts using fresh data from
+ * adapter.listExternalAccounts. Updates balance, cardLast4, creditLimit,
+ * minPaymentFixed, and backfills institutionId if missing.
+ *
+ * NOTE: Account schema does NOT have a debtBalance field — incoming debtBalance
+ * is logged as a TODO and skipped until db-migrator adds the column.
  */
-async function refreshLinkedAccountBalances(
+async function refreshLinkedAccounts(
+  userId: string,
   credentialId: string,
-  externals: Array<{ externalAccountId: string; balance?: string }>,
+  externals: Array<{
+    externalAccountId: string;
+    balance?: string;
+    cardLast4?: string[];
+    creditLimit?: string;
+    debtBalance?: string;
+    currentMinimalPayment?: string;
+  }>,
 ): Promise<void> {
   const links = await db.integrationAccountLink.findMany({
     where: { credentialId },
     select: { externalAccountId: true, accountId: true },
   });
   const byExternal = new Map(links.map((l) => [l.externalAccountId, l.accountId]));
-  const updates: Array<Promise<unknown>> = [];
+
+  let debtBalanceTodoLogged = false;
+
   for (const ext of externals) {
-    if (ext.balance === undefined) continue;
     const accountId = byExternal.get(ext.externalAccountId);
     if (!accountId) continue;
-    updates.push(
-      db.account.update({
-        where: { id: accountId },
-        data: { balance: ext.balance, balanceUpdatedAt: new Date() },
-      }),
-    );
-  }
-  if (updates.length > 0) {
-    console.log(`[playwright-tbank] refreshLinkedAccountBalances: updating ${updates.length} accounts`);
-    await Promise.all(updates);
+
+    const account = await db.account.findUnique({
+      where: { id: accountId },
+      select: { cardLast4: true, institutionId: true },
+    });
+    if (!account) continue;
+
+    const updateData: Prisma.AccountUpdateInput = {};
+
+    if (ext.balance !== undefined) {
+      updateData.balance = ext.balance;
+      updateData.balanceUpdatedAt = new Date();
+    }
+
+    if (ext.cardLast4 && ext.cardLast4.length > 0) {
+      const union = Array.from(new Set([...account.cardLast4, ...ext.cardLast4]));
+      if (union.length !== account.cardLast4.length || union.some((v, i) => v !== account.cardLast4[i])) {
+        updateData.cardLast4 = union;
+      }
+    }
+
+    if (ext.creditLimit !== undefined) {
+      updateData.creditLimit = ext.creditLimit;
+    }
+
+    if (ext.currentMinimalPayment !== undefined) {
+      updateData.minPaymentFixed = ext.currentMinimalPayment;
+    }
+
+    if (ext.debtBalance !== undefined && !debtBalanceTodoLogged) {
+      console.log(`[playwright-tbank] refreshLinkedAccounts: TODO — Account.debtBalance field not in schema; skipping debtBalance for account=${accountId}. Call db-migrator to add it.`);
+      debtBalanceTodoLogged = true;
+    }
+
+    if (account.institutionId === null) {
+      const institutionId = await ensureTbankInstitution(db, userId);
+      updateData.institution = { connect: { id: institutionId } };
+    }
+
+    if (Object.keys(updateData).length > 0) {
+      await db.account.update({ where: { id: accountId }, data: updateData });
+      console.log(`[playwright-tbank] refreshLinkedAccounts: accountId=${accountId} balance=${ext.balance ?? "n/a"} cardLast4Union=${JSON.stringify(ext.cardLast4 ?? [])} creditLimit=${ext.creditLimit ?? "n/a"} debtBalance=${ext.debtBalance ?? "n/a"}`);
+    }
   }
 }
 
@@ -846,10 +968,10 @@ export async function listExternalAccountsForCredential(
 
   const ctx = buildContext(userId, credentialId, secrets);
   const externals = await adapter.listExternalAccounts(ctx);
-  // Backfill balances on already-linked Accounts so existing links pick up
-  // fresh balance values without requiring delete+recreate.
-  await refreshLinkedAccountBalances(credentialId, externals).catch((err) => {
-    console.warn(`[playwright-tbank] refreshLinkedAccountBalances failed: ${err instanceof Error ? err.message : String(err)}`);
+  // Backfill metadata on already-linked Accounts so existing links pick up
+  // fresh balance, cardLast4, creditLimit, institutionId without delete+recreate.
+  await refreshLinkedAccounts(userId, credentialId, externals).catch((err) => {
+    console.warn(`[playwright-tbank] refreshLinkedAccounts failed: ${err instanceof Error ? err.message : String(err)}`);
   });
   return externals;
 }

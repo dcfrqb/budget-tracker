@@ -42,6 +42,10 @@ export type TinkoffOperation = {
   // Fields we don't consume are omitted
 };
 
+export type TinkoffCard = {
+  number?: string; // masked card number, e.g. "553691******2919"
+};
+
 export type TinkoffAccountSummary = {
   id: string;
   name: string;
@@ -53,4 +57,9 @@ export type TinkoffAccountSummary = {
   moneyAmount: {
     value: number;
   };
+  cardNumber?: string; // top-level masked card number (some account types)
+  cards?: TinkoffCard[]; // nested card list (some account types)
+  creditLimit?: TinkoffAmount; // credit limit for credit accounts
+  debtBalance?: TinkoffAmount; // current debt balance for credit accounts
+  currentMinimalPayment?: TinkoffAmount; // current minimal payment for credit accounts
 };

@@ -73,6 +73,14 @@ export type BankAdapter = {
       accountType?: string;
       /** Decimal-as-string snapshot of the account balance at fetch time. */
       balance?: string;
+      /** Last-4-digit strings from all cards linked to this account. */
+      cardLast4?: string[];
+      /** Credit limit, Decimal-as-string (credit accounts only). */
+      creditLimit?: string;
+      /** Current debt balance, Decimal-as-string (credit accounts only). */
+      debtBalance?: string;
+      /** Current minimal payment amount, Decimal-as-string (credit accounts only). */
+      currentMinimalPayment?: string;
     }>
   >;
   refreshSession?: (ctx: AdapterContext) => Promise<void>;

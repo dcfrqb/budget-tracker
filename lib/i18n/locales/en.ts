@@ -229,13 +229,23 @@ export const enDict: RuDictShape = {
         },
         action: {
           relogin: "Reconnect",
-          manage_links: "Account links",
+          manage_links: "Import accounts",
         },
       },
       sync: {
         result: "+{created} / skipped {skipped}",
         ok: "ok",
         last_sync: "sync:",
+        in_progress: "Syncing…",
+        completion: {
+          title_ok: "Sync complete",
+          title_error: "Sync finished with errors",
+          created: "Created {count}",
+          updated: "Updated {count}",
+          errors: "Errors {count}",
+          go_transactions: "Go to transactions",
+          close: "Close",
+        },
       },
     },
     export: {

@@ -63,8 +63,12 @@ function classifyAdapterError(err: unknown): string {
 
 const TINKOFF_API_BASE =
   "https://www.tbank.ru/api/common/v1";
+// Match the SPA's own outbound URL shape exactly: appName + appVersion + platform + origin.
+// IMPORTANT: do NOT include wuid in the URL — the SPA omits it and gets 200,
+// our direct fetch with wuid=... gets INSUFFICIENT_PRIVILEGES on the same endpoint.
+// __P__wuid cookie is still sent automatically with credentials:"include".
 const TINKOFF_COMMON_QUERY =
-  "appName=supreme&appVersion=0.0.1&origin=web%2Cib5%2Cplatform";
+  "appName=supreme&appVersion=0.0.1&platform=web&origin=web%2Cib5%2Cplatform";
 
 function buildApiUrl(
   endpoint: string,
@@ -526,17 +530,45 @@ export const tinkoffRetailAdapter: BankAdapter = {
         const { payload: accounts } =
           parseTinkoffResponse<TinkoffAccountSummary[]>(json);
         log(`listExternalAccounts: raw payload count=${accounts.length}`);
-        for (const a of accounts) log(`listExternalAccounts: external id=${a.id} name="${a.name}" currency=${a.currency.name} type=${a.accountType} balance=${a.moneyAmount?.value ?? "n/a"}`);
+        for (const a of accounts) {
+          const cardSources: string[] = [];
+          if (a.cardNumber) cardSources.push(a.cardNumber);
+          if (Array.isArray(a.cards)) {
+            for (const c of a.cards) if (c?.number) cardSources.push(c.number);
+          }
+          log(`listExternalAccounts: external id=${a.id} name="${a.name}" currency=${a.currency.name} type=${a.accountType} balance=${a.moneyAmount?.value ?? "n/a"} creditLimit=${a.creditLimit?.value ?? "n/a"} debtBalance=${a.debtBalance?.value ?? "n/a"}`);
+          // RUNTIME-PROBE: dump raw masked card strings so owner can verify the last-4 regex handles credit-card masks
+          if (cardSources.length > 0) log(`listExternalAccounts: cardSourcesRaw=${JSON.stringify(cardSources)}`);
+        }
 
-        const result = accounts.map((acct) => ({
-          externalAccountId: acct.id,
-          label: `${acct.name} (${acct.currency.name})`,
-          currencyCode: acct.currency.name,
-          accountType: acct.accountType,
-          balance: acct.moneyAmount?.value !== undefined
-            ? String(acct.moneyAmount.value)
-            : undefined,
-        }));
+        const result = accounts.map((acct) => {
+          const extractLast4 = (masked: string | undefined): string | undefined => {
+            if (!masked) return undefined;
+            const last4 = masked.replace(/\D/g, "").slice(-4);
+            return /^\d{4}$/.test(last4) ? last4 : undefined;
+          };
+
+          const cardSources: string[] = [];
+          if (acct.cardNumber) cardSources.push(acct.cardNumber);
+          if (Array.isArray(acct.cards)) {
+            for (const c of acct.cards) if (c?.number) cardSources.push(c.number);
+          }
+          const cardLast4 = Array.from(
+            new Set(cardSources.map(extractLast4).filter((v): v is string => v !== undefined)),
+          );
+
+          return {
+            externalAccountId: acct.id,
+            label: `${acct.name} (${acct.currency.name})`,
+            currencyCode: acct.currency.name,
+            accountType: acct.accountType,
+            balance: acct.moneyAmount?.value !== undefined ? String(acct.moneyAmount.value) : undefined,
+            cardLast4: cardLast4.length > 0 ? cardLast4 : undefined,
+            creditLimit: acct.creditLimit?.value !== undefined ? String(acct.creditLimit.value) : undefined,
+            debtBalance: acct.debtBalance?.value !== undefined ? String(acct.debtBalance.value) : undefined,
+            currentMinimalPayment: acct.currentMinimalPayment?.value !== undefined ? String(acct.currentMinimalPayment.value) : undefined,
+          };
+        });
         log(`listExternalAccounts: returning ${result.length} normalized rows`);
 
         const freshStorageState = await saveStorageState();

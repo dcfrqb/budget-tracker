@@ -41,6 +41,10 @@ export type ActionResult =
   | { ok: true; data?: unknown }
   | { ok: false; error: string; issues?: string[] };
 
+export type SyncResult =
+  | { ok: true; data: { created: number; updated: number; skipped: number; errorClass: string | null; syncLogId?: string } }
+  | { ok: false; error: string };
+
 /** Connect a new adapter (creates credential record). */
 export async function connectAdapterAction(
   adapterId: string,
@@ -126,17 +130,32 @@ export async function submitOtpAction(
 }
 
 /** Trigger sync (fetchTransactions + create). */
-export async function syncAction(credentialId: string): Promise<ActionResult> {
+export async function syncAction(credentialId: string): Promise<SyncResult> {
   // credentialId comes from server-rendered UI — validate format.
   const parsed = disconnectInputSchema.safeParse({ credentialId });
-  if (!parsed.success) return toValidationFailure(parsed.error);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "validation_error" };
 
   try {
     const userId = await getCurrentUserId();
-    const result = await syncCredential(userId, parsed.data.credentialId);
+    const result = await syncCredential(userId, parsed.data.credentialId) as {
+      created?: number;
+      updated?: number;
+      skipped?: number;
+      errorClass?: string | null;
+      syncLogId?: string;
+    } | undefined;
     revalidatePath("/settings/integrations");
     revalidatePath("/transactions");
-    return { ok: true, data: result };
+    return {
+      ok: true,
+      data: {
+        created: result?.created ?? 0,
+        updated: result?.updated ?? 0,
+        skipped: result?.skipped ?? 0,
+        errorClass: result?.errorClass ?? null,
+        syncLogId: result?.syncLogId,
+      },
+    };
   } catch (e) {
     const safe = toSafeError(e);
     return { ok: false, error: safe.message };
