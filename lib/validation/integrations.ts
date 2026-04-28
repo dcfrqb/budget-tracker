@@ -133,6 +133,10 @@ export const createAccountAndLinkSchema = z.object({
   label: z.string().min(1).max(120),
   currencyCode: z.string().min(3).max(10),
   accountType: z.string().min(1).max(64),
+  balance: z
+    .string()
+    .regex(/^-?\d+(\.\d+)?$/)
+    .optional(),
 });
 
 export type CreateAccountAndLinkInput = z.infer<typeof createAccountAndLinkSchema>;

@@ -20,6 +20,7 @@ type ExternalAccount = {
   label: string;
   currencyCode: string;
   accountType?: string;
+  balance?: string;
 };
 
 type AccountLink = {
@@ -135,6 +136,7 @@ export function LinkAccountsDialog({ credentialId, onClose, onDone }: Props) {
         label: ea.label,
         currencyCode: ea.currencyCode,
         accountType: ea.accountType ?? "Current",
+        ...(ea.balance !== undefined ? { balance: ea.balance } : {}),
       });
       if (!result.ok) {
         setCreateErrors((prev) => ({ ...prev, [ea.externalAccountId]: t("settings.integrations.tinkoff_retail.error.create_and_link_failed") }));

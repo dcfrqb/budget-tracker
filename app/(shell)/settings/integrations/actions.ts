@@ -286,6 +286,7 @@ export async function createAccountAndLinkAction(input: {
   label: string;
   currencyCode: string;
   accountType: string;
+  balance?: string;
 }): Promise<ActionResult> {
   const parsed = createAccountAndLinkSchema.safeParse(input);
   if (!parsed.success) return toValidationFailure(parsed.error);

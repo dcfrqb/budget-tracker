@@ -334,8 +334,11 @@ export const tinkoffRetailAdapter: BankAdapter = {
       throw new Error("no_session");
     }
 
+    log(`fetchTransactions: enter credentialId=${ctx.credentialId} range=${range.from.toISOString()}..${range.to.toISOString()}`);
     const links = await listAccountLinks(ctx.credentialId);
+    log(`fetchTransactions: found ${links.length} account links`);
     if (links.length === 0) {
+      log(`fetchTransactions: no links — returning empty (this is why nothing imports)`);
       return [];
     }
 
@@ -523,13 +526,16 @@ export const tinkoffRetailAdapter: BankAdapter = {
         const { payload: accounts } =
           parseTinkoffResponse<TinkoffAccountSummary[]>(json);
         log(`listExternalAccounts: raw payload count=${accounts.length}`);
-        for (const a of accounts) log(`listExternalAccounts: external id=${a.id} name="${a.name}" currency=${a.currency.name} type=${a.accountType}`);
+        for (const a of accounts) log(`listExternalAccounts: external id=${a.id} name="${a.name}" currency=${a.currency.name} type=${a.accountType} balance=${a.moneyAmount?.value ?? "n/a"}`);
 
         const result = accounts.map((acct) => ({
           externalAccountId: acct.id,
           label: `${acct.name} (${acct.currency.name})`,
           currencyCode: acct.currency.name,
           accountType: acct.accountType,
+          balance: acct.moneyAmount?.value !== undefined
+            ? String(acct.moneyAmount.value)
+            : undefined,
         }));
         log(`listExternalAccounts: returning ${result.length} normalized rows`);
 

@@ -71,6 +71,8 @@ export type BankAdapter = {
       label: string;
       currencyCode: string;
       accountType?: string;
+      /** Decimal-as-string snapshot of the account balance at fetch time. */
+      balance?: string;
     }>
   >;
   refreshSession?: (ctx: AdapterContext) => Promise<void>;

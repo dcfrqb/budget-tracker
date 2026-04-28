@@ -712,6 +712,7 @@ export async function createAccountAndLink(
     label: string;
     currencyCode: string;
     accountType: string;
+    balance?: string;
   },
 ): Promise<{ accountId: string; linkId: string }> {
   assertAdminIntegrations(userId);
@@ -742,7 +743,8 @@ export async function createAccountAndLink(
         name: input.label,
         currencyCode: input.currencyCode,
         kind,
-        balance: 0,
+        balance: input.balance ?? 0,
+        balanceUpdatedAt: input.balance !== undefined ? new Date() : null,
         includeInAnalytics: true,
         sortOrder: 0,
       },
@@ -759,6 +761,38 @@ export async function createAccountAndLink(
 
     return { accountId: newAccount.id, linkId: newLink.id };
   });
+}
+
+/**
+ * Refresh balances on already-linked Accounts using fresh data from
+ * adapter.listExternalAccounts. Called from listExternalAccountsForCredential
+ * so that clicking "Связи счетов" refreshes balances on the existing accounts.
+ */
+async function refreshLinkedAccountBalances(
+  credentialId: string,
+  externals: Array<{ externalAccountId: string; balance?: string }>,
+): Promise<void> {
+  const links = await db.integrationAccountLink.findMany({
+    where: { credentialId },
+    select: { externalAccountId: true, accountId: true },
+  });
+  const byExternal = new Map(links.map((l) => [l.externalAccountId, l.accountId]));
+  const updates: Array<Promise<unknown>> = [];
+  for (const ext of externals) {
+    if (ext.balance === undefined) continue;
+    const accountId = byExternal.get(ext.externalAccountId);
+    if (!accountId) continue;
+    updates.push(
+      db.account.update({
+        where: { id: accountId },
+        data: { balance: ext.balance, balanceUpdatedAt: new Date() },
+      }),
+    );
+  }
+  if (updates.length > 0) {
+    console.log(`[playwright-tbank] refreshLinkedAccountBalances: updating ${updates.length} accounts`);
+    await Promise.all(updates);
+  }
 }
 
 /** Re-run the login flow for an existing credential (e.g. after session expiry). */
@@ -811,5 +845,11 @@ export async function listExternalAccountsForCredential(
   }
 
   const ctx = buildContext(userId, credentialId, secrets);
-  return adapter.listExternalAccounts(ctx);
+  const externals = await adapter.listExternalAccounts(ctx);
+  // Backfill balances on already-linked Accounts so existing links pick up
+  // fresh balance values without requiring delete+recreate.
+  await refreshLinkedAccountBalances(credentialId, externals).catch((err) => {
+    console.warn(`[playwright-tbank] refreshLinkedAccountBalances failed: ${err instanceof Error ? err.message : String(err)}`);
+  });
+  return externals;
 }
