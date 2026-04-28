@@ -122,10 +122,7 @@ async function tbankApiGetViaPage(
 
 /**
  * Navigate the page to a /mybank/* sub-route so T-Bank's SPA performs its
- * level-up dance (anonymous landing → level 35 trusted-device session). The
- * SPA fires the necessary internal upgrade calls itself; we just need to BE
- * ON the right page when we then issue our own API request. Without this,
- * accounts_light_ib responds with INSUFFICIENT_PRIVILEGES (requires level 35).
+ * level-up dance (anonymous landing → level 35 trusted-device session).
  */
 async function elevateSessionViaSpa(
   page: import("playwright").Page,
@@ -142,6 +139,54 @@ async function elevateSessionViaSpa(
     log(`${label}: elevateSessionViaSpa networkidle timed out (12s) — proceeding`);
   });
   log(`${label}: elevateSessionViaSpa settled at ${page.url()}`);
+}
+
+/**
+ * Attach a one-time logger that prints every T-Bank API response (URL + status
+ * + body length) the page makes during the next observe-window. Used to
+ * discover what endpoints the SPA actually hits when we navigate, since direct
+ * page.evaluate(fetch) calls keep returning INSUFFICIENT_PRIVILEGES even after
+ * navigation to /mybank/accounts/.
+ */
+function attachApiResponseLogger(
+  page: import("playwright").Page,
+  label: string,
+): () => void {
+  const handler = (response: import("playwright").Response) => {
+    const url = response.url();
+    if (!/tbank\.ru\/api\//i.test(url)) return;
+    const redacted = url.replace(/sessionid=[^&]+/i, "sessionid=[REDACTED]");
+    log(`${label}: spa-response ${response.status()} ${redacted}`);
+  };
+  page.on("response", handler);
+  return () => page.off("response", handler);
+}
+
+/**
+ * Wait for the SPA itself to call a specific T-Bank API endpoint and return
+ * the response body. This sidesteps INSUFFICIENT_PRIVILEGES because the SPA's
+ * own fetch goes through whatever level-elevation T-Bank requires.
+ */
+async function harvestSpaApiResponse(
+  page: import("playwright").Page,
+  urlPattern: RegExp,
+  label: string,
+  options: { timeout?: number } = {},
+): Promise<{ status: number; body: string; url: string }> {
+  const timeout = options.timeout ?? 15_000;
+  log(`${label}: harvestSpaApiResponse pattern=${urlPattern.source} timeout=${timeout}ms`);
+  const response = await page.waitForResponse(
+    (r) => urlPattern.test(r.url()),
+    { timeout },
+  );
+  const body = await response.text();
+  const url = response.url();
+  const redacted = url.replace(/sessionid=[^&]+/i, "sessionid=[REDACTED]");
+  log(`${label}: harvestSpaApiResponse HTTP ${response.status()} url=${redacted} bodyLen=${body.length}`);
+  if (TBANK_API_DEBUG) {
+    log(`${label}: harvestSpaApiResponse body (first 1500 chars): ${body.slice(0, 1500)}`);
+  }
+  return { status: response.status(), body, url };
 }
 
 function readSecrets(ctx: AdapterContext): TinkoffPlaywrightSecrets {
@@ -316,18 +361,36 @@ export const tinkoffRetailAdapter: BankAdapter = {
 
         for (const link of links) {
           log(`fetchTransactions: link accountId=${link.accountId} external=${link.externalAccountId} range=${range.from.toISOString()}..${range.to.toISOString()}`);
-          const url = buildApiUrl("operations", sessionAuth, {
-            account: link.externalAccountId,
-            start: range.from.getTime(),
-            end: range.to.getTime(),
-          });
-
-          await elevateSessionViaSpa(
-            page,
-            `https://www.tbank.ru/mybank/accounts/${link.externalAccountId}/`,
-            "fetchTransactions",
-          );
-          const response = await tbankApiGetViaPage(page, url, sessionAuth, "fetchTransactions");
+          const detachLogger = attachApiResponseLogger(page, "fetchTransactions");
+          let response: { status: number; body: string };
+          try {
+            const harvestPromise = harvestSpaApiResponse(
+              page,
+              new RegExp(`/api/[^?]*operations[^?]*\\?[^"]*account=${link.externalAccountId}`, "i"),
+              "fetchTransactions",
+              { timeout: 20_000 },
+            );
+            await elevateSessionViaSpa(
+              page,
+              `https://www.tbank.ru/mybank/accounts/${link.externalAccountId}/`,
+              "fetchTransactions",
+            );
+            try {
+              const harvested = await harvestPromise;
+              response = { status: harvested.status, body: harvested.body };
+              log(`fetchTransactions: harvested SPA response — using it`);
+            } catch (err) {
+              log(`fetchTransactions: harvest failed (${err instanceof Error ? err.message : String(err)}) — falling back to direct fetch`);
+              const url = buildApiUrl("operations", sessionAuth, {
+                account: link.externalAccountId,
+                start: range.from.getTime(),
+                end: range.to.getTime(),
+              });
+              response = await tbankApiGetViaPage(page, url, sessionAuth, "fetchTransactions");
+            }
+          } finally {
+            detachLogger();
+          }
           if (response.status !== 200) {
             log(`fetchTransactions: non-200 — body (first 1000): ${response.body.slice(0, 1000)}`);
             throw new Error(`operations HTTP ${response.status}`);
@@ -422,9 +485,28 @@ export const tinkoffRetailAdapter: BankAdapter = {
         }
 
         log(`listExternalAccounts: starting api call sessionAuth=${sessionAuth.sessionid.slice(0, 6)}…(len=${sessionAuth.sessionid.length})`);
-        await elevateSessionViaSpa(page, "https://www.tbank.ru/mybank/accounts/", "listExternalAccounts");
-        const url = buildApiUrl("accounts_light_ib", sessionAuth);
-        const response = await tbankApiGetViaPage(page, url, sessionAuth, "listExternalAccounts");
+        const detachLogger = attachApiResponseLogger(page, "listExternalAccounts");
+        let response: { status: number; body: string };
+        try {
+          const harvestPromise = harvestSpaApiResponse(
+            page,
+            /\/api\/[^?]*accounts_light_ib/i,
+            "listExternalAccounts",
+            { timeout: 20_000 },
+          );
+          await elevateSessionViaSpa(page, "https://www.tbank.ru/mybank/accounts/", "listExternalAccounts");
+          try {
+            const harvested = await harvestPromise;
+            response = { status: harvested.status, body: harvested.body };
+            log(`listExternalAccounts: harvested SPA response — using it`);
+          } catch (err) {
+            log(`listExternalAccounts: harvest failed (${err instanceof Error ? err.message : String(err)}) — falling back to direct fetch`);
+            const url = buildApiUrl("accounts_light_ib", sessionAuth);
+            response = await tbankApiGetViaPage(page, url, sessionAuth, "listExternalAccounts");
+          }
+        } finally {
+          detachLogger();
+        }
         if (response.status !== 200) {
           log(`listExternalAccounts: non-200 — body (first 1000): ${response.body.slice(0, 1000)}`);
           throw new Error(`accounts_light_ib HTTP ${response.status}`);
