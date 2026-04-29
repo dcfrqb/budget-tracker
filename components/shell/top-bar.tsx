@@ -5,10 +5,12 @@ import { getHomeDashboard } from "@/lib/data/dashboard";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { getCurrentUserId } from "@/lib/api/auth";
 import { formatRate } from "@/lib/format/money";
-import { getT } from "@/lib/i18n/server";
+import { getT, getLocale } from "@/lib/i18n/server";
+import { getConnectedCredentials } from "@/lib/data/_queries/integrations";
+import { SyncButton } from "./sync-button";
 
 export async function TopBar() {
-  const t = await getT();
+  const [t, locale] = await Promise.all([getT(), getLocale()]);
 
   const STATUS_LABELS: Record<string, string> = {
     stable:  t("shell.status.stable"),
@@ -21,10 +23,19 @@ export async function TopBar() {
   // Ensure rates are fresh (CBR, max 10 min stale) before reading from DB.
   await ensureFreshRates();
 
-  const [rates, dashboard] = await Promise.all([
+  const [rates, dashboard, rawCredentials] = await Promise.all([
     getLatestRatesMap(),
     getHomeDashboard(userId, DEFAULT_CURRENCY),
+    getConnectedCredentials(userId),
   ]);
+
+  const syncCredentials = rawCredentials.map((c) => ({
+    id: c.id,
+    adapterId: c.adapterId,
+    displayLabel: c.displayLabel,
+    lastSyncAt: c.lastSyncAt?.toISOString() ?? null,
+    lastErrorAt: c.lastErrorAt?.toISOString() ?? null,
+  }));
 
   const usdRub = rates.get("USD-RUB");
   const eurRub = rates.get("EUR-RUB");
@@ -48,7 +59,7 @@ export async function TopBar() {
           </span>
         )}
         <LiveClock />
-        <span className="kbd">⌘K</span>
+        <SyncButton credentials={syncCredentials} locale={locale} />
       </div>
     </div>
   );

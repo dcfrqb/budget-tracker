@@ -23,6 +23,11 @@ export const tinkoffEmailAdapter: BankAdapter = {
     parseFile: false,
     listExternalAccounts: false,
   },
+  scheduling: {
+    autosyncEnabled: false,
+    defaultIntervalMs: 60 * 60_000,
+    minIntervalMs: 60 * 60_000,
+  },
 
   async login(
     ctx: AdapterContext,

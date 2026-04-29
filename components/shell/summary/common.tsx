@@ -1,8 +1,10 @@
 import { CountUp } from "@/components/count-up";
 import { getT, getLocale } from "@/lib/i18n/server";
 import { formatPlainNumber } from "@/lib/format/money";
+import { formatRelative } from "@/lib/format/relative-time";
 import { getCurrentUserId } from "@/lib/api/auth";
 import { getHomeDashboard } from "@/lib/data/dashboard";
+import { getIntegrationsSummary } from "@/lib/data/_queries/integrations";
 import { toHomeView } from "@/lib/view/home";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 
@@ -157,7 +159,9 @@ export async function BalancesBlock({ balances }: { balances?: BalanceData[] }) 
 type SessionRow = { tone: "pos" | "warn" | "muted" | "live-pos"; k: string; v: React.ReactNode; vClass?: string; vTitle?: string };
 
 export async function SessionStateBlock({ status, rows }: { status?: StatusData; rows: SessionRow[] }) {
-  const t = await getT();
+  const [t, locale] = await Promise.all([getT(), getLocale()]);
+  const userId = await getCurrentUserId();
+
   let statusLabel: string;
   if (status?.label != null) {
     statusLabel = status.label;
@@ -165,6 +169,47 @@ export async function SessionStateBlock({ status, rows }: { status?: StatusData;
     const view = await loadSharedSummary();
     statusLabel = view.status.label;
   }
+
+  const integrationsSummary = await getIntegrationsSummary(userId);
+
+  const H12 = 12 * 60 * 60 * 1000;
+  const H24 = 24 * 60 * 60 * 1000;
+
+  let integrationsTone: "pos" | "warn" | "neg" | "muted";
+  let integrationsValue: string;
+
+  if (integrationsSummary.totalConnected === 0) {
+    integrationsTone = "muted";
+    integrationsValue = "—";
+  } else if (integrationsSummary.hasError) {
+    integrationsTone = "neg";
+    integrationsValue = integrationsSummary.lastSyncAt
+      ? formatRelative(integrationsSummary.lastSyncAt, locale)
+      : "—";
+  } else if (!integrationsSummary.lastSyncAt) {
+    integrationsTone = "neg";
+    integrationsValue = "—";
+  } else {
+    const ago = Date.now() - integrationsSummary.lastSyncAt.getTime();
+    if (ago < H12) {
+      integrationsTone = "pos";
+    } else if (ago < H24) {
+      integrationsTone = "warn";
+    } else {
+      integrationsTone = "neg";
+    }
+    integrationsValue = formatRelative(integrationsSummary.lastSyncAt, locale);
+  }
+
+  const intRow: SessionRow = {
+    tone: integrationsTone === "neg" ? "muted" : integrationsTone,
+    k: t("shell.summary.session.integrations"),
+    v: integrationsValue,
+    vClass: integrationsTone === "neg" ? "neg" : integrationsTone === "warn" ? "warn" : "",
+  };
+
+  const allRows: SessionRow[] = [intRow, ...rows];
+
   return (
     <div className="sum-block">
       <div className="lbl">
@@ -176,7 +221,7 @@ export async function SessionStateBlock({ status, rows }: { status?: StatusData;
         <span className="k">{t("shell.summary.session.status")}</span>
         <span className="v acc">{statusLabel}</span>
       </div>
-      {rows.map((r, i) => {
+      {allRows.map((r, i) => {
         const bg =
           r.tone === "pos" ? "var(--pos)" :
           r.tone === "warn" ? "var(--warn)" :

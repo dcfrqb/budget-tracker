@@ -13,6 +13,12 @@ export type AdapterContext = {
   setStatus: (status: IntegrationStatus, err?: string) => Promise<void>;
 };
 
+export type AdapterScheduling = {
+  autosyncEnabled: boolean;
+  defaultIntervalMs: number;
+  minIntervalMs: number;
+};
+
 export type BankAdapterMeta = {
   id: string;
   displayName: string;
@@ -24,6 +30,7 @@ export type BankAdapterMeta = {
     parseFile: boolean;
     listExternalAccounts: boolean;
   };
+  scheduling: AdapterScheduling;
 };
 
 export function toAdapterMeta(a: BankAdapter): BankAdapterMeta {
@@ -32,6 +39,7 @@ export function toAdapterMeta(a: BankAdapter): BankAdapterMeta {
     displayName: a.displayName,
     category: a.category,
     supports: a.supports,
+    scheduling: a.scheduling,
   };
 }
 
@@ -46,6 +54,7 @@ export type BankAdapter = {
     parseFile: boolean; // accepts exported file
     listExternalAccounts: boolean; // can enumerate bank accounts via API
   };
+  scheduling: AdapterScheduling;
   login?: (
     ctx: AdapterContext,
     input: { username: string; password: string; lkPassword?: string },

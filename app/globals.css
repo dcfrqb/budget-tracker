@@ -3347,6 +3347,55 @@ input[type="checkbox"]:disabled {
 .badge { display: inline-flex; padding: 1px 6px; font-family: var(--mono-font), monospace; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; border-radius: 2px; }
 .badge-muted { color: var(--muted); background: var(--panel-2); }
 
+/* ── SYNC BUTTON & POPOVER ──────────────────────────────────────── */
+.sync-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 20px;
+  padding: 0 4px;
+  border: 1px solid var(--border); border-radius: 3px;
+  background: none; cursor: pointer;
+  color: var(--muted);
+  position: relative;
+  transition: color var(--d-fast), border-color var(--d-fast);
+}
+.sync-btn:hover { color: var(--text); border-color: var(--hairline); }
+.sync-btn[data-state="idle"]    { color: var(--muted); }
+.sync-btn[data-state="syncing"] { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+.sync-btn[data-state="stale"]   { color: var(--warn);   border-color: color-mix(in srgb, var(--warn) 35%, transparent); }
+.sync-btn[data-state="error"]   { color: var(--muted);  border-color: var(--border); }
+
+.sync-btn[data-state="syncing"] svg { animation: sync-spin 1s linear infinite; }
+@keyframes sync-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+.sync-btn .sync-error-dot {
+  position: absolute; top: -3px; right: -3px;
+  width: 6px; height: 6px;
+  background: var(--neg); border-radius: 50%;
+  border: 1px solid var(--bg);
+}
+
+.sync-popover {
+  position: absolute; right: 0; top: calc(100% + 6px);
+  min-width: 260px; max-width: 320px; max-height: 60vh;
+  overflow-y: auto;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px;
+  z-index: 120;
+}
+.sync-popover-inner { display: flex; flex-direction: column; gap: 0; }
+.sync-row {
+  display: grid; grid-template-columns: 1fr auto;
+  align-items: center; gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.sync-row:last-child { border-bottom: none; }
+.sync-row-name { font-family: var(--mono-font), monospace; font-size: 11px; color: var(--text); }
+.sync-row-time { font-family: var(--mono-font), monospace; font-size: 10px; color: var(--muted); }
+.sync-row-empty {
+  padding: 12px; font-family: var(--mono-font), monospace;
+  font-size: 11px; color: var(--dim); text-align: center;
+}
+
 /* ── REDUCED MOTION ─────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

@@ -50,6 +50,9 @@ export default async function IntegrationsPage() {
     lastErrorAt: c.lastErrorAt?.toISOString() ?? null,
     lastErrorMessage: c.lastErrorMessage,
     createdAt: c.createdAt.toISOString(),
+    autosyncEnabled: c.autosyncEnabled,
+    scheduleIntervalMs: c.scheduleIntervalMs,
+    nextScheduledAt: c.nextScheduledAt?.toISOString() ?? null,
   }));
 
   return (

@@ -214,6 +214,11 @@ export const tinkoffRetailAdapter: BankAdapter = {
     parseFile: false,
     listExternalAccounts: true,
   },
+  scheduling: {
+    autosyncEnabled: true,
+    defaultIntervalMs: 24 * 3600_000,
+    minIntervalMs: 5 * 60_000,
+  },
 
   async login(
     ctx: AdapterContext,

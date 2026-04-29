@@ -20,6 +20,11 @@ export const tinkoffCsvAdapter: BankAdapter = {
     parseFile: true,
     listExternalAccounts: false,
   },
+  scheduling: {
+    autosyncEnabled: false,
+    defaultIntervalMs: 0,
+    minIntervalMs: 10_000,
+  },
 
   async parseFile(input: ArrayBuffer | string): Promise<ImportRow[]> {
     let text: string;

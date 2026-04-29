@@ -64,6 +64,9 @@ export async function listCredentials(userId: string) {
       lastErrorMessage: true,
       createdAt: true,
       updatedAt: true,
+      autosyncEnabled: true,
+      scheduleIntervalMs: true,
+      nextScheduledAt: true,
       // Intentionally omitting encryptedPayload / encryptionIv / encryptionTag / keyVersion
     },
   });
@@ -274,11 +277,14 @@ export async function syncCredential(
   }
 
   // ── Rate limit + circuit breaker ─────────────────────────────
-  const rateLimitDecision = await checkRateLimit({
-    id: cred.id,
-    adapterId: cred.adapterId,
-    lastSyncAt: cred.lastSyncAt,
-  });
+  const rateLimitDecision = await checkRateLimit(
+    {
+      id: cred.id,
+      adapterId: cred.adapterId,
+      lastSyncAt: cred.lastSyncAt,
+    },
+    adapter,
+  );
 
   if (!rateLimitDecision.ok) {
     // Record the blocked attempt in sync log (metadata only — no payload).
@@ -1044,4 +1050,49 @@ export async function listExternalAccountsForCredential(
     console.warn(`[playwright-tbank] refreshLinkedAccounts failed: ${err instanceof Error ? err.message : String(err)}`);
   });
   return externals;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Autosync schedule cadence
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Update the autosync schedule for a credential.
+ * - intervalMs === null  → disable autosync (autosyncEnabled=false, nextScheduledAt=null)
+ * - intervalMs === number → enable autosync with fresh nextScheduledAt
+ */
+export async function setScheduleInterval(
+  userId: string,
+  credentialId: string,
+  intervalMs: number | null,
+): Promise<void> {
+  assertAdminIntegrations(userId);
+
+  const cred = await db.integrationCredential.findFirst({
+    where: { id: credentialId, userId },
+    select: { id: true },
+  });
+  if (!cred) {
+    throw Object.assign(new Error("Credential not found"), { code: "NOT_FOUND" });
+  }
+
+  if (intervalMs === null) {
+    await db.integrationCredential.update({
+      where: { id: credentialId },
+      data: {
+        autosyncEnabled: false,
+        scheduleIntervalMs: null,
+        nextScheduledAt: null,
+      },
+    });
+  } else {
+    await db.integrationCredential.update({
+      where: { id: credentialId },
+      data: {
+        autosyncEnabled: true,
+        scheduleIntervalMs: intervalMs,
+        nextScheduledAt: new Date(Date.now() + intervalMs),
+      },
+    });
+  }
 }

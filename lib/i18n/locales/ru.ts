@@ -290,6 +290,15 @@ export const ruDict = {
           close: "Закрыть",
         },
       },
+      cadence: {
+        label:   "автосинк",
+        "1h":    "1 ч",
+        "6h":    "6 ч",
+        "12h":   "12 ч",
+        "24h":   "24 ч",
+        off:     "выкл",
+        next_in: "след. через {when}",
+      },
     },
     export: {
       section_title: "Экспорт данных",
@@ -1781,6 +1790,7 @@ export const ruDict = {
         label:  "состояние сессии",
         online: "онлайн",
         status: "статус",
+        integrations: "интеграции",
       },
       quick: {
         label:       "быстро",
@@ -1796,6 +1806,12 @@ export const ruDict = {
         period_label:   "текущий период",
         empty:          "нет данных",
       },
+    },
+    sync: {
+      busy:    "Синхронизация уже идёт",
+      error:   "Ошибка синхронизации",
+      empty:   "Нет интеграций",
+      tooltip: "Синхронизация",
     },
   },
 

@@ -14,6 +14,7 @@ import {
   disconnectAction,
   deleteCredentialAction,
   listAccountLinksAction,
+  setScheduleIntervalAction,
 } from "@/app/(shell)/wallet/integrations/actions";
 import { LinkAccountsDialog } from "./link-accounts-dialog";
 import { SyncCompletionDialog } from "./sync-completion-dialog";
@@ -33,6 +34,9 @@ export type CredentialRow = {
   lastErrorAt: string | null;
   lastErrorMessage: string | null;
   createdAt: string;
+  autosyncEnabled: boolean;
+  scheduleIntervalMs: number | null;
+  nextScheduledAt: string | null;
 };
 
 type Props = {
@@ -494,6 +498,72 @@ function OtpDialog({
 }
 
 // ─────────────────────────────────────────────────────────────
+// Cadence dropdown
+// ─────────────────────────────────────────────────────────────
+
+const CADENCE_OPTIONS: Array<{ labelKey: string; value: number | null }> = [
+  { labelKey: "settings.integrations.cadence.1h",  value: 3_600_000 },
+  { labelKey: "settings.integrations.cadence.6h",  value: 21_600_000 },
+  { labelKey: "settings.integrations.cadence.12h", value: 43_200_000 },
+  { labelKey: "settings.integrations.cadence.24h", value: 86_400_000 },
+  { labelKey: "settings.integrations.cadence.off", value: null },
+];
+
+function CadenceDropdown({ cred }: { cred: CredentialRow }) {
+  const t = useT();
+  const [isPending, startTransition] = useTransition();
+
+  const currentValue = cred.autosyncEnabled ? (cred.scheduleIntervalMs ?? null) : null;
+  const currentStrValue = currentValue === null ? "null" : String(currentValue);
+
+  function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const raw = e.target.value;
+    const intervalMs = raw === "null" ? null : Number(raw);
+    startTransition(async () => {
+      await setScheduleIntervalAction({ credentialId: cred.id, intervalMs });
+    });
+  }
+
+  const nextAt = cred.autosyncEnabled && cred.nextScheduledAt
+    ? new Date(cred.nextScheduledAt)
+    : null;
+  const nextInMs = nextAt ? nextAt.getTime() - Date.now() : null;
+  const nextInH = nextInMs !== null && nextInMs > 0
+    ? Math.round(nextInMs / 3_600_000)
+    : null;
+  const nextInLabel =
+    nextInH !== null
+      ? t("settings.integrations.cadence.next_in", { vars: { when: `${nextInH}h` } })
+      : null;
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+      <span className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>
+        {t("settings.integrations.cadence.label")}
+      </span>
+      <select
+        className="settings-input"
+        style={{ fontSize: 10, padding: "2px 6px", width: "auto", minWidth: 80 }}
+        value={currentStrValue}
+        onChange={handleChange}
+        disabled={isPending}
+      >
+        {CADENCE_OPTIONS.map((opt) => (
+          <option key={opt.labelKey} value={opt.value === null ? "null" : String(opt.value)}>
+            {t(opt.labelKey as Parameters<typeof t>[0])}
+          </option>
+        ))}
+      </select>
+      {nextInLabel && (
+        <span className="mono" style={{ fontSize: 10, color: "var(--dim)" }}>
+          {nextInLabel}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
 // Credential card
 // ─────────────────────────────────────────────────────────────
 
@@ -617,6 +687,11 @@ function CredentialCard({
           <div className="mono" style={{ fontSize: 10, color: "var(--dim)" }}>
             {t("settings.integrations.sync.last_sync")} {new Date(cred.lastSyncAt).toLocaleString()}
           </div>
+        )}
+
+        {/* Autosync cadence */}
+        {cred.status === "CONNECTED" && (
+          <CadenceDropdown cred={cred} />
         )}
 
         {/* Feedback */}

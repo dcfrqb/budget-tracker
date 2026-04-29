@@ -53,6 +53,11 @@ export const bybitCardAdapter: BankAdapter = {
     parseFile: false,
     listExternalAccounts: true,
   },
+  scheduling: {
+    autosyncEnabled: true,
+    defaultIntervalMs: 12 * 3600_000,
+    minIntervalMs: 60_000,
+  },
 
   async login(
     ctx: AdapterContext,

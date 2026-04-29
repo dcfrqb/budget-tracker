@@ -7,7 +7,6 @@ import {
   connectAdapter,
   loginWithCredential,
   submitOtpForCredential,
-  syncCredential,
   disconnectCredential,
   deleteCredential,
   linkExternalAccount,
@@ -16,7 +15,9 @@ import {
   listExternalAccountsForCredential,
   reloginCredential,
   createAccountAndLink,
+  setScheduleInterval,
 } from "@/lib/data/_mutations/integrations";
+import { triggerManualSync } from "@/lib/integrations/scheduler";
 import { listAccountsForQuickDrawer } from "@/lib/data/wallet";
 import {
   connectInputSchema,
@@ -28,6 +29,7 @@ import {
   unlinkExternalAccountSchema,
   reloginSchema,
   createAccountAndLinkSchema,
+  setScheduleIntervalSchema,
   toValidationFailure,
 } from "@/lib/validation/integrations";
 
@@ -129,7 +131,7 @@ export async function submitOtpAction(
   }
 }
 
-/** Trigger sync (fetchTransactions + create). */
+/** Trigger sync (fetchTransactions + create). Goes through scheduler lease so manual sync resets autosync clock. */
 export async function syncAction(credentialId: string): Promise<SyncResult> {
   // credentialId comes from server-rendered UI — validate format.
   const parsed = disconnectInputSchema.safeParse({ credentialId });
@@ -137,23 +139,20 @@ export async function syncAction(credentialId: string): Promise<SyncResult> {
 
   try {
     const userId = await getCurrentUserId();
-    const result = await syncCredential(userId, parsed.data.credentialId) as {
-      created?: number;
-      updated?: number;
-      skipped?: number;
-      errorClass?: string | null;
-      syncLogId?: string;
-    } | undefined;
+    const result = await triggerManualSync(userId, parsed.data.credentialId);
+    if (!result.ok) {
+      return { ok: false, error: result.error };
+    }
     revalidatePath("/wallet/integrations");
     revalidatePath("/transactions");
     return {
       ok: true,
       data: {
-        created: result?.created ?? 0,
-        updated: result?.updated ?? 0,
-        skipped: result?.skipped ?? 0,
-        errorClass: result?.errorClass ?? null,
-        syncLogId: result?.syncLogId,
+        created: result.data.created,
+        updated: result.data.updated,
+        skipped: result.data.skipped,
+        errorClass: result.data.errorClass,
+        syncLogId: result.data.syncLogId,
       },
     };
   } catch (e) {
@@ -342,6 +341,25 @@ export async function reloginAction(input: {
     revalidatePath("/wallet/integrations");
     if (!result.ok) return { ok: false, error: result.error };
     return { ok: true, data: result };
+  } catch (e) {
+    const safe = toSafeError(e);
+    return { ok: false, error: safe.message };
+  }
+}
+
+/** Update autosync cadence for a credential. */
+export async function setScheduleIntervalAction(input: {
+  credentialId: string;
+  intervalMs: number | null;
+}): Promise<ActionResult> {
+  const parsed = setScheduleIntervalSchema.safeParse(input);
+  if (!parsed.success) return toValidationFailure(parsed.error);
+
+  try {
+    const userId = await getCurrentUserId();
+    await setScheduleInterval(userId, parsed.data.credentialId, parsed.data.intervalMs);
+    revalidatePath("/wallet/integrations");
+    return { ok: true };
   } catch (e) {
     const safe = toSafeError(e);
     return { ok: false, error: safe.message };

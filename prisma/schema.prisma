@@ -726,8 +726,16 @@ model IntegrationCredential {
   lastSyncAt       DateTime?
   lastErrorAt      DateTime?
   lastErrorMessage String?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+
+  // ── AUTOSYNC SCHEDULING (in-process scheduler) ───────────────────
+  nextScheduledAt    DateTime? /// When scheduler should next try to run. Null = no scheduled run pending.
+  autosyncEnabled    Boolean   @default(true) /// Per-credential override. False = paused (manual-only).
+  scheduleIntervalMs Int? /// Per-credential cadence override. Null = use adapter default. Allowed: 3600000 (1h), 21600000 (6h), 43200000 (12h), 86400000 (24h).
+  lastScheduledRunAt DateTime? /// When scheduler last fired (success OR failure). Distinct from lastSyncAt.
+  leaseUntil         DateTime? /// Soft lock to prevent double-fire when scheduler tick and manual "Sync now" race.
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user         User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
   syncLogs     IntegrationSyncLog[]
@@ -735,6 +743,7 @@ model IntegrationCredential {
 
   @@index([userId, adapterId])
   @@index([userId, status])
+  @@index([nextScheduledAt])
 }
 
 // История sync-попыток: для debug, compliance, детекции аномалий.

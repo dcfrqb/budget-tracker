@@ -141,6 +141,21 @@ export const createAccountAndLinkSchema = z.object({
 
 export type CreateAccountAndLinkInput = z.infer<typeof createAccountAndLinkSchema>;
 
+// ── Schedule interval ─────────────────────────────────────────
+
+export const setScheduleIntervalSchema = z.object({
+  credentialId: zCuid,
+  intervalMs: z.union([
+    z.literal(3_600_000),    // 1h
+    z.literal(21_600_000),   // 6h
+    z.literal(43_200_000),   // 12h
+    z.literal(86_400_000),   // 24h
+    z.null(),                // off — autosyncEnabled = false
+  ]),
+});
+
+export type SetScheduleIntervalInput = z.infer<typeof setScheduleIntervalSchema>;
+
 // ── Disconnect / Delete ───────────────────────────────────────
 
 export const disconnectInputSchema = z.object({

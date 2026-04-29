@@ -282,6 +282,15 @@ export const enDict: RuDictShape = {
           close: "Close",
         },
       },
+      cadence: {
+        label:   "autosync",
+        "1h":    "1h",
+        "6h":    "6h",
+        "12h":   "12h",
+        "24h":   "24h",
+        off:     "off",
+        next_in: "next in {when}",
+      },
     },
     export: {
       section_title: "Data export",
@@ -1772,6 +1781,7 @@ export const enDict: RuDictShape = {
         label:  "session state",
         online: "online",
         status: "status",
+        integrations: "integrations",
       },
       quick: {
         label:       "quick",
@@ -1787,6 +1797,12 @@ export const enDict: RuDictShape = {
         period_label:   "current period",
         empty:          "no data",
       },
+    },
+    sync: {
+      busy:    "Sync already in progress",
+      error:   "Sync error",
+      empty:   "No integrations",
+      tooltip: "Sync",
     },
   },
 
