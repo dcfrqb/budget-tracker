@@ -29,6 +29,21 @@ async function ensureTbankInstitution(client: DbOrTx, userId: string): Promise<s
   return created.id;
 }
 
+async function ensureIntegrationInstitution(client: DbOrTx, userId: string, adapterId: string): Promise<string> {
+  if (adapterId === "bybit-card") {
+    const existing = await client.institution.findFirst({
+      where: { userId, name: "Bybit", kind: "CRYPTO" },
+      select: { id: true },
+    });
+    if (existing) return existing.id;
+    const created = await client.institution.create({
+      data: { userId, name: "Bybit", kind: "CRYPTO" },
+    });
+    return created.id;
+  }
+  return ensureTbankInstitution(client, userId);
+}
+
 // ─────────────────────────────────────────────────────────────
 // Integration credential mutations — all guarded by assertAdminIntegrations
 // ─────────────────────────────────────────────────────────────
@@ -373,7 +388,7 @@ export async function syncCredential(
     }
 
     if (externals.length > 0) {
-      await refreshLinkedAccounts(userId, credentialId, externals);
+      await refreshLinkedAccounts(userId, credentialId, cred.adapterId, externals);
       console.log(`[playwright-tbank] sync: accounts_refresh ok count=${externals.length}`);
     }
 
@@ -408,6 +423,19 @@ export async function syncCredential(
 
         // Run dedupe + chunked insert for each per-account group.
         for (const [accountId, groupRows] of groups) {
+          // Upsert any unknown currency codes before writing transactions.
+          // Idempotent: already-seeded codes (RUB, USD, EUR…) are no-ops.
+          const distinctCodes = [...new Set(groupRows.map((r) => r.currencyCode))];
+          await Promise.all(
+            distinctCodes.map((code) =>
+              db.currency.upsert({
+                where: { code },
+                update: {},
+                create: { code, name: code, symbol: code, decimals: 2 },
+              }),
+            ),
+          );
+
           const existing = await db.transaction.findMany({
             where: {
               userId,
@@ -430,7 +458,8 @@ export async function syncCredential(
           const rowsWithoutExtId = groupRows.filter((r) => !r.externalId);
           const fuzzyDuplicateIndices = findDuplicates(rowsWithoutExtId, existingForDedupe, accountId);
 
-          const countBefore = await db.transaction.count({ where: { userId, accountId, source: "tinkoff-retail" } });
+          const rowSource = groupRows[0]?.source ?? cred.adapterId;
+          const countBefore = await db.transaction.count({ where: { userId, accountId, source: rowSource } });
 
           for (let chunkStart = 0; chunkStart < groupRows.length; chunkStart += PERSIST_CHUNK_SIZE) {
             const chunk = groupRows.slice(chunkStart, chunkStart + PERSIST_CHUNK_SIZE);
@@ -443,6 +472,7 @@ export async function syncCredential(
                     row.kind === "TRANSFER" ? TransactionKind.TRANSFER :
                     TransactionKind.EXPENSE;
                   const name = (row.description ?? row.rawCategory ?? "Sync import").substring(0, 240);
+                  const source = row.source ?? cred.adapterId;
 
                   if (row.externalId) {
                     // Upsert: DB constraint importDedupe(accountId, source, externalId) handles dedupe.
@@ -450,7 +480,7 @@ export async function syncCredential(
                       where: {
                         importDedupe: {
                           accountId,
-                          source: "tinkoff-retail",
+                          source,
                           externalId: row.externalId,
                         },
                       },
@@ -459,6 +489,7 @@ export async function syncCredential(
                         amount: row.amount,
                         name,
                         occurredAt: new Date(row.occurredAt),
+                        ...(row.note !== undefined ? { note: row.note } : {}),
                       },
                       create: {
                         userId,
@@ -470,7 +501,8 @@ export async function syncCredential(
                         occurredAt: new Date(row.occurredAt),
                         name,
                         externalId: row.externalId,
-                        source: "tinkoff-retail",
+                        source,
+                        ...(row.note !== undefined ? { note: row.note } : {}),
                       },
                     });
                   } else {
@@ -490,6 +522,7 @@ export async function syncCredential(
                         currencyCode: row.currencyCode,
                         occurredAt: new Date(row.occurredAt),
                         name,
+                        ...(row.note !== undefined ? { note: row.note } : {}),
                       },
                     });
                   }
@@ -503,7 +536,7 @@ export async function syncCredential(
           }
 
           // True insert/update split via row-count delta (upsert path) + plain-create count (no-extId path).
-          const countAfter = await db.transaction.count({ where: { userId, accountId, source: "tinkoff-retail" } });
+          const countAfter = await db.transaction.count({ where: { userId, accountId, source: rowSource } });
           const insertedCount = countAfter - countBefore;
           const updatedCount = Math.max(0, groupRows.filter((r) => r.externalId).length - insertedCount);
           rowsCreated += insertedCount;
@@ -836,7 +869,7 @@ export async function createAccountAndLink(
 
   const cred = await db.integrationCredential.findFirst({
     where: { id: input.credentialId, userId },
-    select: { id: true },
+    select: { id: true, adapterId: true },
   });
   if (!cred) {
     throw Object.assign(new Error("Credential not found"), { code: "NOT_FOUND" });
@@ -854,7 +887,7 @@ export async function createAccountAndLink(
   const kind = mapAccountType(input.accountType);
 
   return db.$transaction(async (tx) => {
-    const institutionId = await ensureTbankInstitution(tx, userId);
+    const institutionId = await ensureIntegrationInstitution(tx, userId, cred.adapterId);
     const newAccount = await tx.account.create({
       data: {
         userId,
@@ -890,6 +923,7 @@ export async function createAccountAndLink(
 async function refreshLinkedAccounts(
   userId: string,
   credentialId: string,
+  adapterId: string,
   externals: Array<{
     externalAccountId: string;
     balance?: string;
@@ -942,7 +976,7 @@ async function refreshLinkedAccounts(
     }
 
     if (account.institutionId === null) {
-      const institutionId = await ensureTbankInstitution(db, userId);
+      const institutionId = await ensureIntegrationInstitution(db, userId, adapterId);
       updateData.institution = { connect: { id: institutionId } };
     }
 
@@ -1006,7 +1040,7 @@ export async function listExternalAccountsForCredential(
   const externals = await adapter.listExternalAccounts(ctx);
   // Backfill metadata on already-linked Accounts so existing links pick up
   // fresh balance, cardLast4, creditLimit, institutionId without delete+recreate.
-  await refreshLinkedAccounts(userId, credentialId, externals).catch((err) => {
+  await refreshLinkedAccounts(userId, credentialId, cred.adapterId, externals).catch((err) => {
     console.warn(`[playwright-tbank] refreshLinkedAccounts failed: ${err instanceof Error ? err.message : String(err)}`);
   });
   return externals;

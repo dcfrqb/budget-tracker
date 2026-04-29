@@ -12,6 +12,8 @@ export type ImportRow = {
   description?: string;
   counterparty?: string;
   accountId?: string;            // per-row target account (set by api adapters; CSV uses opts.accountId)
+  source?: string;               // adapter id override for importDedupe; falls back to cred.adapterId
+  note?: string;                 // freeform JSON or text stored in Transaction.note
   raw: Record<string, string>;   // original row
 };
 

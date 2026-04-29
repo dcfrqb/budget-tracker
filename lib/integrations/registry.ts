@@ -3,12 +3,14 @@ import { tinkoffCsvAdapter } from "./adapters/tinkoff-csv";
 import { genericCsvAdapter } from "./adapters/generic-csv";
 import { tinkoffEmailAdapter } from "./adapters/tinkoff-email";
 import { tinkoffRetailAdapter } from "./adapters/tinkoff-retail-playwright";
+import { bybitCardAdapter } from "./adapters/bybit-card";
 
 const ADAPTERS: BankAdapter[] = [
   tinkoffCsvAdapter,
   genericCsvAdapter,
   tinkoffEmailAdapter,
   tinkoffRetailAdapter,
+  bybitCardAdapter,
 ];
 
 const ADAPTER_MAP = new Map<string, BankAdapter>(

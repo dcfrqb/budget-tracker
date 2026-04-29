@@ -32,6 +32,7 @@ export const SUPPORTED_CURRENCIES = [
   { code: "USD", name: "Доллар США", symbol: "$", decimals: 2 },
   { code: "EUR", name: "Евро", symbol: "€", decimals: 2 },
   { code: "GEL", name: "Грузинский лари", symbol: "₾", decimals: 2 },
-  { code: "USDT", name: "Tether", symbol: "₮", decimals: 2 },
+  { code: "USDT", name: "Tether", symbol: "₮", decimals: 6 },
+  { code: "USDC", name: "USD Coin", symbol: "USDC", decimals: 6 },
   { code: "BTC", name: "Bitcoin", symbol: "₿", decimals: 8 },
 ] as const;

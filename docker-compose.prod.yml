@@ -38,6 +38,8 @@ services:
       DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}?schema=public
       INTEGRATIONS_ENC_KEY: ${INTEGRATIONS_ENC_KEY}
       ADMIN_INTEGRATIONS: ${ADMIN_INTEGRATIONS}
+      BYBIT_API_KEY: ${BYBIT_API_KEY}
+      BYBIT_API_SECRET: ${BYBIT_API_SECRET}
       PLAYWRIGHT_PROFILES_DIR: /var/lib/budget-tracker/playwright-profiles
       TZ: Europe/Moscow
       DISPLAY: ":99"

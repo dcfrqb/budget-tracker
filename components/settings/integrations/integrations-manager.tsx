@@ -17,6 +17,7 @@ import {
 } from "@/app/(shell)/settings/integrations/actions";
 import { LinkAccountsDialog } from "./link-accounts-dialog";
 import { SyncCompletionDialog } from "./sync-completion-dialog";
+import { BybitCardConnectForm } from "./bybit-card-connect-form";
 import type { SyncResult } from "@/app/(shell)/settings/integrations/actions";
 
 // ─────────────────────────────────────────────────────────────
@@ -871,8 +872,17 @@ export function IntegrationsManager({ adapters, credentials: initialCredentials 
         )}
       </div>
 
-      {/* Connect dialog */}
-      {connectingAdapter && (
+      {/* Connect dialog — dispatched per adapter */}
+      {connectingAdapter && connectingAdapter.id === "bybit-card" ? (
+        <BybitCardConnectForm
+          adapter={connectingAdapter}
+          onClose={() => setConnectingAdapter(null)}
+          onDone={() => {
+            setConnectingAdapter(null);
+            refresh();
+          }}
+        />
+      ) : connectingAdapter ? (
         <ConnectDialog
           adapter={connectingAdapter}
           onClose={() => setConnectingAdapter(null)}
@@ -881,7 +891,7 @@ export function IntegrationsManager({ adapters, credentials: initialCredentials 
             refresh();
           }}
         />
-      )}
+      ) : null}
     </div>
   );
 }

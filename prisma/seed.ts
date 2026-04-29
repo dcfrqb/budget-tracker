@@ -45,6 +45,7 @@ async function seedExchangeRates() {
     ["GEL", "RUB", "34.20"],
     ["BTC", "USD", "69420"],
     ["USDT", "RUB", "92.10"],
+    ["USDC", "RUB", "92.10"],
   ];
 
   for (const [from, to, rate] of rates) {
