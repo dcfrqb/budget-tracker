@@ -14,11 +14,11 @@ import {
   disconnectAction,
   deleteCredentialAction,
   listAccountLinksAction,
-} from "@/app/(shell)/settings/integrations/actions";
+} from "@/app/(shell)/wallet/integrations/actions";
 import { LinkAccountsDialog } from "./link-accounts-dialog";
 import { SyncCompletionDialog } from "./sync-completion-dialog";
 import { BybitCardConnectForm } from "./bybit-card-connect-form";
-import type { SyncResult } from "@/app/(shell)/settings/integrations/actions";
+import type { SyncResult } from "@/app/(shell)/wallet/integrations/actions";
 
 // ─────────────────────────────────────────────────────────────
 // Types

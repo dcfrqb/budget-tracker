@@ -23,8 +23,8 @@ export function TopBarCrumbs() {
 
   // Deeper sub-paths within sections that need a third crumb
   const SECONDARY_BY_PATH: Record<string, string> = {
-    "/settings/categories":   t("shell.crumbs.settings_sub.categories"),
-    "/settings/integrations": t("shell.crumbs.settings_sub.integrations"),
+    "/settings/categories":  t("shell.crumbs.settings_sub.categories"),
+    "/wallet/integrations":  t("shell.crumbs.wal_sub.integrations"),
   };
 
   const tabLabel = tab ? t(tab.labelKey).toLowerCase() : "—";

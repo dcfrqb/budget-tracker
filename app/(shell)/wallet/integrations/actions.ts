@@ -78,7 +78,7 @@ export async function connectAdapterAction(
       initialSecrets,
       typeof displayLabel === "string" ? displayLabel : undefined,
     );
-    revalidatePath("/settings/integrations");
+    revalidatePath("/wallet/integrations");
     return { ok: true, data: { id: credential.id } };
   } catch (e) {
     const safe = toSafeError(e);
@@ -98,7 +98,7 @@ export async function loginAction(
   try {
     const userId = await getCurrentUserId();
     const result = await loginWithCredential(userId, credentialId, input);
-    revalidatePath("/settings/integrations");
+    revalidatePath("/wallet/integrations");
     if (!result.ok) return { ok: false, error: result.error };
     return { ok: true, data: result };
   } catch (e) {
@@ -120,7 +120,7 @@ export async function submitOtpAction(
     const result = await submitOtpForCredential(userId, parsed.data.credentialId, {
       code: parsed.data.code,
     });
-    revalidatePath("/settings/integrations");
+    revalidatePath("/wallet/integrations");
     if (!result.ok) return { ok: false, error: result.error };
     return { ok: true, data: result };
   } catch (e) {
@@ -144,7 +144,7 @@ export async function syncAction(credentialId: string): Promise<SyncResult> {
       errorClass?: string | null;
       syncLogId?: string;
     } | undefined;
-    revalidatePath("/settings/integrations");
+    revalidatePath("/wallet/integrations");
     revalidatePath("/transactions");
     return {
       ok: true,
@@ -172,7 +172,7 @@ export async function disconnectAction(
   try {
     const userId = await getCurrentUserId();
     await disconnectCredential(userId, parsed.data.credentialId);
-    revalidatePath("/settings/integrations");
+    revalidatePath("/wallet/integrations");
     return { ok: true };
   } catch (e) {
     const safe = toSafeError(e);
@@ -190,7 +190,7 @@ export async function deleteCredentialAction(
   try {
     const userId = await getCurrentUserId();
     await deleteCredential(userId, parsed.data.credentialId);
-    revalidatePath("/settings/integrations");
+    revalidatePath("/wallet/integrations");
     return { ok: true };
   } catch (e) {
     const safe = toSafeError(e);
@@ -217,7 +217,7 @@ export async function linkExternalAccountAction(input: {
       parsed.data.accountId,
       parsed.data.label,
     );
-    revalidatePath("/settings/integrations");
+    revalidatePath("/wallet/integrations");
     return { ok: true, data: result };
   } catch (e) {
     const safe = toSafeError(e);
@@ -240,7 +240,7 @@ export async function unlinkExternalAccountAction(input: {
       parsed.data.credentialId,
       parsed.data.externalAccountId,
     );
-    revalidatePath("/settings/integrations");
+    revalidatePath("/wallet/integrations");
     return { ok: true, data: result };
   } catch (e) {
     const safe = toSafeError(e);
@@ -313,7 +313,7 @@ export async function createAccountAndLinkAction(input: {
   try {
     const userId = await getCurrentUserId();
     const result = await createAccountAndLink(userId, parsed.data);
-    revalidatePath("/settings/integrations");
+    revalidatePath("/wallet/integrations");
     revalidatePath("/wallet");
     return { ok: true, data: result };
   } catch (e) {
@@ -339,7 +339,7 @@ export async function reloginAction(input: {
       lkPassword: parsed.data.lkPassword,
       password: parsed.data.password,
     });
-    revalidatePath("/settings/integrations");
+    revalidatePath("/wallet/integrations");
     if (!result.ok) return { ok: false, error: result.error };
     return { ok: true, data: result };
   } catch (e) {

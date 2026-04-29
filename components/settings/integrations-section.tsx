@@ -22,7 +22,7 @@ export async function IntegrationsSection() {
           <span className="settings-section-summary mono">
             {t("settings.integrations.manage")}
           </span>
-          <Link href="/settings/integrations" className="btn primary">
+          <Link href="/wallet/integrations" className="btn primary">
             {t("settings.integrations.manage")}
           </Link>
         </div>

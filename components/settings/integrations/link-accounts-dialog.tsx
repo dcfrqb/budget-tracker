@@ -9,7 +9,7 @@ import {
   linkExternalAccountAction,
   unlinkExternalAccountAction,
   createAccountAndLinkAction,
-} from "@/app/(shell)/settings/integrations/actions";
+} from "@/app/(shell)/wallet/integrations/actions";
 
 // ─────────────────────────────────────────────────────────────
 // Types

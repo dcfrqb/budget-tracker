@@ -912,10 +912,9 @@ export const enDict: RuDictShape = {
     cash_meta: "{locations} locations · {currencies} currencies",
     add_account: {
       title: "Add new account",
-      sub: "bank · crypto · manual",
-      btn_bank: "Bank",
-      btn_crypto: "Crypto",
-      btn_manual: "Manual",
+      sub: "manual entry or integration",
+      btn_manual: "Manual entry",
+      btn_integration: "Integration",
     },
     account: {
       badge: {
@@ -1712,6 +1711,8 @@ export const enDict: RuDictShape = {
       settings: "settings",
       settings_sub: {
         categories:   "categories",
+      },
+      wal_sub: {
         integrations: "integrations",
       },
     },

@@ -6,7 +6,7 @@ import type { BankAdapterMeta } from "@/lib/integrations/types";
 import {
   connectAdapterAction,
   loginAction,
-} from "@/app/(shell)/settings/integrations/actions";
+} from "@/app/(shell)/wallet/integrations/actions";
 
 type Props = {
   adapter: BankAdapterMeta;

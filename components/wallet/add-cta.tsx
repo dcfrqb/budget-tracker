@@ -16,9 +16,8 @@ export function AddAccountCta() {
           </div>
         </Link>
         <div className="r">
-          <Link href="/wallet/accounts/new?kind=CARD" className="btn">{t("wallet.add_account.btn_bank")}</Link>
-          <Link href="/wallet/accounts/new?kind=CRYPTO" className="btn">{t("wallet.add_account.btn_crypto")}</Link>
           <Link href="/wallet/accounts/new" className="btn primary">{t("wallet.add_account.btn_manual")}</Link>
+          <Link href="/wallet/integrations" className="btn">{t("wallet.add_account.btn_integration")}</Link>
         </div>
       </div>
     </div>

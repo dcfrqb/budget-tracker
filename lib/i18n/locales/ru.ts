@@ -920,10 +920,9 @@ export const ruDict = {
     cash_meta: "{locations} локаций · {currencies} валют",
     add_account: {
       title: "Добавить новый счёт",
-      sub: "банк · крипто · ручной ввод",
-      btn_bank: "Банк",
-      btn_crypto: "Крипто",
+      sub: "ручной ввод или интеграция",
       btn_manual: "Ручной ввод",
+      btn_integration: "Интеграция",
     },
     account: {
       badge: {
@@ -1721,6 +1720,8 @@ export const ruDict = {
       settings: "настройки",
       settings_sub: {
         categories:   "категории",
+      },
+      wal_sub: {
         integrations: "интеграции",
       },
     },
