@@ -3,51 +3,67 @@ import { BybitApiError } from "./types";
 
 // ── Primitive helpers ────────────────────────────────────────────────────────
 
-const numericString = z.string();
 const coercedNumber = z.coerce.number();
 
-// ── Card record row schema ───────────────────────────────────────────────────
+// ── Points record row schema ─────────────────────────────────────────────────
+//
+// Schema for /v5/card/reward/points/records rows.
+// Most fields are optional — Bybit omits empty ones rather than returning null.
+// Numeric fields are strings per Bybit API convention.
 
-export const bybitTradeStatusSchema = z.enum([
-  "success",
-  "declined",
-  "refund",
-  "reversal",
-]);
+const optionalString = z.string().optional().default("");
 
-export const bybitCardRecordSchema = z
+export const bybitPointRecordSchema = z
   .object({
     pan4: z.string(),
-    tradeStatus: bybitTradeStatusSchema,
-    side: z.string(),
-    basicAmount: numericString,
-    basicCurrency: z.string(),
-    transactionAmount: numericString,
-    transactionCurrency: z.string(),
-    paidAmount: numericString,
-    paidCurrency: z.string(),
-    txnCreate: numericString,
-    merchName: z.string(),
-    mccCode: z.string(),
-    merchCategoryDesc: z.string(),
-    txnId: z.string(),
-    orderNo: z.string(),
-    declinedReason: z.string(),
-    totalFees: numericString,
-    bonusAmount: numericString,
-    status: z.string(),
+    point: z.coerce.number().optional().default(0),
+    side: optionalString,
+    type: optionalString,
+    subType: optionalString,
+    createTime: z
+      .union([z.string(), z.number()])
+      .transform(String)
+      .optional()
+      .default(""),
+    updateTime: z
+      .union([z.string(), z.number()])
+      .transform(String)
+      .optional()
+      .default(""),
+    transactionDate: z
+      .union([z.string(), z.number()])
+      .transform(String)
+      .optional()
+      .default(""),
+    bizId: optionalString,
+    bizTxnId: optionalString,
+    outOrderId: optionalString,
+    transactionId: optionalString,
+    transactionAmount: optionalString,
+    basicCurrency: optionalString,
+    merchCategoryDesc: optionalString,
+    merchName: optionalString,
+    merchCountry: optionalString,
+    merchCity: optionalString,
+    payFiatAmount: optionalString,
+    transactionCurrencyAmount: optionalString,
   })
-  .strip();
+  .passthrough();
 
-export type BybitCardRecordInput = z.input<typeof bybitCardRecordSchema>;
-export type BybitCardRecordOutput = z.output<typeof bybitCardRecordSchema>;
+export type BybitPointRecordInput = z.input<typeof bybitPointRecordSchema>;
+export type BybitPointRecordOutput = z.output<typeof bybitPointRecordSchema>;
 
 // ── Result page schema ───────────────────────────────────────────────────────
+//
+// Bybit returns: { data: [...], totalCount: N, pageSize: N, pageNo: N }.
+// All four fields can be absent when the page is empty — default to safe values.
 
-export const bybitCardPageSchema = z
+export const bybitPointRecordsPageSchema = z
   .object({
-    rows: z.array(bybitCardRecordSchema),
-    count: coercedNumber,
+    data: z.array(bybitPointRecordSchema).optional().default([]),
+    totalCount: coercedNumber.optional().default(0),
+    pageSize: coercedNumber.optional().default(0),
+    pageNo: coercedNumber.optional().default(0),
   })
   .strip();
 
@@ -75,7 +91,9 @@ function makeEnvelopeSchema<T extends z.ZodTypeAny>(resultSchema: T) {
     });
 }
 
-export const bybitCardEnvelopeSchema = makeEnvelopeSchema(bybitCardPageSchema);
+export const bybitPointsRecordsEnvelopeSchema = makeEnvelopeSchema(
+  bybitPointRecordsPageSchema,
+);
 
 export const bybitServerTimeSchema = z
   .object({

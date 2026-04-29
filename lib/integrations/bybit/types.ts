@@ -1,58 +1,58 @@
 // Bybit V5 Card API — TypeScript types
-// Field names mirror the live API response for /v5/card/transaction/query-asset-records.
+// Field names mirror the live API response for /v5/card/reward/points/records.
 // All numeric fields are strings per Bybit API convention.
 
-export type BybitTradeStatus =
-  | "success"
-  | "declined"
-  | "refund"
-  | "reversal";
-
-export type BybitCardRecord = {
+export type BybitPointRecord = {
   /** Last 4 digits of the card PAN. */
   pan4: string;
-  /** Trade outcome status. */
-  tradeStatus: BybitTradeStatus;
-  /** Direction: "0" = debit, "1" = credit (refund/reversal). */
+  /** Cashback / reward points earned on this transaction. */
+  point: number;
+  /** Direction: e.g. "debit", "credit". */
   side: string;
-  /** Amount in base/settlement currency (string-encoded decimal). */
-  basicAmount: string;
-  /** Settlement currency code (e.g. "USDT"). */
-  basicCurrency: string;
-  /** Amount in transaction/local currency. */
+  /** Record type (e.g. "consume"). */
+  type: string;
+  /** Record sub-type. */
+  subType: string;
+  /** Record creation timestamp, ms epoch (string). */
+  createTime: string;
+  /** Record update timestamp, ms epoch (string). */
+  updateTime: string;
+  /** Bybit business ID. */
+  bizId: string;
+  /** Bybit business transaction ID. */
+  bizTxnId: string;
+  /** Transaction date, ms epoch (string). Empty string if unavailable. */
+  transactionDate: string;
+  /** Bybit transaction ID. Empty string if not a card spend. */
+  transactionId: string;
+  /** Transaction amount in basicCurrency (string-encoded decimal). */
   transactionAmount: string;
-  /** Local currency code (e.g. "USD", "EUR", "RUB"). */
-  transactionCurrency: string;
-  /** Amount actually paid from the card balance. */
-  paidAmount: string;
-  /** Currency the card balance was debited in. */
-  paidCurrency: string;
-  /** Transaction creation timestamp, milliseconds epoch. */
-  txnCreate: string;
-  /** Merchant name. */
-  merchName: string;
-  /** Merchant Category Code. */
-  mccCode: string;
-  /** Human-readable category derived from MCC. */
+  /** Settlement / base currency code (e.g. "USD"). */
+  basicCurrency: string;
+  /** Human-readable merchant category description. */
   merchCategoryDesc: string;
-  /** Bybit transaction ID. */
-  txnId: string;
-  /** Bybit order number. */
-  orderNo: string;
-  /** Reason string when tradeStatus is "declined". Empty string otherwise. */
-  declinedReason: string;
-  /** Total fees charged for this transaction. */
-  totalFees: string;
-  /** Bonus/cashback amount credited. */
-  bonusAmount: string;
-  /** Raw status code from Bybit (may duplicate tradeStatus). */
-  status: string;
+  /** Merchant name. Empty string for non-spend rows. */
+  merchName: string;
+  /** Merchant country code. */
+  merchCountry: string;
+  /** Merchant city. */
+  merchCity: string;
+  /** Amount paid in local/fiat currency. */
+  payFiatAmount: string;
+  /** Amount in the transaction's local currency. */
+  transactionCurrencyAmount: string;
+  /** External order ID. */
+  outOrderId: string;
+  /** Allow extra fields from passthrough. */
+  [key: string]: unknown;
 };
 
-export type BybitCardPage = {
-  rows: BybitCardRecord[];
-  /** Total count of records (string-encoded integer). */
-  count: string;
+/** Narrowed variant: guaranteed to represent a real card spend (non-empty transactionId, merchName, transactionAmount, transactionDate). */
+export type BybitPointRecordFiltered = BybitPointRecord & {
+  transactionId: string;
+  merchName: string;
+  transactionAmount: string;
+  transactionDate: string;
 };
 
 export type BybitV5Envelope<T> = {

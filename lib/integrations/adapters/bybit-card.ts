@@ -30,6 +30,17 @@ function classifyBybitError(err: unknown): string {
   return "unknown";
 }
 
+function composeNote(opts: {
+  city: string;
+  country: string;
+  points: number;
+}): string | undefined {
+  const location = [opts.city, opts.country].filter(Boolean).join(", ");
+  const pointsStr = opts.points > 0 ? `+${opts.points} pts` : "";
+  const parts = [location, pointsStr].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : undefined;
+}
+
 export const bybitCardAdapter: BankAdapter = {
   id: "bybit-card",
   displayName: "settings.integrations.bybit_card.title",
@@ -62,9 +73,9 @@ export const bybitCardAdapter: BankAdapter = {
       await listCardTransactions({
         apiKey,
         apiSecret,
-        createBeginTime: probeFrom,
-        createEndTime: now,
-        pageLimit: 1,
+        startTime: probeFrom,
+        endTime: now,
+        pageSize: 1,
         maxPages: 1,
       });
     } catch (err) {
@@ -98,9 +109,9 @@ export const bybitCardAdapter: BankAdapter = {
       result = await listCardTransactions({
         apiKey,
         apiSecret,
-        createBeginTime: from,
-        createEndTime: now,
-        pageLimit: 100,
+        startTime: from,
+        endTime: now,
+        pageSize: 50,
         maxPages: 50,
       });
     } catch (err) {
@@ -115,11 +126,11 @@ export const bybitCardAdapter: BankAdapter = {
       return [];
     }
 
-    // Group by pan4; first-observed transactionCurrency per card
+    // Group by pan4; use basicCurrency per card (always USD for Bybit Card)
     const firstCurrencyByPan4 = new Map<string, string>();
     for (const row of result.rows) {
       if (!firstCurrencyByPan4.has(row.pan4)) {
-        firstCurrencyByPan4.set(row.pan4, row.transactionCurrency);
+        firstCurrencyByPan4.set(row.pan4, row.basicCurrency || "USD");
       }
     }
 
@@ -159,9 +170,9 @@ export const bybitCardAdapter: BankAdapter = {
       result = await listCardTransactions({
         apiKey,
         apiSecret,
-        createBeginTime: from.getTime(),
-        createEndTime: to.getTime(),
-        pageLimit: 100,
+        startTime: from.getTime(),
+        endTime: to.getTime(),
+        pageSize: 50,
         maxPages: 50,
       });
     } catch (err) {
@@ -175,26 +186,19 @@ export const bybitCardAdapter: BankAdapter = {
       log(`runSync: WARNING — response truncated, some transactions may be missing`);
     }
 
+    const rowsFiltered = result.rawCount - result.rows.length;
+    if (rowsFiltered > 0) {
+      log(`runSync: filtered out ${rowsFiltered} non-spend rows (rawCount=${result.rawCount})`);
+    }
+
     const rows: ImportRow[] = [];
     const firstCurrencyByPan4 = new Map<string, string>();
     const cardLast4ByExternal = new Map<string, string[]>();
 
     for (const record of result.rows) {
-      // Declined: skip entirely
-      if (record.tradeStatus === "declined") {
-        log(`runSync: skip declined txnId=${record.txnId}`);
-        continue;
-      }
-
-      // Reversal: skip and log
-      if (record.tradeStatus === "reversal") {
-        log(`runSync: reversal skipped: txnId=${record.txnId}`);
-        continue;
-      }
-
-      // Track first-seen currency per card (for account auto-creation metadata)
+      // Track first-seen currency per card (USD for Bybit Card)
       if (!firstCurrencyByPan4.has(record.pan4)) {
-        firstCurrencyByPan4.set(record.pan4, record.transactionCurrency);
+        firstCurrencyByPan4.set(record.pan4, record.basicCurrency || "USD");
       }
 
       // Track card last-4 per external account id
@@ -206,53 +210,40 @@ export const bybitCardAdapter: BankAdapter = {
         pan4List.push(record.pan4);
       }
 
-      // Refund → INCOME; success → EXPENSE
-      const kind: ImportRow["kind"] =
-        record.tradeStatus === "refund" ? "INCOME" : "EXPENSE";
-      const direction: ImportRow["direction"] =
-        record.tradeStatus === "refund" ? "in" : "out";
+      const occurredAt = new Date(Number(record.transactionDate)).toISOString();
 
-      const occurredAt = new Date(parseInt(record.txnCreate, 10)).toISOString();
-
-      const note = JSON.stringify({
-        bybit: {
-          mcc: record.mccCode,
-          paid: { amount: record.paidAmount, currency: record.paidCurrency },
-          fees: record.totalFees,
-          basic: { amount: record.basicAmount, currency: record.basicCurrency },
-        },
+      const note = composeNote({
+        city: record.merchCity,
+        country: record.merchCountry,
+        points: record.point,
       });
 
-      const description =
-        record.merchName ||
-        record.merchCategoryDesc ||
-        "Bybit Card";
+      const description = record.merchName || record.merchCategoryDesc || "Bybit Card";
 
       const row: ImportRow = {
-        externalId: record.txnId,
+        externalId: record.transactionId,
         occurredAt,
         amount: record.transactionAmount,
-        currencyCode: record.transactionCurrency,
-        kind,
-        direction,
+        currencyCode: record.basicCurrency || "USD",
+        kind: "EXPENSE",
+        direction: "out",
         description,
         cardLast4: record.pan4,
         source: "bybit-card",
         note,
         raw: {
-          txnId: record.txnId,
-          orderNo: record.orderNo,
-          tradeStatus: record.tradeStatus,
-          mccCode: record.mccCode,
+          transactionId: record.transactionId,
+          outOrderId: record.outOrderId,
+          bizId: record.bizId,
+          point: String(record.point),
         },
       };
 
       rows.push(row);
     }
 
-    log(`runSync: total ImportRows=${rows.length} from ${result.rows.length} raw records`);
+    log(`runSync: total ImportRows=${rows.length} from ${result.rawCount} raw records`);
 
-    // Build externals snapshot from rows seen in this sync
     const externals = Array.from(firstCurrencyByPan4.entries()).map(
       ([pan4, currencyCode]) => ({
         externalAccountId: pan4,
@@ -273,3 +264,7 @@ export const bybitCardAdapter: BankAdapter = {
     log(`disconnect: cleared secrets`);
   },
 };
+
+// Re-export constants used by the sync orchestrator
+export const BYBIT_CARD_NINETY_DAYS_MS = NINETY_DAYS_MS;
+export const BYBIT_CARD_TWENTY_FOUR_HOURS_MS = TWENTY_FOUR_HOURS_MS;

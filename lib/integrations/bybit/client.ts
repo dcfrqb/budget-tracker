@@ -8,13 +8,18 @@ const BASE_URL = "https://api.bybit.com";
 const RECV_WINDOW = 20_000;
 const MIN_CALL_INTERVAL_MS = 1_000;
 
+function getRequestUrl(path: string): string {
+  const base = process.env["BYBIT_PROXY_URL"] ?? BASE_URL;
+  return `${base.replace(/\/$/, "")}${path}`;
+}
+
 // ── Server-time offset (in-memory, per module lifetime) ──────────────────────
 
 let serverTimeOffsetMs = 0;
 let serverTimeSynced = false;
 
 async function syncServerTime(): Promise<void> {
-  const url = `${BASE_URL}/v5/market/time`;
+  const url = getRequestUrl("/v5/market/time");
   const localBefore = Date.now();
   const res = await fetch(url, { headers: { accept: "application/json" } });
   const localAfter = Date.now();
@@ -111,9 +116,13 @@ export async function bybitFetch<TBody, TResult>(
       headers["content-type"] = "application/json";
     }
 
+    if (process.env["BYBIT_DEBUG"] === "1") {
+      console.log("[bybit req]", method, path, bodyJson);
+    }
+
     let res: Response;
     try {
-      res = await fetch(`${BASE_URL}${path}`, {
+      res = await fetch(getRequestUrl(path), {
         method,
         headers,
         body: method === "POST" ? bodyJson : undefined,
@@ -142,6 +151,10 @@ export async function bybitFetch<TBody, TResult>(
         class: "parse_error",
         cause: e,
       });
+    }
+
+    if (process.env["BYBIT_DEBUG"] === "1") {
+      console.log("[bybit raw]", JSON.stringify(raw, null, 2));
     }
 
     // Check retCode before schema validation to handle retry logic
@@ -191,7 +204,18 @@ export async function bybitFetch<TBody, TResult>(
       });
     }
 
-    // Schema validation (also throws BybitApiError for retCode != 0 via zod transform)
+    // Generic catch-all: any other non-zero retCode is a hard error from Bybit
+    // (e.g., 120110001 "param_illegal", IP not in allowlist, etc.). Throw with
+    // "unknown" class so callers see retCode + retMsg verbatim instead of a
+    // misleading schema-validation error.
+    if (retCode !== 0) {
+      throw new BybitApiError({
+        retCode,
+        retMsg: envelope?.retMsg ?? "Bybit API error",
+        class: "unknown",
+      });
+    }
+
     const parsed = schema.safeParse(raw);
     if (!parsed.success) {
       throw new BybitApiError({

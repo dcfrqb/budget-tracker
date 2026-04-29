@@ -198,6 +198,15 @@ export const ruDict = {
         last_sync: "Последняя синхронизация: {when}",
         sync_now: "Синхронизировать",
         disconnect: "Отключить",
+        sync: {
+          success: "Синхронизировано: {created} новых, {skipped} уже было",
+          empty: "Новых транзакций нет",
+          error: {
+            region_block: "Bybit недоступен с этого IP. Нужен прокси-узел.",
+            auth: "Ключ API недействителен",
+            rate_limit: "Bybit временно ограничил запросы. Повтори позже.",
+          },
+        },
       },
       tinkoff_retail: {
         title: "T-Банк (личный)",

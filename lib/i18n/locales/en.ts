@@ -190,6 +190,15 @@ export const enDict: RuDictShape = {
         last_sync: "Last sync: {when}",
         sync_now: "Sync now",
         disconnect: "Disconnect",
+        sync: {
+          success: "Synced: {created} new, {skipped} existing",
+          empty: "No new transactions",
+          error: {
+            region_block: "Bybit is unreachable from this IP. Proxy node required.",
+            auth: "API key invalid",
+            rate_limit: "Bybit rate-limited the request. Try again later.",
+          },
+        },
       },
       tinkoff_retail: {
         title: "T-Bank (retail)",

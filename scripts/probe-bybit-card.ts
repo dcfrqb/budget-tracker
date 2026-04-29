@@ -7,33 +7,27 @@
  * Or with .env file:
  *   npx tsx scripts/probe-bybit-card.ts
  *
- * Fetches the last 7 days of card transactions, prints the first 3 records
- * with pan4 masked to **XXXX. Exits 0 on success, 1 on error.
+ * Fetches the last 90 days of card transactions via /v5/card/reward/points/records,
+ * prints the first 3 records with pan4 masked to **XXXX. Exits 0 on success, 1 on error.
  */
 import "dotenv/config";
 import { listCardTransactions } from "@/lib/integrations/bybit/card-records";
-import type { BybitCardRecord } from "@/lib/integrations/bybit/types";
+import type { BybitPointRecordFiltered } from "@/lib/integrations/bybit/types";
 
 function maskPan4(pan4: string): string {
   return `**${pan4.slice(-4)}`;
 }
 
-function summarizeRecord(record: BybitCardRecord): Record<string, unknown> {
+function summarizeRecord(record: BybitPointRecordFiltered): Record<string, unknown> {
   return {
-    txnId: record.txnId,
+    transactionId: record.transactionId,
     pan4: maskPan4(record.pan4),
-    tradeStatus: record.tradeStatus,
-    side: record.side,
-    txnCreate: new Date(Number(record.txnCreate)).toISOString(),
-    basicAmount: record.basicAmount,
-    basicCurrency: record.basicCurrency,
-    transactionAmount: record.transactionAmount,
-    transactionCurrency: record.transactionCurrency,
-    paidAmount: record.paidAmount,
-    paidCurrency: record.paidCurrency,
-    merchName: record.merchName,
-    mccCode: record.mccCode,
-    declinedReason: record.declinedReason || "(none)",
+    txnDate: new Date(Number(record.transactionDate)).toISOString(),
+    amount: record.transactionAmount,
+    currency: record.basicCurrency,
+    merchant: record.merchName,
+    location: `${record.merchCity || "?"}, ${record.merchCountry || "?"}`,
+    points: record.point,
   };
 }
 
@@ -49,11 +43,11 @@ async function main(): Promise<void> {
   }
 
   const now = Date.now();
-  const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
+  const ninetyDaysAgo = now - 90 * 24 * 60 * 60 * 1000;
 
-  console.log(`Probing Bybit Card API...`);
+  console.log(`Probing Bybit Card API (/v5/card/reward/points/records)...`);
   console.log(
-    `Range: ${new Date(sevenDaysAgo).toISOString()} → ${new Date(now).toISOString()}`,
+    `Range: ${new Date(ninetyDaysAgo).toISOString()} → ${new Date(now).toISOString()}`,
   );
 
   let result: Awaited<ReturnType<typeof listCardTransactions>>;
@@ -61,10 +55,10 @@ async function main(): Promise<void> {
     result = await listCardTransactions({
       apiKey,
       apiSecret,
-      createBeginTime: sevenDaysAgo,
-      createEndTime: now,
-      pageLimit: 100,
-      maxPages: 1,
+      startTime: ninetyDaysAgo,
+      endTime: now,
+      pageSize: 50,
+      maxPages: 5,
     });
   } catch (e) {
     console.error("ERROR: Request failed.");
@@ -79,12 +73,15 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const { rows, truncated } = result;
-  console.log(`\nTotal records fetched: ${rows.length}${truncated ? " (truncated)" : ""}`);
+  const { rows, rawCount, truncated } = result;
+  console.log(
+    `\nRaw records fetched: ${rawCount}${truncated ? " (truncated)" : ""}`,
+  );
+  console.log(`After filter (real card spends): ${rows.length}`);
 
   const preview = rows.slice(0, 3);
   if (preview.length === 0) {
-    console.log("No transactions found in the last 7 days.");
+    console.log("No card spend transactions found in the last 90 days.");
   } else {
     console.log(`\nFirst ${preview.length} record(s):`);
     for (const [i, record] of preview.entries()) {
