@@ -200,7 +200,7 @@ Phases A1–C plus follow-up polish are merged on `main`. Open work is the live 
 
 1. Owner runs `npm install` in `code/` to regenerate `package-lock.json` (playwright now in deps), commits, pushes.
 2. Local `docker compose -f docker-compose.prod.yml build app` to confirm Chromium installs cleanly in the bookworm-slim image.
-3. Deploy: `ssh root@217.60.5.138 'cd /opt/budget-tracker && git pull origin main && docker compose -f docker-compose.prod.yml up -d --build'`.
+3. Deploy: `ssh root@45.39.33.7 'cd /opt/budgettracker && git pull origin main && docker compose -f docker-compose.prod.yml up -d --build'`.
 4. In `/settings/integrations`, click Connect on `tinkoff-retail`, fill phone + chosen PIN. Expect status NEEDS_OTP.
 5. Enter SMS code. Expect status CONNECTED within ~8s (background task finishes PIN+redirect).
 6. Open "Manage links", select internal accounts for the external ones, save.
