@@ -87,8 +87,26 @@ export async function bybitFetch<TBody, TResult>(
     await syncServerTime();
   }
 
-  const { apiKey, apiSecret, path, method, body, schema } = input;
-  const bodyJson = body !== undefined ? JSON.stringify(body) : "";
+  const { apiKey, apiSecret, method, body, schema } = input;
+
+  // For GET requests: params go in the URL query string, and the query string
+  // is what gets signed (Bybit V5 GET signature: timestamp+apiKey+recvWindow+queryString).
+  // For POST requests: params go in the JSON body, and bodyJson gets signed.
+  let path = input.path;
+  let bodyJson = "";
+  if (method === "GET") {
+    if (body !== undefined && body !== null && typeof body === "object") {
+      const qs = new URLSearchParams(
+        Object.entries(body as Record<string, unknown>).map(([k, v]) => [k, String(v)]),
+      ).toString();
+      if (qs) {
+        path = `${input.path}?${qs}`;
+        bodyJson = qs;
+      }
+    }
+  } else {
+    bodyJson = body !== undefined ? JSON.stringify(body) : "";
+  }
 
   const MAX_ATTEMPTS = 3;
   let attempt = 0;

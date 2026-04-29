@@ -199,6 +199,11 @@ export const enDict: RuDictShape = {
             rate_limit: "Bybit rate-limited the request. Try again later.",
           },
         },
+        balance: {
+          synced: "Balance synced: {amount} {currency}",
+          partial: "Balance partial: {amount} {currency} (missed: {sources})",
+          failed: "Balance fetch failed: {reason}",
+        },
       },
       tinkoff_retail: {
         title: "T-Bank (retail)",

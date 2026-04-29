@@ -1,6 +1,7 @@
 import type { BankAdapter, AdapterContext } from "@/lib/integrations/types";
 import type { ImportRow } from "@/lib/import/types";
 import { listCardTransactions } from "@/lib/integrations/bybit/card-records";
+import { fetchCardSpendingPower } from "@/lib/integrations/bybit/balance";
 import { BybitApiError } from "@/lib/integrations/bybit/types";
 
 const log = (msg: string) => console.log(`[bybit-card] ${msg}`);
@@ -244,6 +245,27 @@ export const bybitCardAdapter: BankAdapter = {
 
     log(`runSync: total ImportRows=${rows.length} from ${result.rawCount} raw records`);
 
+    let spendingPowerUsd: string | undefined;
+    try {
+      const balanceResult = await fetchCardSpendingPower({ apiKey, apiSecret });
+      spendingPowerUsd = balanceResult.totalUsd;
+
+      if (balanceResult.partial) {
+        const failedSources = Object.entries(balanceResult.sources)
+          .filter(([, v]) => !v.ok)
+          .map(([k]) => k);
+        log(`runSync: balance partial — failed sources: ${failedSources.join(", ")}; skipped coins: ${balanceResult.skippedCoins.join(", ") || "none"}`);
+      } else {
+        log(`runSync: balance ok totalUsd=${spendingPowerUsd}`);
+      }
+
+      if (balanceResult.skippedCoins.length > 0) {
+        log(`runSync: non-stablecoin balances not included in spending power: ${balanceResult.skippedCoins.join(", ")}`);
+      }
+    } catch (err) {
+      log(`runSync: balance fetch failed class=${classifyBybitError(err)}`);
+    }
+
     const externals = Array.from(firstCurrencyByPan4.entries()).map(
       ([pan4, currencyCode]) => ({
         externalAccountId: pan4,
@@ -251,7 +273,7 @@ export const bybitCardAdapter: BankAdapter = {
         currencyCode,
         accountType: "bybit-card",
         cardLast4: [pan4],
-        balance: undefined,
+        balance: spendingPowerUsd,
       }),
     );
 

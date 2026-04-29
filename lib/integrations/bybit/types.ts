@@ -47,6 +47,52 @@ export type BybitPointRecord = {
   [key: string]: unknown;
 };
 
+// ── Balance aggregation types ────────────────────────────────────────────────
+
+export type BybitUnifiedCoin = {
+  coin: string;
+  equity: string;
+  usdValue: string;
+  walletBalance: string;
+  availableToWithdraw: string;
+  [key: string]: unknown;
+};
+
+export type BybitUnifiedAccount = {
+  accountType: string;
+  totalEquity: string;
+  totalAvailableBalance: string;
+  totalWalletBalance: string;
+  coin: BybitUnifiedCoin[];
+  [key: string]: unknown;
+};
+
+export type BybitFundCoin = {
+  coin: string;
+  transferBalance: string;
+  walletBalance: string;
+  bonus: string;
+  [key: string]: unknown;
+};
+
+export type BybitEarnPosition = {
+  coin: string;
+  productId: string;
+  amount: string;
+  [key: string]: unknown;
+};
+
+export type SpendingPowerResult = {
+  totalUsd: string;
+  sources: {
+    uta: { ok: true; usd: string } | { ok: false; reason: string };
+    fund: { ok: true; usd: string; skippedCoins: string[] } | { ok: false; reason: string };
+    earn: { ok: true; usd: string; skippedCoins: string[]; categories: string[] } | { ok: false; reason: string };
+  };
+  skippedCoins: string[];
+  partial: boolean;
+};
+
 /** Narrowed variant: guaranteed to represent a real card spend (non-empty transactionId, merchName, transactionAmount, transactionDate). */
 export type BybitPointRecordFiltered = BybitPointRecord & {
   transactionId: string;

@@ -207,6 +207,11 @@ export const ruDict = {
             rate_limit: "Bybit временно ограничил запросы. Повтори позже.",
           },
         },
+        balance: {
+          synced: "Баланс обновлён: {amount} {currency}",
+          partial: "Баланс частично: {amount} {currency} (пропущено: {sources})",
+          failed: "Не удалось получить баланс: {reason}",
+        },
       },
       tinkoff_retail: {
         title: "T-Банк (личный)",

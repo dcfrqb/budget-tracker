@@ -95,6 +95,90 @@ export const bybitPointsRecordsEnvelopeSchema = makeEnvelopeSchema(
   bybitPointRecordsPageSchema,
 );
 
+// ── Wallet balance (UTA) schema ──────────────────────────────────────────────
+//
+// Schema for /v5/account/wallet-balance?accountType=UNIFIED.
+// Only list[].totalEquity is load-bearing for Phase 1 balance aggregation.
+
+const bybitUnifiedCoinSchema = z
+  .object({
+    coin: optionalString,
+    equity: optionalString,
+    usdValue: optionalString,
+    walletBalance: optionalString,
+    availableToWithdraw: optionalString,
+  })
+  .passthrough();
+
+const bybitUnifiedAccountSchema = z
+  .object({
+    accountType: optionalString,
+    totalEquity: optionalString,
+    totalAvailableBalance: optionalString,
+    totalWalletBalance: optionalString,
+    coin: z.array(bybitUnifiedCoinSchema).optional().default([]),
+  })
+  .passthrough();
+
+const bybitWalletBalanceResultSchema = z
+  .object({
+    list: z.array(bybitUnifiedAccountSchema).optional().default([]),
+  })
+  .passthrough();
+
+export const bybitWalletBalanceUnifiedSchema = makeEnvelopeSchema(
+  bybitWalletBalanceResultSchema,
+);
+
+// ── FUND account coins balance schema ────────────────────────────────────────
+//
+// Schema for /v5/asset/transfer/query-account-coins-balance?accountType=FUND.
+// Uses walletBalance per coin.
+
+const bybitFundCoinSchema = z
+  .object({
+    coin: optionalString,
+    transferBalance: optionalString,
+    walletBalance: optionalString,
+    bonus: optionalString,
+  })
+  .passthrough();
+
+const bybitFundBalanceResultSchema = z
+  .object({
+    memberId: optionalString,
+    accountType: optionalString,
+    balance: z.array(bybitFundCoinSchema).optional().default([]),
+  })
+  .passthrough();
+
+export const bybitFundBalanceSchema = makeEnvelopeSchema(
+  bybitFundBalanceResultSchema,
+);
+
+// ── Earn position schema ──────────────────────────────────────────────────────
+//
+// Schema for /v5/earn/position?category=FlexibleSaving|OnChain.
+// Uses amount per position entry.
+
+const bybitEarnPositionItemSchema = z
+  .object({
+    coin: optionalString,
+    productId: optionalString,
+    amount: optionalString,
+  })
+  .passthrough();
+
+const bybitEarnPositionResultSchema = z
+  .object({
+    list: z.array(bybitEarnPositionItemSchema).optional().default([]),
+  })
+  .passthrough();
+
+export const bybitEarnPositionSchema = makeEnvelopeSchema(
+  bybitEarnPositionResultSchema,
+);
+
 export const bybitServerTimeSchema = z
   .object({
     retCode: z.number(),

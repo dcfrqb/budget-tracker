@@ -12,6 +12,7 @@
  */
 import "dotenv/config";
 import { listCardTransactions } from "@/lib/integrations/bybit/card-records";
+import { fetchCardSpendingPower } from "@/lib/integrations/bybit/balance";
 import type { BybitPointRecordFiltered } from "@/lib/integrations/bybit/types";
 
 function maskPan4(pan4: string): string {
@@ -86,6 +87,63 @@ async function main(): Promise<void> {
     console.log(`\nFirst ${preview.length} record(s):`);
     for (const [i, record] of preview.entries()) {
       console.log(`\n[${i + 1}]`, JSON.stringify(summarizeRecord(record), null, 2));
+    }
+  }
+
+  console.log("\nProbing Bybit Card balance...");
+  try {
+    const balanceResult = await fetchCardSpendingPower({ apiKey, apiSecret });
+
+    const utaUsd = balanceResult.sources.uta.ok
+      ? `$${Number(balanceResult.sources.uta.usd).toFixed(4)}`
+      : `ERROR: ${balanceResult.sources.uta.reason}`;
+
+    const fundUsd = balanceResult.sources.fund.ok
+      ? `$${Number(balanceResult.sources.fund.usd).toFixed(4)}${balanceResult.sources.fund.skippedCoins.length > 0 ? `  (skipped: ${balanceResult.sources.fund.skippedCoins.join(", ")})` : ""}`
+      : `ERROR: ${balanceResult.sources.fund.reason}`;
+
+    const earnUsd = balanceResult.sources.earn.ok
+      ? (() => {
+          const parts: string[] = [];
+          if (balanceResult.sources.earn.categories.includes("FlexibleSaving")) {
+            parts.push(`FlexibleSaving: included`);
+          }
+          if (balanceResult.sources.earn.categories.includes("OnChain")) {
+            parts.push(`OnChain: included`);
+          }
+          const skipped = balanceResult.sources.earn.skippedCoins.length > 0
+            ? `  (skipped: ${balanceResult.sources.earn.skippedCoins.join(", ")})`
+            : "";
+          return `$${Number(balanceResult.sources.earn.usd).toFixed(4)}${skipped}`;
+        })()
+      : `ERROR: ${balanceResult.sources.earn.reason}`;
+
+    console.log(`UTA totalEquity:       ${utaUsd}`);
+    console.log(`FUND stablecoins:      ${fundUsd}`);
+    console.log(`Earn (all):            ${earnUsd}`);
+    console.log(`─────────────────────────────`);
+    console.log(`Spending Power:        $${Number(balanceResult.totalUsd).toFixed(4)}`);
+    console.log(`partial: ${balanceResult.partial}`);
+
+    if (balanceResult.skippedCoins.length > 0) {
+      console.log(`skipped coins (non-stable): ${balanceResult.skippedCoins.join(", ")}`);
+    }
+
+    if (!balanceResult.sources.uta.ok) {
+      console.log(`UTA error: ${balanceResult.sources.uta.reason}`);
+    }
+    if (!balanceResult.sources.fund.ok) {
+      console.log(`FUND error: ${balanceResult.sources.fund.reason}`);
+    }
+    if (!balanceResult.sources.earn.ok) {
+      console.log(`Earn error: ${balanceResult.sources.earn.reason}`);
+    }
+  } catch (e) {
+    console.error("ERROR: Balance fetch failed.");
+    if (e instanceof Error) {
+      console.error(`  ${e.name}: ${e.message}`);
+    } else {
+      console.error(e);
     }
   }
 
