@@ -699,6 +699,17 @@ export async function syncCredential(
     }).catch(() => {
       // Best-effort — don't shadow the original error if log update fails.
     });
+
+    if (safeErr) {
+      // Backstop: ensure credential surfaces an error even if no adapter setStatus("ERROR") happened.
+      await db.integrationCredential.update({
+        where: { id: credentialId },
+        data: {
+          lastErrorAt: new Date(),
+          lastErrorMessage: safeErr.message.slice(0, 500),
+        },
+      }).catch(() => {});
+    }
   }
 
   return {

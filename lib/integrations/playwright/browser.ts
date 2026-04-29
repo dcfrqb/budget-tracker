@@ -13,6 +13,9 @@ import { mkdir, readdir } from "node:fs/promises";
 // idempotent in spirit.
 let _stealthRegistered = false;
 
+const SCREENSHOT_DIR = process.env.PLAYWRIGHT_DEBUG_DIR ?? "/var/lib/budget-tracker/playwright-debug";
+// TODO: best-effort prune of files older than 7d
+
 function getChromium() {
   if (process.env.TBANK_BROWSER_ENGINE === "vanilla") {
     return chromiumVanilla;
@@ -127,6 +130,18 @@ export async function withTbankBrowser<T>(
       return await fn({ context, page, saveStorageState });
     } catch (err) {
       console.error("[playwright-browser] callback failed:", err);
+      try {
+        await mkdir(SCREENSHOT_DIR, { recursive: true });
+      } catch (mkdirErr) {
+        console.error("[playwright-browser] screenshot dir creation failed:", mkdirErr);
+      }
+      try {
+        const screenshotPath = `${SCREENSHOT_DIR}/${opts.credentialId}-${new Date().toISOString().replace(/[:.]/g, "-")}.png`;
+        await page.screenshot({ path: screenshotPath, fullPage: true, timeout: 5_000 });
+        console.error("[playwright-browser] screenshot saved:", screenshotPath);
+      } catch (screenshotErr) {
+        console.error("[playwright-browser] screenshot failed:", screenshotErr);
+      }
       throw err;
     } finally {
       try {
