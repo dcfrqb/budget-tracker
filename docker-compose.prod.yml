@@ -42,6 +42,7 @@ services:
       ADMIN_INTEGRATIONS: ${ADMIN_INTEGRATIONS}
       BYBIT_API_KEY: ${BYBIT_API_KEY}
       BYBIT_API_SECRET: ${BYBIT_API_SECRET}
+      BYBIT_PROXY_URL: ${BYBIT_PROXY_URL}
       PLAYWRIGHT_PROFILES_DIR: /var/lib/budget-tracker/playwright-profiles
       TZ: Europe/Moscow
       DISPLAY: ":99"
