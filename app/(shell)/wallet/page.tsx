@@ -174,7 +174,7 @@ export default async function WalletPage({
   const totalsView = toWalletTotalsView(totals, t);
   const fxView = fxRows.map(toFxRateView);
   const instViews = filteredInstitutions.map((i) =>
-    toInstitutionView(i, rates, DEFAULT_CURRENCY, totals.net.valueBase, locale),
+    toInstitutionView(i, rates, DEFAULT_CURRENCY, locale),
   );
   const cashView = filteredCash.map((a) =>
     toCashStashView(a, rates, DEFAULT_CURRENCY),

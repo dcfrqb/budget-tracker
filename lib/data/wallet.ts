@@ -370,34 +370,3 @@ export const ensureFreshRates = cache(async (): Promise<void> => {
     console.warn("[ensureFreshRates] CBR fetch/persist failed:", e);
   }
 });
-
-// Per-currency raw balances for wallet summary rail.
-// Same filtering rules as getWalletTotals: excludes LOAN, excludes
-// includeInAnalytics=false. CREDIT accounts contribute negative balance.
-export async function getBalancesByCurrency(
-  userId: string,
-): Promise<Map<string, Prisma.Decimal>> {
-  const accounts = await db.account.findMany({
-    where: { userId, deletedAt: null, isArchived: false, includeInAnalytics: true },
-    select: { id: true, kind: true, currencyCode: true, balance: true, debtBalance: true, creditLimit: true },
-  });
-
-  const map = new Map<string, Prisma.Decimal>();
-
-  for (const a of accounts) {
-    if (a.kind === "LOAN") continue;
-
-    const prev = map.get(a.currencyCode) ?? new Prisma.Decimal(0);
-    if (a.kind === "CREDIT") {
-      const state = resolveCreditState(a);
-      if (state.source === "legacy") {
-        console.warn(`[wallet] CREDIT account ${a.id} legacy fallback (no debtBalance/creditLimit); treating |balance| as debt`);
-      }
-      map.set(a.currencyCode, prev.plus(state.available).minus(state.debt));
-    } else {
-      map.set(a.currencyCode, prev.plus(new Prisma.Decimal(a.balance)));
-    }
-  }
-
-  return map;
-}

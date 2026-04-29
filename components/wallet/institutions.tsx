@@ -21,9 +21,6 @@ export function Institutions({ institutions }: Props) {
                   <div className="inst-sub">{inst.sub}</div>
                 </div>
               </div>
-              <div>
-                <div className="inst-total mono">{inst.total}</div>
-              </div>
             </div>
             {inst.accounts.map((a) => (
               <Link key={a.id} href={`/wallet/accounts/${a.id}/edit`} className="acc-row">

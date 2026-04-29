@@ -144,7 +144,6 @@ export type InstitutionView = {
   letter: string;
   name: string;
   sub: string;
-  total: string;
   accounts: AccountView[];
 };
 
@@ -161,26 +160,9 @@ export function toInstitutionView(
   inst: InstitutionWithAccounts,
   rates: Map<string, Prisma.Decimal>,
   baseCcy: string,
-  grandTotalBase: Prisma.Decimal,
   locale: Locale = "ru",
 ): InstitutionView {
   const accounts = inst.accounts.map((a) => toAccountView(a, rates, baseCcy, locale));
-
-  // Сумма этой институции в base. Для CREDIT учитываем net (available − debt)
-  // через resolveCreditState — иначе display завышается на available, который
-  // не «деньги юзера», а потенциал кредитного лимита.
-  let instTotal = new Prisma.Decimal(0);
-  for (const a of inst.accounts) {
-    if (a.kind === "CREDIT") {
-      const state = resolveCreditState(a);
-      const net = state.available.minus(state.debt);
-      const v = convertToBase(net, a.currencyCode, baseCcy, rates);
-      if (v) instTotal = instTotal.plus(v);
-    } else {
-      const v = convertToBase(a.balance, a.currencyCode, baseCcy, rates);
-      if (v) instTotal = instTotal.plus(v);
-    }
-  }
 
   const logo =
     inst.logo && KNOWN_LOGOS.has(inst.logo) ? inst.logo : "default";
@@ -191,7 +173,6 @@ export function toInstitutionView(
     letter: firstLetter(inst.name),
     name: inst.name,
     sub: inst.sub ?? "",
-    total: formatRubPrefix(new Prisma.Decimal(instTotal.toFixed(0))),
     accounts,
   };
 }
