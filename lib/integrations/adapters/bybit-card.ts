@@ -245,22 +245,26 @@ export const bybitCardAdapter: BankAdapter = {
 
     log(`runSync: total ImportRows=${rows.length} from ${result.rawCount} raw records`);
 
-    let spendingPowerUsd: string | undefined;
+    // Card balance source: Earn-only.
+    //
+    // Bybit Card spends from FUND, but Auto-Earn auto-redeems Earn→FUND on
+    // payment. So the Earn balance is the truthful "money available on this
+    // card". UTA equity (BTC/ETH dust in trading positions) and FUND dust are
+    // unrelated to the card and would inflate the number for users with
+    // active trading or pending withdrawals.
+    let cardBalanceUsd: string | undefined;
     try {
       const balanceResult = await fetchCardSpendingPower({ apiKey, apiSecret });
-      spendingPowerUsd = balanceResult.totalUsd;
 
-      if (balanceResult.partial) {
-        const failedSources = Object.entries(balanceResult.sources)
-          .filter(([, v]) => !v.ok)
-          .map(([k]) => k);
-        log(`runSync: balance partial — failed sources: ${failedSources.join(", ")}; skipped coins: ${balanceResult.skippedCoins.join(", ") || "none"}`);
+      if (balanceResult.sources.earn.ok) {
+        cardBalanceUsd = balanceResult.sources.earn.usd;
+        log(`runSync: card balance from Earn=${cardBalanceUsd} (UTA/FUND ignored — unrelated to card)`);
       } else {
-        log(`runSync: balance ok totalUsd=${spendingPowerUsd}`);
+        log(`runSync: Earn balance unavailable: ${balanceResult.sources.earn.reason}`);
       }
 
       if (balanceResult.skippedCoins.length > 0) {
-        log(`runSync: non-stablecoin balances not included in spending power: ${balanceResult.skippedCoins.join(", ")}`);
+        log(`runSync: non-stablecoin Earn positions skipped: ${balanceResult.skippedCoins.join(", ")}`);
       }
     } catch (err) {
       log(`runSync: balance fetch failed class=${classifyBybitError(err)}`);
@@ -273,7 +277,7 @@ export const bybitCardAdapter: BankAdapter = {
         currencyCode,
         accountType: "bybit-card",
         cardLast4: [pan4],
-        balance: spendingPowerUsd,
+        balance: cardBalanceUsd,
       }),
     );
 
