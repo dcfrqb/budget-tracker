@@ -548,6 +548,17 @@ export const ruDict = {
       period_1y: "1г",
       period_all: "всё",
     },
+    credit_cards: {
+      title: "Кредитные карты",
+      tag: "CARD",
+      min_payment: "Минимальный платёж",
+      due_in_days: "Через {days}д",
+      due_today: "Сегодня",
+      overdue: "Просрочен",
+      pay_button: "Оплатить",
+      debt_label: "Долг",
+      empty: "нет кредитных карт с обязательствами",
+    },
   },
 
   income: {
@@ -940,6 +951,7 @@ export const ruDict = {
       edit: {
         archive: "Архивировать",
         archive_failed: "Не удалось архивировать счёт",
+        requisites_section: "Банковские реквизиты",
       },
       credit: {
         debt: "Долг",
@@ -975,6 +987,21 @@ export const ruDict = {
           cap_quarterly: "Ежеквартальная",
           cap_yearly: "Ежегодная",
         },
+      },
+      requisites: {
+        title: "Реквизиты",
+        account_number: "Номер счёта",
+        bic: "БИК",
+        bank_name: "Банк",
+        inn: "ИНН",
+        kpp: "КПП",
+        corr_account: "Корр. счёт",
+        copy: "Копировать",
+        copied: "Скопировано",
+        pull_from_tbank: "Подтянуть из T-Банка",
+        pulling: "Загрузка...",
+        pull_failed: "Не удалось подтянуть реквизиты",
+        payment_due_day: "День платежа",
       },
     },
     cash: {

@@ -540,6 +540,17 @@ export const enDict: RuDictShape = {
       period_1y: "1y",
       period_all: "all",
     },
+    credit_cards: {
+      title: "Credit cards",
+      tag: "CARD",
+      min_payment: "Minimum payment",
+      due_in_days: "In {days}d",
+      due_today: "Today",
+      overdue: "Overdue",
+      pay_button: "Pay",
+      debt_label: "Debt",
+      empty: "no credit cards with obligations",
+    },
   },
 
   income: {
@@ -932,6 +943,7 @@ export const enDict: RuDictShape = {
       edit: {
         archive: "Archive",
         archive_failed: "Failed to archive account",
+        requisites_section: "Banking requisites",
       },
       credit: {
         debt: "Debt",
@@ -967,6 +979,21 @@ export const enDict: RuDictShape = {
           cap_quarterly: "Quarterly",
           cap_yearly: "Yearly",
         },
+      },
+      requisites: {
+        title: "Requisites",
+        account_number: "Account number",
+        bic: "BIC",
+        bank_name: "Bank",
+        inn: "INN",
+        kpp: "KPP",
+        corr_account: "Correspondent account",
+        copy: "Copy",
+        copied: "Copied",
+        pull_from_tbank: "Pull from T-Bank",
+        pulling: "Loading...",
+        pull_failed: "Failed to pull requisites",
+        payment_due_day: "Payment due day",
       },
     },
     cash: {

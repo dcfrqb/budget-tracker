@@ -3,11 +3,13 @@ import { ExpensesKpiRow } from "@/components/expenses/kpi-row";
 import { ExpensesStatusStrip } from "@/components/expenses/status-strip";
 import { LongProjects } from "@/components/expenses/long-projects";
 import { Loans } from "@/components/expenses/loans";
+import { CreditCards } from "@/components/expenses/credit-cards";
 import { Subscriptions } from "@/components/expenses/subscriptions";
 import { Taxes } from "@/components/expenses/taxes";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { getCurrentUserId } from "@/lib/api/auth";
 import { getLoans } from "@/lib/data/loans";
+import { getCreditCardObligations } from "@/lib/data/credit-cards";
 import { getSubscriptionsGrouped } from "@/lib/data/subscriptions";
 import { getLongProjects } from "@/lib/data/long-projects";
 import { getLatestRatesMap, convertToBase } from "@/lib/data/wallet";
@@ -73,8 +75,9 @@ export default async function ExpensesPage({
   const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999));
   const window30End = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
-  const [loans, subscriptionsGrouped, longProjectsRaw, rates] = await Promise.all([
+  const [loans, creditCards, subscriptionsGrouped, longProjectsRaw, rates] = await Promise.all([
     getLoans(userId),
+    getCreditCardObligations(userId),
     getSubscriptionsGrouped(userId),
     getLongProjects(userId),
     getLatestRatesMap(),
@@ -297,6 +300,7 @@ export default async function ExpensesPage({
     <>
       <ExpensesStatusStrip />
       <ExpensesKpiRow kpi={kpi} />
+      <CreditCards cards={creditCards} />
       {showSection(activeSection, "loans") && <Loans />}
       {showSection(activeSection, "subs") && (
         <Subscriptions items={subItems} totals={subsMonthlyTotals} />

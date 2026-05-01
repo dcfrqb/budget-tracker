@@ -25,8 +25,8 @@ export type HomePlanFactCell = {
 
 export type HomeObligationView = {
   id: string;
-  tag: "LOAN" | "SUB" | "PLAN" | "DEBT";
-  tagClass: "loan" | "sub" | "util" | "info";
+  tag: "LOAN" | "SUB" | "PLAN" | "DEBT" | "CARD";
+  tagClass: "loan" | "sub" | "util" | "info" | "warn";
   name: string;
   sub: string;
   date: string;        // "28.04 · 7д"
@@ -88,18 +88,20 @@ const STATUS_TONE: Record<HomeDashboard["status"], "pos" | "warn" | "neg"> = {
   crisis: "neg",
 };
 
-const OBLIGATION_TAG: Record<UpcomingObligation["kind"], "LOAN" | "SUB" | "PLAN" | "DEBT"> = {
+const OBLIGATION_TAG: Record<UpcomingObligation["kind"], "LOAN" | "SUB" | "PLAN" | "DEBT" | "CARD"> = {
   loan: "LOAN",
   subscription: "SUB",
   planned: "PLAN",
   debt: "DEBT",
+  credit_card: "CARD",
 };
 
-const OBLIGATION_CLASS: Record<UpcomingObligation["kind"], "loan" | "sub" | "util" | "info"> = {
+const OBLIGATION_CLASS: Record<UpcomingObligation["kind"], "loan" | "sub" | "util" | "info" | "warn"> = {
   loan: "loan",
   subscription: "sub",
   planned: "util",
   debt: "info",
+  credit_card: "warn",
 };
 
 function formatDueAt(isoDate: string): string {

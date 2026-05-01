@@ -27,7 +27,7 @@ export type DashboardStatus = "stable" | "warning" | "crisis";
 
 export type UpcomingObligation = {
   id: string;
-  kind: "subscription" | "loan" | "planned" | "debt";
+  kind: "subscription" | "loan" | "planned" | "debt" | "credit_card";
   label: string;
   amountBase: string;
   currencyCode: string;
@@ -331,11 +331,67 @@ export const getHomeDashboard = cache(async (
     }
   }
 
+  // Credit card minimum payments — query here so it feeds both reservedBase and obligations
+  let creditCardPayments30dBase = new Prisma.Decimal(0);
+  const creditAccounts = await db.account.findMany({
+    where: {
+      userId,
+      kind: "CREDIT",
+      deletedAt: null,
+      OR: [
+        { minPaymentFixed: { not: null } },
+        { minPaymentPercent: { not: null } },
+      ],
+    },
+    select: {
+      id: true,
+      name: true,
+      currencyCode: true,
+      debtBalance: true,
+      minPaymentFixed: true,
+      minPaymentPercent: true,
+      paymentDueDay: true,
+      statementDay: true,
+    },
+  });
+
+  for (const card of creditAccounts) {
+    const fixed = card.minPaymentFixed ? new Prisma.Decimal(card.minPaymentFixed) : null;
+    const debt = card.debtBalance ? new Prisma.Decimal(card.debtBalance) : new Prisma.Decimal(0);
+    const pctAmount = card.minPaymentPercent ? debt.mul(card.minPaymentPercent).div(100) : null;
+
+    let effectiveAmount: Prisma.Decimal | null = null;
+    if (fixed !== null && pctAmount !== null) {
+      effectiveAmount = fixed.greaterThan(pctAmount) ? fixed : pctAmount;
+    } else if (fixed !== null) {
+      effectiveAmount = fixed;
+    } else if (pctAmount !== null) {
+      effectiveAmount = pctAmount;
+    }
+    if (!effectiveAmount || effectiveAmount.lte(0)) continue;
+
+    // Compute due date: paymentDueDay → statementDay+20 → skip
+    let nextDueDate: Date | null = null;
+    if (card.paymentDueDay) {
+      const day = card.paymentDueDay;
+      const candidate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), day));
+      nextDueDate = candidate >= now ? candidate : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, day));
+    } else if (card.statementDay) {
+      const candidate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), card.statementDay + 20));
+      nextDueDate = candidate >= now ? candidate : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, card.statementDay + 20));
+    }
+    if (!nextDueDate || nextDueDate > window30End) continue;
+
+    const inBase = convertToBase(effectiveAmount, card.currencyCode, baseCcy, rates);
+    if (inBase) creditCardPayments30dBase = creditCardPayments30dBase.plus(inBase);
+  }
+
   const reservedBase = computeReserved({
     subscriptions30dBase,
     loanPayments30dBase,
     plannedOutflows30dBase,
     fundsContribTargets30dBase,
+    creditCardPayments30dBase,
   });
 
   const freeBase = computeFreeAmount(totalBalanceBase, reservedBase);
@@ -465,6 +521,45 @@ export const getHomeDashboard = cache(async (
       currencyCode: debt.currencyCode,
       amount: debt.principal.toString(),
       dueAt: debt.dueAt.toISOString(),
+    });
+  }
+
+  // Add credit card minimum payments as obligations (computed earlier with creditAccounts)
+  for (const card of creditAccounts) {
+    const fixed = card.minPaymentFixed ? new Prisma.Decimal(card.minPaymentFixed) : null;
+    const debt = card.debtBalance ? new Prisma.Decimal(card.debtBalance) : new Prisma.Decimal(0);
+    const pctAmount = card.minPaymentPercent ? debt.mul(card.minPaymentPercent).div(100) : null;
+
+    let effectiveAmount: Prisma.Decimal | null = null;
+    if (fixed !== null && pctAmount !== null) {
+      effectiveAmount = fixed.greaterThan(pctAmount) ? fixed : pctAmount;
+    } else if (fixed !== null) {
+      effectiveAmount = fixed;
+    } else if (pctAmount !== null) {
+      effectiveAmount = pctAmount;
+    }
+    if (!effectiveAmount || effectiveAmount.lte(0)) continue;
+
+    let nextDueDate: Date | null = null;
+    if (card.paymentDueDay) {
+      const day = card.paymentDueDay;
+      const candidate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), day));
+      nextDueDate = candidate >= now ? candidate : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, day));
+    } else if (card.statementDay) {
+      const candidate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), card.statementDay + 20));
+      nextDueDate = candidate >= now ? candidate : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, card.statementDay + 20));
+    }
+    if (!nextDueDate || nextDueDate > window30End) continue;
+
+    const inBase = convertToBase(effectiveAmount, card.currencyCode, baseCcy, rates) ?? new Prisma.Decimal(0);
+    obligations.push({
+      id: card.id,
+      kind: "credit_card",
+      label: card.name,
+      amountBase: inBase.toString(),
+      currencyCode: card.currencyCode,
+      amount: effectiveAmount.toString(),
+      dueAt: nextDueDate.toISOString(),
     });
   }
 

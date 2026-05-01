@@ -28,6 +28,33 @@ import type {
   TinkoffAccountSummary,
 } from "./tinkoff-retail.types";
 
+function extractRequisites(
+  acct: TinkoffAccountSummary,
+): { inn?: string; kpp?: string; correspondentAccount?: string; bic?: string; bankName?: string; recipientName?: string } | undefined {
+  // Merge top-level fields with nested bankRequisites (primary) / bankDetails (fallback)
+  const rPrimary = acct.bankRequisites;
+  const rFallback = acct.bankDetails;
+  const out = {
+    inn: acct.inn ?? rPrimary?.inn ?? rFallback?.inn,
+    kpp: acct.kpp ?? rPrimary?.kpp ?? rFallback?.kpp,
+    // correspondentAccount may be named corrAccount in the bankDetails shape
+    correspondentAccount: acct.correspondentAccount ?? acct.corrAccount ?? rPrimary?.correspondentAccount ?? rFallback?.corrAccount,
+    bic: acct.bic ?? rPrimary?.bic ?? rFallback?.bic,
+    bankName: acct.bankName ?? rPrimary?.bankName ?? rFallback?.bankName,
+    recipientName: acct.recipientName ?? rPrimary?.recipient ?? rFallback?.recipient,
+  };
+  const hasAny = Object.values(out).some((v) => v != null && v !== "");
+  return hasAny ? out : undefined;
+}
+
+function extractPaymentDueDay(acct: TinkoffAccountSummary): number | undefined {
+  // Try paymentDueDate → currentMinimalPaymentDate → nextStatementDate
+  const ms = acct.paymentDueDate?.milliseconds ?? acct.currentMinimalPaymentDate?.milliseconds ?? acct.nextStatementDate?.milliseconds;
+  if (!ms) return undefined;
+  const d = new Date(ms).getUTCDate();
+  return d >= 1 && d <= 31 ? d : undefined;
+}
+
 function classifyAdapterError(err: unknown): string {
   if (!(err instanceof Error)) return "unknown";
   const msg = err.message;
@@ -572,6 +599,8 @@ export const tinkoffRetailAdapter: BankAdapter = {
           const cardLast4 = Array.from(
             new Set(cardSources.map(extractLast4).filter((v): v is string => v !== undefined)),
           );
+          const requisites = extractRequisites(acct);
+          const paymentDueDay = extractPaymentDueDay(acct);
 
           return {
             externalAccountId: acct.id,
@@ -583,6 +612,8 @@ export const tinkoffRetailAdapter: BankAdapter = {
             creditLimit: acct.creditLimit?.value !== undefined ? String(acct.creditLimit.value) : undefined,
             debtBalance: acct.debtBalance?.value !== undefined ? String(acct.debtBalance.value) : undefined,
             currentMinimalPayment: acct.currentMinimalPayment?.value !== undefined ? String(acct.currentMinimalPayment.value) : undefined,
+            ...(requisites !== undefined ? { requisites } : {}),
+            ...(paymentDueDay !== undefined ? { paymentDueDay } : {}),
           };
         });
         log(`listExternalAccounts: returning ${result.length} normalized rows`);
@@ -661,7 +692,6 @@ export const tinkoffRetailAdapter: BankAdapter = {
         const accountsJson = JSON.parse(accountsResponse.body);
         const { payload: accountsPayload } = parseTinkoffResponse<TinkoffAccountSummary[]>(accountsJson);
         log(`runSync.accounts: payload count=${accountsPayload.length}`);
-        // [Phase A coder adds the FULL_PAYLOAD_PROBE log here — do NOT touch]
 
         // Build externals (same shape as listExternalAccounts).
         const externals = accountsPayload.map((acct) => {
@@ -669,6 +699,8 @@ export const tinkoffRetailAdapter: BankAdapter = {
           if (acct.cardNumber) cardSources.push(acct.cardNumber);
           if (Array.isArray(acct.cards)) for (const c of acct.cards) if (c?.number) cardSources.push(c.number);
           const cardLast4 = Array.from(new Set(cardSources.map(extractLast4).filter((v): v is string => v !== undefined)));
+          const requisites = extractRequisites(acct);
+          const paymentDueDay = extractPaymentDueDay(acct);
           return {
             externalAccountId: acct.id,
             label: `${acct.name} (${acct.currency.name})`,
@@ -679,6 +711,8 @@ export const tinkoffRetailAdapter: BankAdapter = {
             creditLimit: acct.creditLimit?.value !== undefined ? String(acct.creditLimit.value) : undefined,
             debtBalance: acct.debtBalance?.value !== undefined ? String(acct.debtBalance.value) : undefined,
             currentMinimalPayment: acct.currentMinimalPayment?.value !== undefined ? String(acct.currentMinimalPayment.value) : undefined,
+            ...(requisites !== undefined ? { requisites } : {}),
+            ...(paymentDueDay !== undefined ? { paymentDueDay } : {}),
           };
         });
 
@@ -710,6 +744,16 @@ export const tinkoffRetailAdapter: BankAdapter = {
             const last4 = cardLast4Raw !== undefined && /^\d{4}$/.test(cardLast4Raw) ? cardLast4Raw : undefined;
             if (last4) cardLast4Set.add(last4);
 
+            // Resolve MCC from primary name (mccString) or fallback (mcc)
+            const mccVal = String(op.mccString ?? op.mcc ?? "");
+            // Resolve cashback from primary shape (cashbackAmount) or fallback (cashback)
+            const cashbackValue = String(op.cashbackAmount?.value ?? op.cashback?.value ?? "");
+            const cashbackCurrency = op.cashbackAmount?.currency?.name ?? op.cashback?.currency?.name ?? "";
+            // Account amount present for cross-currency operations
+            const accountAmountValue = String(op.accountAmount?.value ?? "");
+            const accountAmountCurrency = op.accountAmount?.currency?.name ?? "";
+            const merchantName = op.merchant?.name ?? "";
+
             rows.push({
               externalId: op.id,
               occurredAt: new Date(op.operationTime.milliseconds).toISOString(),
@@ -726,6 +770,13 @@ export const tinkoffRetailAdapter: BankAdapter = {
                 ...(op.mccString !== undefined ? { mccString: op.mccString } : {}),
                 ...(op.cardNumber !== undefined ? { cardNumber: op.cardNumber } : {}),
                 ...(op.spendingCategory?.name !== undefined ? { rawCategory: op.spendingCategory.name } : {}),
+                ...(mccVal !== "" ? { mcc: mccVal } : {}),
+                ...(op.spendingCategory?.name !== undefined ? { rawCategoryName: op.spendingCategory.name } : {}),
+                ...(cashbackValue !== "" ? { cashbackValue } : {}),
+                ...(cashbackCurrency !== "" ? { cashbackCurrency } : {}),
+                ...(accountAmountValue !== "" ? { accountAmountValue } : {}),
+                ...(accountAmountCurrency !== "" ? { accountAmountCurrency } : {}),
+                ...(merchantName !== "" ? { merchantName } : {}),
               },
             });
           }

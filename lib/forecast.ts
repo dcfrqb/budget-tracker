@@ -25,11 +25,13 @@ export function computeReserved(args: {
   loanPayments30dBase: Prisma.Decimal;
   plannedOutflows30dBase: Prisma.Decimal;
   fundsContribTargets30dBase: Prisma.Decimal;
+  creditCardPayments30dBase?: Prisma.Decimal;
 }): Prisma.Decimal {
   return args.subscriptions30dBase
     .plus(args.loanPayments30dBase)
     .plus(args.plannedOutflows30dBase)
-    .plus(args.fundsContribTargets30dBase);
+    .plus(args.fundsContribTargets30dBase)
+    .plus(args.creditCardPayments30dBase ?? new Prisma.Decimal(0));
 }
 
 /**

@@ -34,10 +34,15 @@ export type TinkoffOperation = {
   type: "Credit" | "Debit";
   status: string;
   amount: TinkoffAmount;
-  accountAmount?: TinkoffAmount;
+  accountAmount?: TinkoffAmount;  // amount in account currency (cross-currency ops)
   description: string;
   spendingCategory?: TinkoffSpendingCategory;
-  mccString?: string;
+  mccString?: string;             // primary MCC field name
+  mcc?: string | number;          // fallback MCC name variant
+  cashbackAmount?: { value?: number; currency?: { name?: string } }; // primary cashback shape
+  cashback?: { value?: number; currency?: { name?: string } };        // fallback cashback name
+  merchant?: { name?: string };
+  loyalty?: { points?: number };
   cardNumber?: string;
   payment?: { providerId?: string };
   // Fields we don't consume are omitted
@@ -63,4 +68,32 @@ export type TinkoffAccountSummary = {
   creditLimit?: TinkoffAmount; // credit limit for credit accounts
   debtBalance?: TinkoffAmount; // current debt balance for credit accounts
   currentMinimalPayment?: TinkoffAmount; // current minimal payment for credit accounts
+  // Bank requisites — may arrive as top-level fields or nested under bankRequisites/bankDetails
+  inn?: string;
+  kpp?: string;
+  correspondentAccount?: string;
+  corrAccount?: string;          // fallback name for correspondentAccount
+  bic?: string;
+  bankName?: string;
+  recipientName?: string;
+  bankRequisites?: {             // primary nested shape
+    inn?: string;
+    kpp?: string;
+    correspondentAccount?: string;
+    bic?: string;
+    bankName?: string;
+    recipient?: string;
+  };
+  bankDetails?: {                // fallback nested shape
+    inn?: string;
+    kpp?: string;
+    corrAccount?: string;
+    bic?: string;
+    bankName?: string;
+    recipient?: string;
+  };
+  // Payment due date — may arrive under different field names
+  paymentDueDate?: { milliseconds?: number };
+  nextStatementDate?: { milliseconds?: number };
+  currentMinimalPaymentDate?: { milliseconds?: number };
 };

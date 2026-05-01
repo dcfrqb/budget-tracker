@@ -460,6 +460,7 @@ a { color: inherit; text-decoration: none; }
 .code-tag.loan { background: rgba(248,81,73,.12);  color: var(--neg); }
 .code-tag.sub  { background: rgba(121,192,255,.12); color: var(--info); }
 .code-tag.util { background: rgba(210,153,34,.12); color: var(--warn); }
+.code-tag.warn { background: rgba(210,153,34,.12); color: var(--warn); }
 .ob-top .date {
   font-family: var(--mono-font), monospace; font-size: 11px; color: var(--muted);
 }
@@ -472,6 +473,7 @@ a { color: inherit; text-decoration: none; }
 .ob-card.loan .ob-amt { color: var(--neg); }
 .ob-card.sub  .ob-amt { color: var(--info); }
 .ob-card.util .ob-amt { color: var(--warn); }
+.ob-card.warn .ob-amt { color: var(--warn); }
 
 /* ── TOP CATEGORIES ─────────────────────────────────────────────── */
 .cats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); }

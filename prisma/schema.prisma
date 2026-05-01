@@ -150,9 +150,13 @@ model Account {
   cardLast4        String[]    @default([])
 
   // ── BANK REQUISITES (реквизиты счёта) ─────────────────────────
-  accountNumber String?
-  bic           String?
-  bankName      String?
+  accountNumber        String?
+  bic                  String?
+  bankName             String?
+  inn                  String? // ИНН организации (для платежей юр. лиц)
+  kpp                  String? // КПП (код причины постановки на учёт)
+  correspondentAccount String? // Корреспондентский счёт (для мегаполучателей)
+  paymentDueDay        Int? // день месяца когда конкретно нужна оплата (1..31, для credit cards)
 
   // ── CREDIT (кредитные карты с лимитом/грейсом) ────────────────
   creditRatePct     Decimal? @db.Decimal(6, 3) // % годовых
@@ -212,16 +216,21 @@ model Category {
   limitNormal  Decimal? @db.Decimal(28, 10)
   limitFree    Decimal? @db.Decimal(28, 10)
 
+  // MCC коды для автоматического маппинга (e.g. ["4121", "7011", "7012"]).
+  // Пустой массив → no MCC mapping.
+  mccCodes String[] @default([])
+
   archivedAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent       Category?     @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
-  children     Category[]    @relation("CategoryTree")
-  transactions Transaction[]
-  longProjects LongProject[]
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent        Category?      @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children      Category[]     @relation("CategoryTree")
+  transactions  Transaction[]
+  subscriptions Subscription[]
+  longProjects  LongProject[]
 
   @@index([userId])
   @@index([userId, archivedAt])
@@ -527,6 +536,7 @@ model Subscription {
   iconBg                String?
   price                 Decimal     @db.Decimal(28, 10)
   currencyCode          String
+  categoryId            String? // опциональная связь с категорией расходов
   billingIntervalMonths Int         @default(1) // 1 / 3 / 6 / 12 / custom
   nextPaymentDate       DateTime
   sharingType           SharingType @default(PERSONAL)
@@ -537,9 +547,10 @@ model Subscription {
   updatedAt             DateTime    @updatedAt
   deletedAt             DateTime?
 
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  currency Currency @relation(fields: [currencyCode], references: [code])
-  family   Family?  @relation(fields: [familyId], references: [id], onDelete: SetNull)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currency Currency  @relation(fields: [currencyCode], references: [code])
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  family   Family?   @relation(fields: [familyId], references: [id], onDelete: SetNull)
 
   shares       SubscriptionShare[]
   transactions Transaction[]

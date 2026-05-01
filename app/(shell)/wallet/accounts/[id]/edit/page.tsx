@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { getCurrentUserId } from "@/lib/api/auth";
 import { db } from "@/lib/db";
 import { AccountForm } from "@/components/forms/account-form";
+import { AccountRequisites } from "@/components/wallet/account-requisites";
+import { pullRequisitesAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +15,7 @@ export default async function EditAccountPage({ params }: Props) {
   const userId = await getCurrentUserId();
   const { id } = await params;
 
-  const [account, institutions, currencies] = await Promise.all([
+  const [account, institutions, currencies, integrationLink] = await Promise.all([
     db.account.findFirst({
       where: { id, userId, deletedAt: null },
       select: {
@@ -45,6 +47,10 @@ export default async function EditAccountPage({ params }: Props) {
         accountNumber: true,
         bic: true,
         bankName: true,
+        inn: true,
+        kpp: true,
+        correspondentAccount: true,
+        paymentDueDay: true,
       },
     }),
     db.institution.findMany({
@@ -53,9 +59,15 @@ export default async function EditAccountPage({ params }: Props) {
       select: { id: true, name: true, kind: true },
     }),
     db.currency.findMany({ orderBy: { code: "asc" } }),
+    db.integrationAccountLink.findFirst({
+      where: { accountId: id },
+      select: { id: true },
+    }),
   ]);
 
   if (!account) notFound();
+
+  const hasIntegration = integrationLink !== null;
 
   return (
     <div className="page-content">
@@ -99,6 +111,19 @@ export default async function EditAccountPage({ params }: Props) {
           bic: account.bic ?? "",
           bankName: account.bankName ?? "",
         }}
+      />
+      <AccountRequisites
+        account={{
+          id: account.id,
+          inn: account.inn,
+          kpp: account.kpp,
+          correspondentAccount: account.correspondentAccount,
+          accountNumber: account.accountNumber,
+          bic: account.bic,
+          bankName: account.bankName,
+        }}
+        hasIntegration={hasIntegration}
+        pullAction={pullRequisitesAction.bind(null, id)}
       />
     </div>
   );

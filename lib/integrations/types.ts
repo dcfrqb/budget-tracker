@@ -90,6 +90,17 @@ export type BankAdapter = {
       debtBalance?: string;
       /** Current minimal payment amount, Decimal-as-string (credit accounts only). */
       currentMinimalPayment?: string;
+      /** Bank requisites (INN, KPP, correspondent account, BIC, bank name, recipient). */
+      requisites?: {
+        inn?: string;
+        kpp?: string;
+        correspondentAccount?: string;
+        bic?: string;
+        bankName?: string;
+        recipientName?: string;
+      };
+      /** Day of month (1..31) when minimal payment is due; derived from paymentDueDate if present. */
+      paymentDueDay?: number;
     }>
   >;
   runSync?: (

@@ -8,6 +8,7 @@ import { checkRateLimit } from "@/lib/integrations/rate-limit";
 import type { AdapterContext } from "@/lib/integrations/types";
 import { findDuplicates } from "@/lib/import/dedupe";
 import { getSession } from "@/lib/integrations/playwright/session-registry";
+import { resolveCategoryId } from "@/lib/integrations/category-map/resolve";
 
 // Increased from 20 000 — state machine path through password+pin_setup+pin_confirm can take up to 45s in worst case.
 const POST_OTP_STATUS_POLL_MS = 45_000;
@@ -464,6 +465,19 @@ export async function syncCredential(
           const rowsWithoutExtId = groupRows.filter((r) => !r.externalId);
           const fuzzyDuplicateIndices = findDuplicates(rowsWithoutExtId, existingForDedupe, accountId);
 
+          // Resolve categoryId for each new row before entering transactions.
+          // Only on create branch — updates never clobber manual categorization.
+          const resolvedCategoryIds = await Promise.all(
+            groupRows.map((row) =>
+              resolveCategoryId({
+                userId,
+                mcc: row.raw?.mcc as string | undefined,
+                rawCategoryName: (row.raw?.rawCategoryName as string | undefined) ?? row.rawCategory,
+                merchantName: row.raw?.merchantName as string | undefined,
+              }).catch(() => null),
+            ),
+          );
+
           const rowSource = groupRows[0]?.source ?? cred.adapterId;
           const countBefore = await db.transaction.count({ where: { userId, accountId, source: rowSource } });
 
@@ -473,12 +487,14 @@ export async function syncCredential(
               await db.$transaction(async (tx) => {
                 for (let i = 0; i < chunk.length; i++) {
                   const row = chunk[i];
+                  const rowIdx = chunkStart + i;
                   const kind =
                     row.kind === "INCOME" ? TransactionKind.INCOME :
                     row.kind === "TRANSFER" ? TransactionKind.TRANSFER :
                     TransactionKind.EXPENSE;
                   const name = (row.description ?? row.rawCategory ?? "Sync import").substring(0, 240);
                   const source = row.source ?? cred.adapterId;
+                  const categoryId = resolvedCategoryIds[rowIdx] ?? null;
 
                   if (row.externalId) {
                     // Upsert: DB constraint importDedupe(accountId, source, externalId) handles dedupe.
@@ -496,6 +512,7 @@ export async function syncCredential(
                         name,
                         occurredAt: new Date(row.occurredAt),
                         ...(row.note !== undefined ? { note: row.note } : {}),
+                        // do not update categoryId — preserve manual re-categorization
                       },
                       create: {
                         userId,
@@ -509,6 +526,7 @@ export async function syncCredential(
                         externalId: row.externalId,
                         source,
                         ...(row.note !== undefined ? { note: row.note } : {}),
+                        ...(categoryId !== null ? { categoryId } : {}),
                       },
                     });
                   } else {
@@ -529,6 +547,7 @@ export async function syncCredential(
                         occurredAt: new Date(row.occurredAt),
                         name,
                         ...(row.note !== undefined ? { note: row.note } : {}),
+                        ...(categoryId !== null ? { categoryId } : {}),
                       },
                     });
                   }
@@ -932,10 +951,17 @@ export async function createAccountAndLink(
   });
 }
 
+/** Do not clobber a field the user has set manually: only write if current is null/undefined or equal to incoming. */
+function preferExisting<T>(current: T | null | undefined, incoming: T | null | undefined): T | null | undefined {
+  if (current != null && current !== incoming) return current;
+  return incoming ?? null;
+}
+
 /**
  * Refresh metadata on already-linked Accounts using fresh data from
  * adapter.listExternalAccounts. Updates balance, cardLast4, creditLimit,
- * debtBalance, minPaymentFixed, and backfills institutionId if missing.
+ * debtBalance, minPaymentFixed, inn, kpp, correspondentAccount, paymentDueDay,
+ * and backfills institutionId if missing.
  */
 async function refreshLinkedAccounts(
   userId: string,
@@ -948,6 +974,15 @@ async function refreshLinkedAccounts(
     creditLimit?: string;
     debtBalance?: string;
     currentMinimalPayment?: string;
+    requisites?: {
+      inn?: string;
+      kpp?: string;
+      correspondentAccount?: string;
+      bic?: string;
+      bankName?: string;
+      recipientName?: string;
+    };
+    paymentDueDay?: number;
   }>,
 ): Promise<void> {
   const links = await db.integrationAccountLink.findMany({
@@ -962,7 +997,7 @@ async function refreshLinkedAccounts(
 
     const account = await db.account.findUnique({
       where: { id: accountId },
-      select: { cardLast4: true, institutionId: true },
+      select: { cardLast4: true, institutionId: true, inn: true, kpp: true, correspondentAccount: true, paymentDueDay: true },
     });
     if (!account) continue;
 
@@ -990,6 +1025,23 @@ async function refreshLinkedAccounts(
 
     if (ext.debtBalance !== undefined) {
       updateData.debtBalance = ext.debtBalance;
+    }
+
+    // Write requisites only if incoming is non-null and existing is null (don't clobber manual overrides)
+    if (ext.requisites) {
+      const inn = preferExisting(account.inn, ext.requisites.inn ?? null);
+      if (inn !== account.inn) updateData.inn = inn;
+
+      const kpp = preferExisting(account.kpp, ext.requisites.kpp ?? null);
+      if (kpp !== account.kpp) updateData.kpp = kpp;
+
+      const correspondentAccount = preferExisting(account.correspondentAccount, ext.requisites.correspondentAccount ?? null);
+      if (correspondentAccount !== account.correspondentAccount) updateData.correspondentAccount = correspondentAccount;
+    }
+
+    if (ext.paymentDueDay !== undefined) {
+      const paymentDueDay = preferExisting(account.paymentDueDay, ext.paymentDueDay);
+      if (paymentDueDay !== account.paymentDueDay) updateData.paymentDueDay = paymentDueDay ?? undefined;
     }
 
     if (account.institutionId === null) {
