@@ -5,10 +5,6 @@ export const MONTH_LABEL = "апр 2026";
 export const MONTH_DAY = 21;
 export const MONTH_DAYS = 30;
 
-export const RATES = {
-  USD_RUB: 92.1,
-  EUR_RUB: 98.4,
-};
 
 export const STATUS = {
   label: "СТАБИЛЬНО" as const,

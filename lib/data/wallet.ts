@@ -4,6 +4,7 @@ import type { Account, Currency, ExchangeRate, Institution } from "@prisma/clien
 import { db } from "@/lib/db";
 import { fetchCbrRates, resolvePairRate } from "@/lib/fx/cbr-fetcher";
 import { persistRates } from "@/lib/fx/persist";
+import { syncFxRates } from "@/lib/fx/sync";
 
 export type AccountWithCurrency = Account & { currency: Currency };
 export type InstitutionWithAccounts = Institution & { accounts: AccountWithCurrency[] };
@@ -117,12 +118,30 @@ export async function getArchivedAccounts(
 
 // Последние rate'ы по всем парам. Ключ map'ы "FROM-TO".
 export async function getLatestRatesMap(): Promise<Map<string, Prisma.Decimal>> {
-  // В seed — по одной записи на пару. При истории — нужно DISTINCT ON.
   const rows = await db.exchangeRate.findMany({ orderBy: { recordedAt: "desc" } });
   const map = new Map<string, Prisma.Decimal>();
   for (const r of rows) {
     const key = `${r.fromCcy}-${r.toCcy}`;
     if (!map.has(key)) map.set(key, new Prisma.Decimal(r.rate));
+  }
+  return map;
+}
+
+export type RateWithMeta = { rate: Prisma.Decimal; recordedAt: Date };
+
+/**
+ * Like getLatestRatesMap but also returns recordedAt per pair.
+ * Used only where freshness display is needed (top-bar, fx-rates panel).
+ * All other call sites use getLatestRatesMap to avoid a shape-change cascade.
+ */
+export async function getLatestRatesWithMeta(): Promise<Map<string, RateWithMeta>> {
+  const rows = await db.exchangeRate.findMany({ orderBy: { recordedAt: "desc" } });
+  const map = new Map<string, RateWithMeta>();
+  for (const r of rows) {
+    const key = `${r.fromCcy}-${r.toCcy}`;
+    if (!map.has(key)) {
+      map.set(key, { rate: new Prisma.Decimal(r.rate), recordedAt: r.recordedAt });
+    }
   }
   return map;
 }
@@ -171,7 +190,7 @@ export const DEFAULT_FX_PAIRS = ["USD/RUB", "EUR/RUB"] as const;
 export async function getFxRates(shownFxPairs: string[] = []): Promise<FxRateRow[]> {
   const targetPairs = shownFxPairs.length > 0 ? shownFxPairs : [...DEFAULT_FX_PAIRS];
 
-  // --- Step 1: try CBR fetch ---
+  // --- Step 1: try CBR fetch + persist ---
   let cbrRates: Awaited<ReturnType<typeof fetchCbrRates>> | null = null;
   try {
     cbrRates = await fetchCbrRates();
@@ -345,9 +364,10 @@ export async function getWalletTotals(
 }
 
 // Single-request freshness guard: checks latest USD-RUB recordedAt.
-// If older than 10 min, fetches CBR and persists (awaited). Wrapped in
+// If older than 6h, fetches CBR and persists (awaited). Wrapped in
 // React cache() so multiple callers in one request share one DB check.
-const FRESH_WINDOW_MS = 10 * 60 * 1000;
+// Primary sync cadence is the external 12h cron; this is a safety net.
+const FRESH_WINDOW_MS = 6 * 60 * 60 * 1000; // 6h
 
 export const ensureFreshRates = cache(async (): Promise<void> => {
   const latest = await db.exchangeRate.findFirst({
@@ -360,12 +380,7 @@ export const ensureFreshRates = cache(async (): Promise<void> => {
   if (age < FRESH_WINDOW_MS) return;
 
   try {
-    const cbrRates = await fetchCbrRates();
-    const rubRates: Record<string, number> = {};
-    for (const [code, entry] of Object.entries(cbrRates)) {
-      rubRates[code] = entry.rate;
-    }
-    await persistRates(rubRates);
+    await syncFxRates();
   } catch (e) {
     console.warn("[ensureFreshRates] CBR fetch/persist failed:", e);
   }

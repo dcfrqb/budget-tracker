@@ -173,6 +173,15 @@ export default async function WalletPage({
   // ── Views ────────────────────────────────────────────────────────────────
   const totalsView = toWalletTotalsView(totals, t);
   const fxView = fxRows.map(toFxRateView);
+
+  // Latest recordedAt across all displayed FX rows (for freshness indicator).
+  const fxLatestRecordedAt =
+    fxRows.length > 0
+      ? fxRows.reduce<Date>(
+          (max, r) => (r.recordedAt > max ? r.recordedAt : max),
+          fxRows[0].recordedAt,
+        )
+      : null;
   const instViews = filteredInstitutions.map((i) =>
     toInstitutionView(i, rates, DEFAULT_CURRENCY, locale),
   );
@@ -203,6 +212,7 @@ export default async function WalletPage({
         rates={fxView}
         currencies={currencyOptions}
         cbrAvailableCodes={cbrAvailableCodes}
+        latestRecordedAt={fxLatestRecordedAt}
       />
       {showInstitutions && <Institutions institutions={instViews} />}
       {showAddAccountCta && <AddAccountCta />}

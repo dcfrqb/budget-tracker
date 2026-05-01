@@ -1002,6 +1002,8 @@ export const enDict: RuDictShape = {
       remove_pair: {
         title: "Remove pair",
       },
+      section_title: "exchange rates",
+      section_sub: "official · for revaluation",
       refresh: "Refresh rates",
       unavailable: "—",
       fetched_ago: "updated {n} min. ago",
@@ -1009,6 +1011,8 @@ export const enDict: RuDictShape = {
         cbr: "CBR",
         db: "from cache",
       },
+      updated_label: "updated {ago}",
+      stale_warning: "may be stale",
     },
   },
 
@@ -1702,6 +1706,7 @@ export const enDict: RuDictShape = {
   },
 
   shell: {
+    brand: "БДЖ://",
     status: {
       stable:  "STABLE",
       warning: "WARNING",

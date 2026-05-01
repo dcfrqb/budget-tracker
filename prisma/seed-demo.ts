@@ -16,6 +16,8 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import "dotenv/config";
 
 import { DEFAULT_CURRENCY, DEFAULT_USER_EMAIL, DEFAULT_USER_ID, DEFAULT_USER_NAME, SUPPORTED_CURRENCIES } from "../lib/constants";
+import { fetchCbrRates } from "../lib/fx/cbr-fetcher";
+import { persistRates } from "../lib/fx/persist";
 
 const db = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }),
@@ -45,19 +47,28 @@ async function seedCurrencies() {
     });
   }
 
-  // Курсы обмена (RUB как основная + основные пары).
-  const rates: Array<[string, string, string]> = [
-    ["USD", "RUB", "92.10"],
-    ["EUR", "RUB", "98.40"],
-    ["GEL", "RUB", "34.20"],
-    ["BTC", "USD", "69420"],
-    ["USDT", "RUB", "92.10"],
-  ];
-  await db.exchangeRate.deleteMany({});
-  for (const [from, to, rate] of rates) {
-    await db.exchangeRate.create({
-      data: { fromCcy: from, toCcy: to, rate, recordedAt: NOW },
-    });
+  // Fetch live rates from CBR (Russian Central Bank).
+  // Only RUB pairs are supported; cryptoassets and stablecoins are dropped entirely.
+  try {
+    const cbrRates = await fetchCbrRates();
+    // Convert CBR shape { "USD": { rate: 92.10, nominal: 1 } } → { "USD": 92.10 }
+    const ratesMap: Record<string, number> = {};
+    for (const [code, entry] of Object.entries(cbrRates)) {
+      ratesMap[code] = entry.rate;
+    }
+    // Stablecoin peg: USDT/USDC ≈ 1 USD. Mirror USD-RUB.
+    if (ratesMap.USD !== undefined) {
+      ratesMap.USDT = ratesMap.USD;
+      ratesMap.USDC = ratesMap.USD;
+    }
+    // Full wipe + re-persist for demo consistency
+    await db.exchangeRate.deleteMany({});
+    await persistRates(ratesMap);
+    console.log("[seed-demo] CBR rates persisted successfully");
+  } catch (e) {
+    const err = e instanceof Error ? e.message : String(e);
+    console.warn("[seed-demo] CBR fetch failed, skipping FX rate seeding:", err);
+    // Do NOT throw — seed must work offline; app will populate rates on first server render.
   }
 }
 

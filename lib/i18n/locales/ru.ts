@@ -1010,6 +1010,8 @@ export const ruDict = {
       remove_pair: {
         title: "Убрать пару",
       },
+      section_title: "курсы обмена",
+      section_sub: "официальные · для переоценки",
       refresh: "Обновить курсы",
       unavailable: "—",
       fetched_ago: "обновлено {n} мин. назад",
@@ -1017,6 +1019,8 @@ export const ruDict = {
         cbr: "ЦБ РФ",
         db: "из кэша",
       },
+      updated_label: "обн {ago}",
+      stale_warning: "возможно устарели",
     },
   },
 
@@ -1711,6 +1715,7 @@ export const ruDict = {
   },
 
   shell: {
+    brand: "БДЖ://",
     status: {
       stable: "СТАБИЛЬНО",
       warning: "ВНИМАНИЕ",

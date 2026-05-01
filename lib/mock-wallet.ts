@@ -5,14 +5,6 @@ export const WALLET_TOTALS = [
   { k: "наличка",         value: 18400,  tone: "warn" as const, s: "3 локации · 2 валюты" },
 ];
 
-export type FxRate = { pair: [string, string]; val: string; delta: string; deltaTone: "pos" | "neg" };
-
-export const FX_RATES: FxRate[] = [
-  { pair: ["USD", "RUB"], val: "92.10",  delta: "▲ 0.4%", deltaTone: "neg" },
-  { pair: ["EUR", "RUB"], val: "98.40",  delta: "▲ 0.6%", deltaTone: "neg" },
-  { pair: ["GEL", "RUB"], val: "34.20",  delta: "▼ 0.3%", deltaTone: "pos" },
-  { pair: ["BTC", "USD"], val: "69 420", delta: "▲ 2.1%", deltaTone: "neg" },
-];
 
 export type AccountKind = "card" | "savings" | "cash" | "crypto" | "loan";
 

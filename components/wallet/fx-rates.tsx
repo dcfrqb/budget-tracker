@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useTransition } from "react";
-import { useT } from "@/lib/i18n";
+import { useT, useLocale } from "@/lib/i18n";
 import { removeFxPairAction, refreshFxRatesAction } from "@/app/(shell)/wallet/actions";
 import { FxAddDialog } from "./fx-add-dialog";
+import { formatAgo, isStale } from "@/lib/fx/freshness";
 import type { FxRateView } from "@/lib/view/wallet";
 
 export type FxCurrencyOption = { code: string; symbol: string };
@@ -12,10 +13,12 @@ type Props = {
   rates: FxRateView[];
   currencies: FxCurrencyOption[];
   cbrAvailableCodes: string[];
+  latestRecordedAt: Date | null;
 };
 
-export function FxRates({ rates, currencies, cbrAvailableCodes }: Props) {
+export function FxRates({ rates, currencies, cbrAvailableCodes, latestRecordedAt }: Props) {
   const t = useT();
+  const locale = useLocale();
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [isPendingRefresh, startRefreshTransition] = useTransition();
   const [isPendingRemove, startRemoveTransition] = useTransition();
@@ -32,12 +35,23 @@ export function FxRates({ rates, currencies, cbrAvailableCodes }: Props) {
     });
   }
 
+  const stale = isStale(latestRecordedAt);
+  const updatedLabel = latestRecordedAt
+    ? t("wallet.fx.updated_label", { vars: { ago: formatAgo(latestRecordedAt, locale) } })
+    : null;
+
   return (
     <div className="section fade-in" style={{ animationDelay: "120ms" }}>
       <div className="section-hd">
         <div className="ttl mono">
-          <b>курсы обмена</b>{" "}
-          <span className="dim">· официальные · для переоценки</span>
+          <b>{t("wallet.fx.section_title")}</b>{" "}
+          <span className="dim">· {t("wallet.fx.section_sub")}</span>
+          {updatedLabel && (
+            <span className="dim"> · {updatedLabel}</span>
+          )}
+          {stale && (
+            <span style={{ color: "var(--warn)" }}> · {t("wallet.fx.stale_warning")}</span>
+          )}
         </div>
         <div className="meta mono">
           <button
