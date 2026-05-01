@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import type { BankAdapter, AdapterContext } from "@/lib/integrations/types";
 import type { ImportRow } from "@/lib/import/types";
 import { listCardTransactions } from "@/lib/integrations/bybit/card-records";
@@ -252,24 +253,30 @@ export const bybitCardAdapter: BankAdapter = {
 
     // Card balance source: Earn-only.
     //
-    // Bybit Card spends from FUND, but Auto-Earn auto-redeems Earn→FUND on
-    // payment. So the Earn balance is the truthful "money available on this
-    // card". UTA equity (BTC/ETH dust in trading positions) and FUND dust are
-    // unrelated to the card and would inflate the number for users with
-    // active trading or pending withdrawals.
+    // Card spending power = FUND stablecoins + Earn stablecoins.
+    // FUND holds USDT/USDC available for card spending; Earn auto-redeems on
+    // payment. UTA equity (trading positions) is unrelated to the card.
     let cardBalanceUsd: string | undefined;
     try {
       const balanceResult = await fetchCardSpendingPower({ apiKey, apiSecret });
 
-      if (balanceResult.sources.earn.ok) {
-        cardBalanceUsd = balanceResult.sources.earn.usd;
-        log(`runSync: card balance from Earn=${cardBalanceUsd} (UTA/FUND ignored — unrelated to card)`);
+      const fundUsd = balanceResult.sources.fund.ok
+        ? new Prisma.Decimal(balanceResult.sources.fund.usd)
+        : null;
+      const earnUsd = balanceResult.sources.earn.ok
+        ? new Prisma.Decimal(balanceResult.sources.earn.usd)
+        : null;
+
+      if (fundUsd || earnUsd) {
+        const total = (fundUsd ?? new Prisma.Decimal(0)).plus(earnUsd ?? new Prisma.Decimal(0));
+        cardBalanceUsd = total.toFixed(10);
+        log(`runSync: card balance fund=${fundUsd?.toFixed(2) ?? "n/a"} earn=${earnUsd?.toFixed(2) ?? "n/a"} total=${cardBalanceUsd}`);
       } else {
-        log(`runSync: Earn balance unavailable: ${balanceResult.sources.earn.reason}`);
+        log(`runSync: balance unavailable — fund=${balanceResult.sources.fund.ok ? "ok" : balanceResult.sources.fund.reason} earn=${balanceResult.sources.earn.ok ? "ok" : balanceResult.sources.earn.reason}`);
       }
 
       if (balanceResult.skippedCoins.length > 0) {
-        log(`runSync: non-stablecoin Earn positions skipped: ${balanceResult.skippedCoins.join(", ")}`);
+        log(`runSync: non-stablecoin positions skipped: ${balanceResult.skippedCoins.join(", ")}`);
       }
     } catch (err) {
       log(`runSync: balance fetch failed class=${classifyBybitError(err)}`);

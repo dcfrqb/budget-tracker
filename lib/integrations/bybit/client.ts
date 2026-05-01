@@ -9,8 +9,7 @@ const RECV_WINDOW = 20_000;
 const MIN_CALL_INTERVAL_MS = 1_000;
 
 function getRequestUrl(path: string): string {
-  const base = process.env["BYBIT_PROXY_URL"] ?? BASE_URL;
-  return `${base.replace(/\/$/, "")}${path}`;
+  return `${BASE_URL}${path}`;
 }
 
 // ── Server-time offset (in-memory, per module lifetime) ──────────────────────
