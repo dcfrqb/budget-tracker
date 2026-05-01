@@ -1,4 +1,4 @@
-import { AccountKind, IntegrationStatus, TransactionKind, TransactionStatus, Prisma } from "@prisma/client";
+import { AccountKind, CategoryKind, IntegrationStatus, TransactionKind, TransactionStatus, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { encrypt, decrypt } from "@/lib/integrations/crypto";
 import { assertAdminIntegrations } from "@/lib/integrations/guard";
@@ -465,17 +465,37 @@ export async function syncCredential(
           const rowsWithoutExtId = groupRows.filter((r) => !r.externalId);
           const fuzzyDuplicateIndices = findDuplicates(rowsWithoutExtId, existingForDedupe, accountId);
 
+          // Pre-pass: ensure a Category exists for every distinct rawCategoryName from T-Bank's spendingCategory.
+          // Auto-grows the user's category list as new T-Bank categories appear, giving granular analytics.
+          const rawCatToKind = new Map<string, CategoryKind>();
+          for (const row of groupRows) {
+            const raw = ((row.raw?.rawCategoryName as string | undefined) ?? row.rawCategory)?.trim();
+            if (!raw) continue;
+            const k = row.kind === "INCOME" ? CategoryKind.INCOME : CategoryKind.EXPENSE;
+            if (!rawCatToKind.has(raw)) rawCatToKind.set(raw, k);
+          }
+          const rawCatToId = new Map<string, string>();
+          for (const [rawName, kind] of rawCatToKind) {
+            let cat = await db.category.findFirst({ where: { userId, name: rawName, archivedAt: null }, select: { id: true } });
+            if (!cat) {
+              cat = await db.category.create({ data: { userId, name: rawName, kind }, select: { id: true } });
+            }
+            rawCatToId.set(rawName, cat.id);
+          }
+
           // Resolve categoryId for each new row before entering transactions.
-          // Only on create branch — updates never clobber manual categorization.
+          // Prefer exact-name match from auto-created T-Bank categories; fall back to MCC/pattern resolver.
           const resolvedCategoryIds = await Promise.all(
-            groupRows.map((row) =>
-              resolveCategoryId({
+            groupRows.map((row) => {
+              const raw = ((row.raw?.rawCategoryName as string | undefined) ?? row.rawCategory)?.trim();
+              if (raw && rawCatToId.has(raw)) return Promise.resolve(rawCatToId.get(raw)!);
+              return resolveCategoryId({
                 userId,
                 mcc: row.raw?.mcc as string | undefined,
-                rawCategoryName: (row.raw?.rawCategoryName as string | undefined) ?? row.rawCategory,
+                rawCategoryName: raw,
                 merchantName: row.raw?.merchantName as string | undefined,
-              }).catch(() => null),
-            ),
+              }).catch(() => null);
+            }),
           );
 
           const rowSource = groupRows[0]?.source ?? cred.adapterId;
