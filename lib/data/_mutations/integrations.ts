@@ -560,6 +560,33 @@ export async function syncCredential(
             }
           }
 
+          // Backfill categoryId on rows that were updated and had null categoryId.
+          // Update path never clobbers manual categorization, but null is "never categorized" — fill it in.
+          const idToCat = new Map<string, string>();
+          for (let i = 0; i < groupRows.length; i++) {
+            const cid = resolvedCategoryIds[i];
+            const ext = groupRows[i].externalId;
+            if (cid && ext) idToCat.set(ext, cid);
+          }
+          if (idToCat.size > 0) {
+            const nullRows = await db.transaction.findMany({
+              where: { accountId, source: rowSource, externalId: { in: [...idToCat.keys()] }, categoryId: null },
+              select: { id: true, externalId: true },
+            });
+            const byCat = new Map<string, string[]>();
+            for (const r of nullRows) {
+              if (!r.externalId) continue;
+              const cid = idToCat.get(r.externalId);
+              if (!cid) continue;
+              const list = byCat.get(cid) ?? [];
+              list.push(r.id);
+              byCat.set(cid, list);
+            }
+            for (const [cid, ids] of byCat) {
+              await db.transaction.updateMany({ where: { id: { in: ids } }, data: { categoryId: cid } });
+            }
+          }
+
           // True insert/update split via row-count delta (upsert path) + plain-create count (no-extId path).
           const countAfter = await db.transaction.count({ where: { userId, accountId, source: rowSource } });
           const insertedCount = countAfter - countBefore;
