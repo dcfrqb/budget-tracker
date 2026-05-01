@@ -21,16 +21,24 @@ export type SyncFxResult = {
 export async function syncFxRates(): Promise<SyncFxResult> {
   const cbrRates = await fetchCbrRates();
 
+  // Filter to currencies present in the Currency table — ExchangeRate has FK
+  // on both fromCcy and toCcy, so any code CBR publishes that we don't track
+  // (TJS, KGS, AMD, etc.) would violate the constraint.
+  const knownCurrencies = await db.currency.findMany({ select: { code: true } });
+  const knownSet = new Set(knownCurrencies.map((c) => c.code));
+
   const rubRates: Record<string, number> = {};
   for (const [code, entry] of Object.entries(cbrRates)) {
-    rubRates[code] = entry.rate;
+    if (knownSet.has(code) && knownSet.has("RUB")) {
+      rubRates[code] = entry.rate;
+    }
   }
 
   // Stablecoin peg: USDT/USDC ≈ 1 USD. CBR doesn't publish them, so we mirror
   // USD-RUB. Owner-approved peg — accepts <0.5% market deviation as noise.
   if (rubRates.USD !== undefined) {
-    rubRates.USDT = rubRates.USD;
-    rubRates.USDC = rubRates.USD;
+    if (knownSet.has("USDT")) rubRates.USDT = rubRates.USD;
+    if (knownSet.has("USDC")) rubRates.USDC = rubRates.USD;
   }
 
   await persistRates(rubRates);
