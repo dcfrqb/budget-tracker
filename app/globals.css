@@ -2572,7 +2572,7 @@ input[type="checkbox"]:disabled {
   z-index: 201; pointer-events: none;
 }
 .dialog {
-  pointer-events: auto;
+  pointer-events: none;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -2589,6 +2589,7 @@ input[type="checkbox"]:disabled {
 .dialog.open {
   opacity: 1;
   transform: scale(1);
+  pointer-events: auto;
 }
 .dialog.sm { --dialog-w: 320px; }
 .dialog.md { --dialog-w: 480px; }
@@ -3298,6 +3299,7 @@ input[type="checkbox"]:disabled {
 .page-header { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
 .page-title { font-family: var(--mono-font), monospace; font-size: 14px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text); margin: 0; }
 .btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn-xs { padding: 3px 9px; font-size: 10px; }
 .categories-manager { display: flex; flex-direction: column; gap: 14px; }
 .segmented-control[role="tablist"] { display: inline-flex; gap: 1px; background: var(--border); padding: 1px; border-radius: 3px; align-self: flex-start; }
 .seg-btn { padding: 6px 14px; font-family: var(--mono-font), monospace; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: var(--panel); border: 0; cursor: pointer; transition: color var(--d-fast), background var(--d-fast); }
@@ -3371,6 +3373,49 @@ input[type="checkbox"]:disabled {
   padding: 12px; font-family: var(--mono-font), monospace;
   font-size: 11px; color: var(--dim); text-align: center;
 }
+
+/* ── SUBSCRIPTION IMPORT DIALOG ─────────────────────────────────── */
+.sub-import-body { display: flex; flex-direction: column; gap: 12px; }
+.sub-import-hint { color: var(--muted); font-size: 11px; }
+.sub-import-textarea {
+  width: 100%; resize: vertical;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius-sm, 3px);
+  color: var(--text); font-family: var(--mono-font), monospace; font-size: 11px;
+  padding: 8px; box-sizing: border-box;
+}
+.sub-import-sample-label { font-size: 10px; color: var(--muted); cursor: pointer; }
+.sub-import-sample-pre {
+  margin-top: 6px; padding: 8px;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius-sm, 3px);
+  font-family: var(--mono-font), monospace; font-size: 10px; color: var(--muted);
+  overflow-x: auto; white-space: pre-wrap; word-break: break-all;
+}
+.sub-import-results { display: flex; flex-direction: column; gap: 4px; }
+.sub-import-msg-ok { font-size: 11px; color: var(--success); }
+.sub-import-msg-err { font-size: 11px; color: var(--danger); }
+.sub-import-err-list { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 2px; }
+.sub-import-err-item { font-size: 10px; color: var(--danger); }
+
+/* ── SUBSCRIPTION JSON DIALOG ───────────────────────────────────── */
+.sub-json-body { display: flex; flex-direction: column; gap: 10px; }
+.sub-json-hint { font-size: 11px; color: var(--muted); }
+.sub-json-textarea {
+  width: 100%; resize: vertical;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius-sm, 3px);
+  color: var(--text); font-family: var(--mono-font), monospace; font-size: 11px;
+  padding: 8px; box-sizing: border-box; line-height: 1.5;
+}
+.sub-json-status { min-height: 16px; }
+.sub-json-status-idle { font-size: 11px; color: var(--dim); }
+.sub-json-status-ok { font-size: 11px; color: var(--pos); }
+.sub-json-status-err { font-size: 11px; color: var(--neg); }
+.sub-json-diff { color: var(--muted); margin-left: 6px; }
+.sub-json-confirm {
+  padding: 8px 10px;
+  background: var(--panel-3); border: 1px solid var(--border); border-radius: var(--radius-sm, 3px);
+  font-family: var(--mono-font), monospace; font-size: 11px; color: var(--text);
+}
+.sub-json-footer { display: flex; gap: 8px; justify-content: flex-end; }
 
 /* ── REDUCED MOTION ─────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {

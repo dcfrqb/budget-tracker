@@ -94,7 +94,8 @@ export function Dialog({
       />
 
       {/* Dialog wrap (for centering) */}
-      <div className="dialog-wrap" aria-hidden={!open}>
+      {/* inert keeps closed dialog out of tab order and event flow without breaking the CSS close animation */}
+      <div className="dialog-wrap" aria-hidden={!open} inert={!open || undefined}>
         <div
           ref={dialogRef}
           role="dialog"
