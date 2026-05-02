@@ -1,13 +1,15 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import type { SubscriptionSummaryView } from "@/lib/view/subscriptions";
 
 type Props = {
   pageTitle: string;
   summary: SubscriptionSummaryView;
   addButton: string;
+  importButton?: ReactNode;
 };
 
-export function SubscriptionsSummaryBar({ pageTitle, summary, addButton }: Props) {
+export function SubscriptionsSummaryBar({ pageTitle, summary, addButton, importButton }: Props) {
   return (
     <div className="section-hd">
       <div className="ttl mono">
@@ -26,10 +28,11 @@ export function SubscriptionsSummaryBar({ pageTitle, summary, addButton }: Props
         <span style={{ color: "var(--accent)" }}>
           {summary.paidForOthersLabel} {summary.paidForOthersAmount}
         </span>
+        {importButton}
         <Link
           href="/expenses/subscriptions/new"
           className="btn primary"
-          style={{ padding: "3px 9px", fontSize: 10, marginLeft: 10 }}
+          style={{ padding: "3px 9px", fontSize: 10, marginLeft: importButton ? 0 : 10 }}
         >
           {addButton}
         </Link>

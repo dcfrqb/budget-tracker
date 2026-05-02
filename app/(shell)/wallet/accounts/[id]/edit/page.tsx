@@ -50,6 +50,7 @@ export default async function EditAccountPage({ params }: Props) {
         inn: true,
         kpp: true,
         correspondentAccount: true,
+        recipientName: true,
         paymentDueDay: true,
       },
     }),
@@ -121,6 +122,7 @@ export default async function EditAccountPage({ params }: Props) {
           accountNumber: account.accountNumber,
           bic: account.bic,
           bankName: account.bankName,
+          recipientName: account.recipientName ?? null,
         }}
         hasIntegration={hasIntegration}
         pullAction={pullRequisitesAction.bind(null, id)}

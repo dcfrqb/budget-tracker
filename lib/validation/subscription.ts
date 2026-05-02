@@ -42,6 +42,9 @@ export const subscriptionPaySchema = z.object({
   categoryId: zCuid.nullish(),
 });
 
+export const subscriptionsBulkImportSchema = z.array(subscriptionCreateSchema).min(1).max(500);
+
 export type SubscriptionCreateInput = z.infer<typeof subscriptionCreateSchema>;
 export type SubscriptionUpdateInput = z.infer<typeof subscriptionUpdateSchema>;
 export type SubscriptionPayInput = z.infer<typeof subscriptionPaySchema>;
+export type SubscriptionsBulkImportInput = z.infer<typeof subscriptionsBulkImportSchema>;

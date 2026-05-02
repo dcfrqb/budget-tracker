@@ -10,6 +10,7 @@ import {
 } from "@/lib/view/subscriptions";
 import { SubscriptionsSummaryBar } from "@/components/expenses/subscriptions/summary-bar";
 import { SubscriptionGroup } from "@/components/expenses/subscriptions/group";
+import { SubscriptionImportButton } from "@/components/expenses/subscriptions/import-button";
 
 export default async function SubscriptionsPage() {
   const [userId, rates, locale] = await Promise.all([getCurrentUserId(), getLatestRatesMap(), getLocale()]);
@@ -33,6 +34,7 @@ export default async function SubscriptionsPage() {
           pageTitle={pageTitle}
           summary={summary}
           addButton={tFn("expenses.subscriptions.summary.addButton")}
+          importButton={<SubscriptionImportButton />}
         />
       </div>
 

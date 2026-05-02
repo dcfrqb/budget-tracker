@@ -1,6 +1,11 @@
 import { AnalyticsKpiRow } from "@/components/analytics/kpi-row";
 import { AnalyticsStatusStrip } from "@/components/analytics/status-strip";
-import { parseAnalyticsPeriod, DEFAULT_ANALYTICS_PERIOD } from "@/lib/analytics/period";
+import {
+  parseAnalyticsPeriod,
+  parseAnalyticsCompare,
+  resolveCompareRange,
+  formatPeriodLabel,
+} from "@/lib/analytics/period";
 import { CategoryPie } from "@/components/analytics/category-pie";
 import { Compare } from "@/components/analytics/compare";
 import { Forecast } from "@/components/analytics/forecast";
@@ -21,7 +26,7 @@ import {
 } from "@/lib/data/analytics";
 import { getRunwayByMode } from "@/lib/data/analytics-runway";
 import { getHomeDashboard } from "@/lib/data/dashboard";
-import { getT } from "@/lib/i18n/server";
+import { getT, getLocale } from "@/lib/i18n/server";
 import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
 import { formatRubPrefix } from "@/lib/format/money";
@@ -32,8 +37,6 @@ import type { ForecastCell } from "@/components/analytics/forecast";
 import type { ModeCard } from "@/components/analytics/modes-reference";
 
 export const dynamic = "force-dynamic";
-
-const MONTH_KEYS = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"] as const;
 
 const BAR_COLORS = [
   "var(--warn)", "var(--info)", "var(--accent)",
@@ -55,70 +58,61 @@ function periodToResolvable(period: string): "1m" | "3m" | "6m" | "12m" {
   return "3m"; // default for "3m" and unknown
 }
 
-type SearchParams = Promise<{ p?: string }>;
+type SearchParams = Promise<{ p?: string; cmp?: string }>;
 
 export default async function AnalyticsPage({
   searchParams,
 }: {
   searchParams?: SearchParams;
 }) {
-  const [userId, t] = await Promise.all([getCurrentUserId(), getT()]);
+  const [userId, t, locale] = await Promise.all([getCurrentUserId(), getT(), getLocale()]);
 
   const sp = searchParams ? await searchParams : {};
-  const trendPeriodRaw = sp.p ?? DEFAULT_ANALYTICS_PERIOD;
-  const trendPeriod = parseAnalyticsPeriod(trendPeriodRaw);
-  const trendRange = resolveRange(periodToResolvable(trendPeriod));
+  const trendPeriod = parseAnalyticsPeriod(sp.p);
+  const compareMode = parseAnalyticsCompare(sp.cmp);
+
+  const currentRange = resolveRange(periodToResolvable(trendPeriod));
   const granularity = trendGranularity(trendPeriod);
 
-  const monthShort = MONTH_KEYS.map(k => t(`common.month.short.${k}` as Parameters<typeof t>[0]));
+  const compareRange = resolveCompareRange(currentRange, compareMode);
 
-  const now = new Date();
-  const range3m = resolveRange("3m");
-  const range1m = resolveRange("1m");
+  const currentPeriodLabel = formatPeriodLabel(currentRange, locale);
+  const previousPeriodLabel = compareRange ? formatPeriodLabel(compareRange, locale) : null;
 
-  const currentMonthLabel = `${monthShort[now.getUTCMonth()]} ${now.getUTCFullYear()}`;
-  const prevMonthDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
-  const prevMonthLabel = `${monthShort[prevMonthDate.getUTCMonth()]} ${prevMonthDate.getUTCFullYear()}`;
-
-  const [kpis3m, pie1m, compare1m, forecast, weather, budgetSettings, runwayDashboard, trendPoints, homeDash] = await Promise.all([
-    getPeriodKpis(userId, range3m, DEFAULT_CURRENCY),
-    getCategoryPie(userId, range1m, DEFAULT_CURRENCY),
-    getPeriodCompare(userId, range1m, DEFAULT_CURRENCY),
+  const [kpis, pie, compare, forecast, weather, budgetSettings, runwayDashboard, trendPoints, homeDash] = await Promise.all([
+    getPeriodKpis(userId, currentRange, DEFAULT_CURRENCY),
+    getCategoryPie(userId, currentRange, DEFAULT_CURRENCY),
+    getPeriodCompare(userId, currentRange, DEFAULT_CURRENCY, compareRange),
     getForecastMonth(userId, DEFAULT_CURRENCY),
     getWeather(userId, DEFAULT_CURRENCY),
     db.budgetSettings.findUnique({ where: { userId } }),
     getRunwayByMode(userId, DEFAULT_CURRENCY),
-    getTrendPoints(userId, trendRange, DEFAULT_CURRENCY, granularity),
+    getTrendPoints(userId, currentRange, DEFAULT_CURRENCY, granularity),
     getHomeDashboard(userId, DEFAULT_CURRENCY),
   ]);
 
   const safeUntilDays = homeDash.safeUntilDays;
 
   // ── KPI items ────────────────────────────────────────────────
-  const inflow3m = new Prisma.Decimal(kpis3m.inflowBase);
-  const outflow3m = new Prisma.Decimal(kpis3m.outflowBase);
-  const net3m = new Prisma.Decimal(kpis3m.netBase);
-
-  const periodFromLabel = (() => {
-    const d = new Date(range3m.from);
-    return `${monthShort[d.getUTCMonth()]} — ${currentMonthLabel}`;
-  })();
+  const inflow = new Prisma.Decimal(kpis.inflowBase);
+  const outflow = new Prisma.Decimal(kpis.outflowBase);
+  const net = new Prisma.Decimal(kpis.netBase);
 
   const kpiItems: AnalyticsKpiItem[] = [
     {
       k: t("analytics.kpi.income_3m"),
-      v: Number(inflow3m.toFixed(0)),
+      v: Number(inflow.toFixed(0)),
       vFormat: "money",
-      delta: kpis3m.savingsRatePct !== null
-        ? t("analytics.kpi.savings_rate", { vars: { pct: kpis3m.savingsRatePct.toFixed(1) } })
+      delta: kpis.savingsRatePct !== null
+        ? t("analytics.kpi.savings_rate", { vars: { pct: kpis.savingsRatePct.toFixed(1) } })
         : t("analytics.kpi.no_data"),
-      deltaTone: (kpis3m.savingsRatePct ?? 0) >= 20 ? "pos" : "warn",
+      deltaTone: (kpis.savingsRatePct ?? 0) >= 20 ? "pos" : "warn",
       s: t("analytics.kpi.income_sub"),
       c: "pos",
     },
     {
       k: t("analytics.kpi.expense_3m"),
-      v: Number(outflow3m.toFixed(0)),
+      v: Number(outflow.toFixed(0)),
       vFormat: "money",
       delta: "",
       deltaTone: "muted",
@@ -127,19 +121,19 @@ export default async function AnalyticsPage({
     },
     {
       k: t("analytics.kpi.net_3m"),
-      v: Math.abs(Number(net3m.toFixed(0))),
-      vFormat: net3m.gte(0) ? "money-pos" : "money-neg",
-      delta: net3m.gte(0) ? t("analytics.kpi.net_sub_pos") : t("analytics.kpi.net_sub_neg"),
-      deltaTone: net3m.gte(0) ? "pos" : "neg",
+      v: Math.abs(Number(net.toFixed(0))),
+      vFormat: net.gte(0) ? "money-pos" : "money-neg",
+      delta: net.gte(0) ? t("analytics.kpi.net_sub_pos") : t("analytics.kpi.net_sub_neg"),
+      deltaTone: net.gte(0) ? "pos" : "neg",
       s: t("analytics.kpi.net_sub"),
-      c: net3m.gte(0) ? "pos" : "neg",
+      c: net.gte(0) ? "pos" : "neg",
     },
   ];
 
   // ── Pie slices ───────────────────────────────────────────────
-  const pieTotal = pie1m.reduce((s, sl) => s.plus(sl.amountBase), new Prisma.Decimal(0));
+  const pieTotal = pie.reduce((s, sl) => s.plus(sl.amountBase), new Prisma.Decimal(0));
 
-  const pieSlices: PieSliceView[] = pie1m.slice(0, 8).map((sl, i) => ({
+  const pieSlices: PieSliceView[] = pie.slice(0, 8).map((sl, i) => ({
     name: sl.categoryName,
     sub: sl.icon ?? "",
     amount: formatRubPrefix(new Prisma.Decimal(sl.amountBase)),
@@ -150,7 +144,7 @@ export default async function AnalyticsPage({
   }));
 
   // ── Compare rows ─────────────────────────────────────────────
-  const compareRows: CompareRow[] = compare1m
+  const compareRows: CompareRow[] = compareMode === "none" ? [] : compare
     .sort((a, b) => new Prisma.Decimal(b.currentBase).comparedTo(new Prisma.Decimal(a.currentBase)))
     .slice(0, 10)
     .map((r) => {
@@ -238,6 +232,13 @@ export default async function AnalyticsPage({
     },
   ];
 
+  // ── Compare caption ──────────────────────────────────────────
+  const compareCaptionLabel = previousPeriodLabel
+    ? t("analytics.compare.range_caption", {
+        vars: { currentRange: currentPeriodLabel, previousRange: previousPeriodLabel },
+      })
+    : currentPeriodLabel;
+
   return (
     <>
       <AnalyticsStatusStrip />
@@ -246,17 +247,31 @@ export default async function AnalyticsPage({
         savingsRatePct={weather.savingsRatePct}
         reason={weather.reason}
       />
-      <AnalyticsKpiRow items={kpiItems} periodLabel={periodFromLabel} />
+      <AnalyticsKpiRow items={kpiItems} periodLabel={currentPeriodLabel} />
       <TrendCharts points={trendPoints} granularity={granularity} safeUntilDaysNow={safeUntilDays} />
       <CategoryPie
         slices={pieSlices}
         totalLabel={formatRubPrefix(pieTotal)}
-        periodLabel={currentMonthLabel}
+        periodLabel={currentPeriodLabel}
       />
       <Compare
         rows={compareRows}
-        currentPeriodLabel={currentMonthLabel}
-        previousPeriodLabel={prevMonthLabel}
+        currentPeriodLabel={currentPeriodLabel}
+        previousPeriodLabel={previousPeriodLabel ?? undefined}
+        compareMode={compareMode}
+        captionLabel={compareCaptionLabel}
+        labels={{
+          title: t("analytics.compare.title"),
+          disabled: t("analytics.compare.disabled"),
+          noDataShort: t("analytics.compare.no_data_short"),
+          empty: t("analytics.compare.empty"),
+          summaryRising: (count) => t("analytics.compare.summary.rising", { vars: { count: String(count) } }),
+          summaryFalling: (count) => t("analytics.compare.summary.falling", { vars: { count: String(count) } }),
+          colCategory: t("analytics.compare.col.category"),
+          colPreviousDefault: t("analytics.compare.col.previous_default"),
+          colCurrentDefault: t("analytics.compare.col.current_default"),
+          colTrend6m: t("analytics.compare.col.trend_6m"),
+        }}
       />
       <Forecast cells={forecastCells} />
       <RunwayByMode data={runwayDashboard} defaultMode={activeMode} />

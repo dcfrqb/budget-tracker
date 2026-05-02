@@ -526,6 +526,16 @@ export const enDict: RuDictShape = {
         intervalYearly: "yearly",
         intervalCustom: "every {n} mo",
       },
+      import: {
+        button: "Import",
+        title: "Import subscriptions",
+        hint: "JSON array of subscription objects. See sample below.",
+        sample_label: "Sample",
+        submit: "Upload",
+        success: "Created: {n}",
+        error_row: "Row {index}: {message}",
+        parse_error: "Invalid JSON",
+      },
     },
     filter: {
       label_section: "SECTION",
@@ -751,6 +761,26 @@ export const enDict: RuDictShape = {
       },
       sync: "synced {sec}s ago",
     },
+    compare: {
+      label_prev: "vs previous period",
+      label_yoy: "year over year",
+      label_none: "no comparison",
+      range_caption: "{currentRange} vs {previousRange}",
+      title: "comparison with previous period",
+      disabled: "comparison disabled",
+      no_data_short: "no data",
+      empty: "no data for comparison",
+      summary: {
+        rising: "{count} categories rising",
+        falling: "{count} falling",
+      },
+      col: {
+        category: "Category",
+        previous_default: "previous",
+        current_default: "current",
+        trend_6m: "6m trend",
+      },
+    },
     weather: {
       title: "financial weather",
       subtitle: "financial health",
@@ -833,6 +863,14 @@ export const enDict: RuDictShape = {
       import_csv_title: "Import transactions from CSV",
       // === wave-3 polish ===
       search_placeholder: "search by description",
+    },
+    sync: {
+      button: "Sync",
+      last: "upd {ago}",
+      never: "never",
+      in_progress: "syncing…",
+      error: "error",
+      no_credentials: "Connect a bank in settings",
     },
     feed: {
       title: "feed",
@@ -994,6 +1032,7 @@ export const enDict: RuDictShape = {
         pulling: "Loading...",
         pull_failed: "Failed to pull requisites",
         payment_due_day: "Payment due day",
+        recipient_name: "Recipient",
       },
     },
     cash: {

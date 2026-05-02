@@ -4,12 +4,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useLocale, useT } from "@/lib/i18n";
 import { QuickInput, type CategoryOption } from "@/components/transactions/quick-input";
+import { SyncPill } from "@/components/transactions/sync-pill";
+import type { SyncCredentialProp } from "@/components/shell/sync-button";
 
 export interface TxnToolbarProps {
   defaultAccountId?: string;
   defaultCurrency?: string;
   categories?: CategoryOption[];
   accountName?: string;
+  syncCredentials?: SyncCredentialProp[];
 }
 
 type ChipState = { id: "inc" | "exp" | "xfr"; label: string; active: boolean };
@@ -19,6 +22,7 @@ export function TxnToolbar({
   defaultCurrency,
   categories,
   accountName,
+  syncCredentials = [],
 }: TxnToolbarProps) {
   const t = useT();
   const locale = useLocale();
@@ -127,6 +131,8 @@ export function TxnToolbar({
             {c.label}
           </button>
         ))}
+        {/* Inline sync pill — fast access without going to settings */}
+        <SyncPill credentials={syncCredentials} />
         {/* CSV Import link */}
         <Link
           href="/transactions/import"

@@ -534,6 +534,16 @@ export const ruDict = {
         intervalYearly: "раз в год",
         intervalCustom: "каждые {n} мес",
       },
+      import: {
+        button: "Импортировать",
+        title: "Импорт подписок",
+        hint: "JSON-массив объектов. Образец ниже.",
+        sample_label: "Пример",
+        submit: "Загрузить",
+        success: "Создано: {n}",
+        error_row: "Строка {index}: {message}",
+        parse_error: "Невалидный JSON",
+      },
     },
     filter: {
       label_section: "РАЗДЕЛ",
@@ -759,6 +769,26 @@ export const ruDict = {
       },
       sync: "синхр {sec}с назад",
     },
+    compare: {
+      label_prev: "к предыдущему периоду",
+      label_yoy: "год к году",
+      label_none: "без сравнения",
+      range_caption: "{currentRange} vs {previousRange}",
+      title: "сравнение с прошлым периодом",
+      disabled: "сравнение отключено",
+      no_data_short: "нет данных",
+      empty: "нет данных для сравнения",
+      summary: {
+        rising: "{count} категорий растут",
+        falling: "{count} падают",
+      },
+      col: {
+        category: "Категория",
+        previous_default: "прошлый",
+        current_default: "текущий",
+        trend_6m: "тренд 6м",
+      },
+    },
     weather: {
       title: "финансовая погода",
       subtitle: "здоровье финансов",
@@ -841,6 +871,14 @@ export const ruDict = {
       import_csv_title: "Импорт транзакций из CSV",
       // === wave-3 polish ===
       search_placeholder: "поиск по описанию",
+    },
+    sync: {
+      button: "Синхронизировать",
+      last: "обн {ago}",
+      never: "ни разу",
+      in_progress: "синхронизация…",
+      error: "ошибка",
+      no_credentials: "Подключите банк в настройках",
     },
     feed: {
       title: "лента",
@@ -1002,6 +1040,7 @@ export const ruDict = {
         pulling: "Загрузка...",
         pull_failed: "Не удалось подтянуть реквизиты",
         payment_due_day: "День платежа",
+        recipient_name: "Получатель",
       },
     },
     cash: {

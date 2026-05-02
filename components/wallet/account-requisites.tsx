@@ -11,6 +11,7 @@ type RequisitesData = {
   accountNumber: string | null;
   bic: string | null;
   bankName: string | null;
+  recipientName: string | null;
 };
 
 type Props = {
@@ -71,6 +72,9 @@ export function AccountRequisites({ account, hasIntegration, pullAction }: Props
   }
   if (account.correspondentAccount) {
     rows.push({ labelKey: "wallet.account.requisites.corr_account", value: account.correspondentAccount });
+  }
+  if (account.recipientName) {
+    rows.push({ labelKey: "wallet.account.requisites.recipient_name", value: account.recipientName });
   }
 
   const hasAnyField = rows.length > 0;

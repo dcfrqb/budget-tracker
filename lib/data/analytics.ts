@@ -239,10 +239,11 @@ export const getPeriodCompare = cache(async (
   userId: string,
   range: DateRange,
   baseCcy: string,
+  previousRange?: DateRange | null,
 ): Promise<PeriodCompareRow[]> => {
-  // Предыдущий период той же длины
+  // Use explicitly provided previousRange, or fall back to the period of same length immediately before
   const rangeLen = range.to.getTime() - range.from.getTime();
-  const prevRange: DateRange = {
+  const prevRange: DateRange = previousRange ?? {
     from: new Date(range.from.getTime() - rangeLen),
     to: new Date(range.to.getTime() - rangeLen),
   };

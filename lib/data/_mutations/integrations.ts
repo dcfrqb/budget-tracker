@@ -1013,7 +1013,7 @@ function preferExisting<T>(current: T | null | undefined, incoming: T | null | u
 /**
  * Refresh metadata on already-linked Accounts using fresh data from
  * adapter.listExternalAccounts. Updates balance, cardLast4, creditLimit,
- * debtBalance, minPaymentFixed, inn, kpp, correspondentAccount, paymentDueDay,
+ * debtBalance, minPaymentFixed, inn, kpp, correspondentAccount, bic, bankName, recipientName, paymentDueDay,
  * and backfills institutionId if missing.
  */
 async function refreshLinkedAccounts(
@@ -1050,7 +1050,7 @@ async function refreshLinkedAccounts(
 
     const account = await db.account.findUnique({
       where: { id: accountId },
-      select: { cardLast4: true, institutionId: true, inn: true, kpp: true, correspondentAccount: true, paymentDueDay: true },
+      select: { cardLast4: true, institutionId: true, inn: true, kpp: true, correspondentAccount: true, bic: true, bankName: true, recipientName: true, paymentDueDay: true },
     });
     if (!account) continue;
 
@@ -1090,6 +1090,15 @@ async function refreshLinkedAccounts(
 
       const correspondentAccount = preferExisting(account.correspondentAccount, ext.requisites.correspondentAccount ?? null);
       if (correspondentAccount !== account.correspondentAccount) updateData.correspondentAccount = correspondentAccount;
+
+      const bic = preferExisting(account.bic, ext.requisites.bic ?? null);
+      if (bic !== account.bic) updateData.bic = bic;
+
+      const bankName = preferExisting(account.bankName, ext.requisites.bankName ?? null);
+      if (bankName !== account.bankName) updateData.bankName = bankName;
+
+      const recipientName = preferExisting(account.recipientName, ext.requisites.recipientName ?? null);
+      if (recipientName !== account.recipientName) updateData.recipientName = recipientName;
     }
 
     if (ext.paymentDueDay !== undefined) {

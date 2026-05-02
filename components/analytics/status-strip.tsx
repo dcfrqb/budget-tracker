@@ -7,18 +7,15 @@ import { useT, useLocale } from "@/lib/i18n/context";
 import { formatMonthLong } from "@/lib/format/date";
 import {
   type AnalyticsPeriod,
+  type AnalyticsCompare,
   DEFAULT_ANALYTICS_PERIOD,
+  DEFAULT_ANALYTICS_COMPARE,
   parseAnalyticsPeriod,
+  parseAnalyticsCompare,
 } from "@/lib/analytics/period";
 
 export type { AnalyticsPeriod };
 export { DEFAULT_ANALYTICS_PERIOD, parseAnalyticsPeriod };
-
-// ─────────────────────────────────────────────────────────────
-// Compare type — client-only, does not affect server data fetch
-// ─────────────────────────────────────────────────────────────
-
-type Cmp = "prev" | "yoy" | "none";
 
 // ─────────────────────────────────────────────────────────────
 // Component
@@ -36,9 +33,7 @@ export function AnalyticsStatusStrip() {
   const MONTH_DAYS = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
 
   const period = parseAnalyticsPeriod(searchParams.get("p") ?? undefined);
-
-  // cmp stays client-only — does not affect server data fetching
-  // TODO: migrate analytics compare to URL searchParams once Compare component reads it
+  const cmp = parseAnalyticsCompare(searchParams.get("cmp") ?? undefined);
 
   const PERIODS = [
     { id: "1m"  as AnalyticsPeriod, label: t("common.period.1m") },
@@ -48,10 +43,10 @@ export function AnalyticsStatusStrip() {
     { id: "ytd" as AnalyticsPeriod, label: t("common.period.ytd") },
   ];
 
-  const CMP: { id: Cmp; label: string }[] = [
-    { id: "prev", label: t("analytics.status_strip.cmp.prev") },
-    { id: "yoy",  label: t("analytics.status_strip.cmp.yoy") },
-    { id: "none", label: t("analytics.status_strip.cmp.none") },
+  const CMP: { id: AnalyticsCompare; label: string }[] = [
+    { id: "prev", label: t("analytics.compare.label_prev") },
+    { id: "yoy",  label: t("analytics.compare.label_yoy") },
+    { id: "none", label: t("analytics.compare.label_none") },
   ];
 
   const handlePeriodChange = useCallback(
@@ -68,9 +63,19 @@ export function AnalyticsStatusStrip() {
     [router, pathname, searchParams],
   );
 
-  // cmp is display-only for now
-  const cmpOptions = CMP;
-  const defaultCmp: Cmp = "prev";
+  const handleCmpChange = useCallback(
+    (next: AnalyticsCompare) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (next === DEFAULT_ANALYTICS_COMPARE) {
+        params.delete("cmp");
+      } else {
+        params.set("cmp", next);
+      }
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname);
+    },
+    [router, pathname, searchParams],
+  );
 
   const monthLabel = formatMonthLong(now, locale);
 
@@ -79,7 +84,7 @@ export function AnalyticsStatusStrip() {
       <span className="lbl">{t("analytics.status_strip.period_label")}</span>
       <Segmented options={PERIODS} value={period} onChange={handlePeriodChange} />
       <span className="lbl">{t("analytics.status_strip.compare_label")}</span>
-      <Segmented options={cmpOptions} value={defaultCmp} onChange={() => void 0} />
+      <Segmented options={CMP} value={cmp} onChange={handleCmpChange} />
       <div className="clock-right">
         <span>{monthLabel} · <b>{t("home.status_strip.day_prefix")}{MONTH_DAY}/{MONTH_DAYS}</b></span>
         <span>{t("analytics.status_strip.sync", { vars: { sec: "2" } })}</span>
