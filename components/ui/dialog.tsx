@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useRef, useCallback } from "react";
+import React, { useEffect, useRef, useCallback, useState } from "react";
+import { createPortal } from "react-dom";
 import { useT } from "@/lib/i18n";
 
 export interface DialogProps {
@@ -23,6 +24,9 @@ export function Dialog({
   const t = useT();
   const dialogRef = useRef<HTMLDivElement>(null);
   const firstFocusRef = useRef<HTMLElement | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   const close = useCallback(() => onOpenChange(false), [onOpenChange]);
 
@@ -84,7 +88,11 @@ export function Dialog({
     return () => dialog.removeEventListener("keydown", onKeyDown);
   }, [open]);
 
-  return (
+  // Portal to document.body so an ancestor's `transform` (e.g. .fade-in)
+  // can't break position:fixed and trap the dialog inside its containing block.
+  if (!mounted) return null;
+
+  return createPortal(
     <>
       {/* Backdrop */}
       <div
@@ -135,6 +143,7 @@ export function Dialog({
           {footer && <div className="dialog-footer">{footer}</div>}
         </div>
       </div>
-    </>
+    </>,
+    document.body,
   );
 }
