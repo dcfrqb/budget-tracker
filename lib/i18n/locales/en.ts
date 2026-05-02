@@ -547,6 +547,7 @@ export const enDict: RuDictShape = {
         confirm_apply: "Apply?",
         cancel: "Cancel",
         apply: "Apply",
+        applying: "Applying…",
       },
     },
     filter: {

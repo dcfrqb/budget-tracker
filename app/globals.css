@@ -3396,15 +3396,20 @@ input[type="checkbox"]:disabled {
 .sub-import-err-list { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 2px; }
 .sub-import-err-item { font-size: 10px; color: var(--danger); }
 
-/* ── SUBSCRIPTION JSON DIALOG ───────────────────────────────────── */
-.sub-json-body { display: flex; flex-direction: column; gap: 10px; }
+/* ── SUBSCRIPTION JSON EDITOR ───────────────────────────────────── */
+.sub-json-page { display: flex; flex-direction: column; gap: 12px; }
 .sub-json-hint { font-size: 11px; color: var(--muted); }
 .sub-json-textarea {
   width: 100%; resize: vertical;
   background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius-sm, 3px);
-  color: var(--text); font-family: var(--mono-font), monospace; font-size: 11px;
-  padding: 8px; box-sizing: border-box; line-height: 1.5;
+  color: var(--text); font-family: var(--mono-font), monospace; font-size: 12px;
+  padding: 12px; box-sizing: border-box; line-height: 1.55;
+  tab-size: 2;
 }
+.sub-json-textarea:focus {
+  outline: none; border-color: var(--accent);
+}
+.sub-json-textarea-page { min-height: 60vh; }
 .sub-json-status { min-height: 16px; }
 .sub-json-status-idle { font-size: 11px; color: var(--dim); }
 .sub-json-status-ok { font-size: 11px; color: var(--pos); }

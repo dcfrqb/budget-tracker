@@ -555,6 +555,7 @@ export const ruDict = {
         confirm_apply: "Применить?",
         cancel: "Отмена",
         apply: "Применить",
+        applying: "Применяю…",
       },
     },
     filter: {
