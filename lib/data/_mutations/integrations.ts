@@ -465,22 +465,24 @@ export async function syncCredential(
           const rowsWithoutExtId = groupRows.filter((r) => !r.externalId);
           const fuzzyDuplicateIndices = findDuplicates(rowsWithoutExtId, existingForDedupe, accountId);
 
-          // Pre-pass: ensure a Category exists for every distinct rawCategoryName from T-Bank's spendingCategory.
-          // Auto-grows the user's category list as new T-Bank categories appear, giving granular analytics.
-          const rawCatToKind = new Map<string, CategoryKind>();
+          // Pre-pass: ensure a Category exists for every distinct (rawCategoryName, kind) pair.
+          // Same name can yield two Category rows (EXPENSE + INCOME) — e.g. "Переводы" exists in both
+          // directions, so EXPENSE transfers and INCOME transfers each land in the right pie chart.
+          const rawPairs = new Set<string>();
           for (const row of groupRows) {
             const raw = ((row.raw?.rawCategoryName as string | undefined) ?? row.rawCategory)?.trim();
             if (!raw) continue;
             const k = row.kind === "INCOME" ? CategoryKind.INCOME : CategoryKind.EXPENSE;
-            if (!rawCatToKind.has(raw)) rawCatToKind.set(raw, k);
+            rawPairs.add(`${k}\x00${raw}`);
           }
           const rawCatToId = new Map<string, string>();
-          for (const [rawName, kind] of rawCatToKind) {
-            let cat = await db.category.findFirst({ where: { userId, name: rawName, archivedAt: null }, select: { id: true } });
+          for (const pair of rawPairs) {
+            const [kind, rawName] = pair.split("\x00") as [CategoryKind, string];
+            let cat = await db.category.findFirst({ where: { userId, name: rawName, kind, archivedAt: null }, select: { id: true } });
             if (!cat) {
               cat = await db.category.create({ data: { userId, name: rawName, kind }, select: { id: true } });
             }
-            rawCatToId.set(rawName, cat.id);
+            rawCatToId.set(`${kind}\x00${rawName}`, cat.id);
           }
 
           // Resolve categoryId for each new row before entering transactions.
@@ -488,7 +490,11 @@ export async function syncCredential(
           const resolvedCategoryIds = await Promise.all(
             groupRows.map((row) => {
               const raw = ((row.raw?.rawCategoryName as string | undefined) ?? row.rawCategory)?.trim();
-              if (raw && rawCatToId.has(raw)) return Promise.resolve(rawCatToId.get(raw)!);
+              const k = row.kind === "INCOME" ? CategoryKind.INCOME : CategoryKind.EXPENSE;
+              if (raw) {
+                const direct = rawCatToId.get(`${k}\x00${raw}`);
+                if (direct) return Promise.resolve(direct);
+              }
               return resolveCategoryId({
                 userId,
                 mcc: row.raw?.mcc as string | undefined,
