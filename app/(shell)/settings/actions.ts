@@ -9,6 +9,8 @@ import { updateBudgetSettings } from "@/lib/data/_mutations/budget-settings";
 import { wipeAllUserData } from "@/lib/data/_mutations/wipe";
 import { userUpdateSchema } from "@/lib/validation/profile";
 import { budgetSettingsUpdateSchema } from "@/lib/validation/budget-settings";
+import { autosyncCadenceInput } from "@/lib/validation/integrations";
+import { db } from "@/lib/db";
 
 const COOKIE_KEY = "bdg:locale";
 const VALID_LOCALES = new Set(["ru", "en"]);
@@ -65,6 +67,47 @@ export async function updateBudgetSettingsAction(
 
     await updateBudgetSettings(userId, parsed.data);
     revalidatePath("/settings");
+  } catch {
+    return { error: true };
+  }
+}
+
+/** Server action: sets the global autosync cadence in BudgetSettings. */
+export async function setAutosyncCadenceAction(formData: FormData): Promise<{ error: true } | undefined> {
+  try {
+    const userId = await getCurrentUserId();
+    const raw = { value: formData.get("value") };
+    const parsed = autosyncCadenceInput.safeParse(raw);
+    if (!parsed.success) return { error: true };
+
+    const intervalMs: number | null =
+      parsed.data.value === "off"
+        ? null
+        : Number(parsed.data.value);
+
+    // Upsert BudgetSettings
+    await db.budgetSettings.upsert({
+      where: { userId },
+      create: { userId, autosyncIntervalMs: intervalMs },
+      update: { autosyncIntervalMs: intervalMs },
+    });
+
+    // Recompute nextScheduledAt for all CONNECTED credentials
+    if (intervalMs === null) {
+      await db.integrationCredential.updateMany({
+        where: { userId, status: { not: "DISCONNECTED" } },
+        data: { nextScheduledAt: null },
+      });
+    } else {
+      const nextScheduledAt = new Date(Date.now() + intervalMs);
+      await db.integrationCredential.updateMany({
+        where: { userId, status: { not: "DISCONNECTED" } },
+        data: { nextScheduledAt },
+      });
+    }
+
+    revalidatePath("/settings");
+    revalidatePath("/wallet/integrations");
   } catch {
     return { error: true };
   }

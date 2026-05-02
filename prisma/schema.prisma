@@ -250,6 +250,8 @@ model BudgetSettings {
   primaryCurrencyCode String     @default("RUB")
   // Пары курсов для отображения в UI ("USD/RUB", "EUR/RUB"). Пустой массив → application-level дефолт.
   shownFxPairs        String[]   @default([])
+  // Global autosync cadence (ms). null = off; allowed values: 43_200_000 (12h), 86_400_000 (24h).
+  autosyncIntervalMs  Int?
   createdAt           DateTime   @default(now())
   updatedAt           DateTime   @updatedAt
 

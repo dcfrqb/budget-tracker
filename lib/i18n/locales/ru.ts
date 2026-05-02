@@ -89,6 +89,15 @@ export const ruDict = {
         en: "Английский",
       },
     },
+    autosync: {
+      section_title: "Автосинхронизация",
+      hint: "Применяется ко всем интеграциям. Для срочного — кнопка «Синхр.» в Транзакциях.",
+      option: {
+        "12h": "12 ч",
+        "24h": "24 ч",
+        off: "Выкл",
+      },
+    },
     profile: {
       section_title: "Профиль",
       field_name: "Имя",
@@ -892,6 +901,18 @@ export const ruDict = {
       in_progress: "синхронизация…",
       error: "ошибка",
       no_credentials: "Подключите банк в настройках",
+      toast_no_credentials: "Нет подключённых интеграций",
+      toast_adapter_ok: "{name}: {count} новых",
+      toast_adapter_synced: "{name}: синхронизирован",
+      toast_adapter_err: "{name}: ошибка",
+      toast_already_running: "Уже идёт",
+      toast: {
+        launched: "Синхронизация запущена",
+        timeout: "Синхронизация зависла",
+      },
+      button_no_integrations: "нет интеграций",
+      button_syncing: "синхр…",
+      button_relative: "синхр. {when}",
     },
     feed: {
       title: "лента",

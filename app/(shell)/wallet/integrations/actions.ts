@@ -17,7 +17,8 @@ import {
   createAccountAndLink,
   setScheduleInterval,
 } from "@/lib/data/_mutations/integrations";
-import { triggerManualSync } from "@/lib/integrations/scheduler";
+import { triggerManualSync, enqueueManualSync, enqueueSyncAll } from "@/lib/integrations/scheduler";
+import { getSyncStatus } from "@/lib/data/sync-status";
 import { listAccountsForQuickDrawer } from "@/lib/data/wallet";
 import {
   connectInputSchema,
@@ -30,8 +31,10 @@ import {
   reloginSchema,
   createAccountAndLinkSchema,
   setScheduleIntervalSchema,
+  syncStatusInput,
   toValidationFailure,
 } from "@/lib/validation/integrations";
+import type { SyncStatusItem } from "@/lib/data/sync-status";
 
 // ─────────────────────────────────────────────────────────────
 // Server actions for integration credential management.
@@ -131,30 +134,47 @@ export async function submitOtpAction(
   }
 }
 
-/** Trigger sync (fetchTransactions + create). Goes through scheduler lease so manual sync resets autosync clock. */
-export async function syncAction(credentialId: string): Promise<SyncResult> {
-  // credentialId comes from server-rendered UI — validate format.
+/** Trigger sync for a single credential (non-blocking — returns jobId immediately). */
+export async function syncAction(credentialId: string): Promise<{ ok: true; data: { jobId: string } } | { ok: false; error: string }> {
   const parsed = disconnectInputSchema.safeParse({ credentialId });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "validation_error" };
 
   try {
     const userId = await getCurrentUserId();
-    const result = await triggerManualSync(userId, parsed.data.credentialId);
+    const result = await enqueueManualSync(userId, parsed.data.credentialId);
     if (!result.ok) {
       return { ok: false, error: result.error };
     }
-    revalidatePath("/wallet/integrations");
-    revalidatePath("/transactions");
-    return {
-      ok: true,
-      data: {
-        created: result.data.created,
-        updated: result.data.updated,
-        skipped: result.data.skipped,
-        errorClass: result.data.errorClass,
-        syncLogId: result.data.syncLogId,
-      },
-    };
+    return { ok: true, data: { jobId: result.jobId } };
+  } catch (e) {
+    const safe = toSafeError(e);
+    return { ok: false, error: safe.message };
+  }
+}
+
+/** Trigger sync for all connected credentials (non-blocking). */
+export async function syncAllAction(): Promise<{ ok: true; data: { jobIds: string[]; skipped: Array<{ credentialId: string; reason: string }> } } | { ok: false; error: string }> {
+  try {
+    const userId = await getCurrentUserId();
+    const result = await enqueueSyncAll(userId);
+    return { ok: true, data: result };
+  } catch (e) {
+    const safe = toSafeError(e);
+    return { ok: false, error: safe.message };
+  }
+}
+
+/** Poll sync status for a list of credential IDs. */
+export async function syncStatusAction(
+  input: { credentialIds: string[] },
+): Promise<{ ok: true; data: SyncStatusItem[] } | { ok: false; error: string }> {
+  const parsed = syncStatusInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "validation_error" };
+
+  try {
+    const userId = await getCurrentUserId();
+    const data = await getSyncStatus(userId, parsed.data.credentialIds);
+    return { ok: true, data };
   } catch (e) {
     const safe = toSafeError(e);
     return { ok: false, error: safe.message };
@@ -347,7 +367,11 @@ export async function reloginAction(input: {
   }
 }
 
-/** Update autosync cadence for a credential. */
+/**
+ * Update autosync cadence for a credential.
+ * @deprecated Global autosync cadence is now in BudgetSettings.autosyncIntervalMs.
+ * This export is kept for backward compatibility; do not call from new UI.
+ */
 export async function setScheduleIntervalAction(input: {
   credentialId: string;
   intervalMs: number | null;

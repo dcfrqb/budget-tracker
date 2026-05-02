@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useRef, useTransition } from "react";
 import { useT } from "@/lib/i18n";
 import type { BankAdapterMeta } from "@/lib/integrations/types";
 import type { IntegrationStatus } from "@prisma/client";
@@ -10,16 +10,14 @@ import {
   loginAction,
   reloginAction,
   submitOtpAction,
-  syncAction,
   disconnectAction,
   deleteCredentialAction,
   listAccountLinksAction,
-  setScheduleIntervalAction,
 } from "@/app/(shell)/wallet/integrations/actions";
 import { LinkAccountsDialog } from "./link-accounts-dialog";
-import { SyncCompletionDialog } from "./sync-completion-dialog";
 import { BybitCardConnectForm } from "./bybit-card-connect-form";
-import type { SyncResult } from "@/app/(shell)/wallet/integrations/actions";
+import { useSyncAll } from "@/lib/hooks/use-sync-all";
+import type { SyncCredentialProp } from "@/components/shell/sync-button";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -34,8 +32,6 @@ export type CredentialRow = {
   lastErrorAt: string | null;
   lastErrorMessage: string | null;
   createdAt: string;
-  autosyncEnabled: boolean;
-  scheduleIntervalMs: number | null;
   nextScheduledAt: string | null;
 };
 
@@ -498,72 +494,6 @@ function OtpDialog({
 }
 
 // ─────────────────────────────────────────────────────────────
-// Cadence dropdown
-// ─────────────────────────────────────────────────────────────
-
-const CADENCE_OPTIONS: Array<{ labelKey: string; value: number | null }> = [
-  { labelKey: "settings.integrations.cadence.1h",  value: 3_600_000 },
-  { labelKey: "settings.integrations.cadence.6h",  value: 21_600_000 },
-  { labelKey: "settings.integrations.cadence.12h", value: 43_200_000 },
-  { labelKey: "settings.integrations.cadence.24h", value: 86_400_000 },
-  { labelKey: "settings.integrations.cadence.off", value: null },
-];
-
-function CadenceDropdown({ cred }: { cred: CredentialRow }) {
-  const t = useT();
-  const [isPending, startTransition] = useTransition();
-
-  const currentValue = cred.autosyncEnabled ? (cred.scheduleIntervalMs ?? null) : null;
-  const currentStrValue = currentValue === null ? "null" : String(currentValue);
-
-  function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const raw = e.target.value;
-    const intervalMs = raw === "null" ? null : Number(raw);
-    startTransition(async () => {
-      await setScheduleIntervalAction({ credentialId: cred.id, intervalMs });
-    });
-  }
-
-  const nextAt = cred.autosyncEnabled && cred.nextScheduledAt
-    ? new Date(cred.nextScheduledAt)
-    : null;
-  const nextInMs = nextAt ? nextAt.getTime() - Date.now() : null;
-  const nextInH = nextInMs !== null && nextInMs > 0
-    ? Math.round(nextInMs / 3_600_000)
-    : null;
-  const nextInLabel =
-    nextInH !== null
-      ? t("settings.integrations.cadence.next_in", { vars: { when: `${nextInH}h` } })
-      : null;
-
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-      <span className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>
-        {t("settings.integrations.cadence.label")}
-      </span>
-      <select
-        className="settings-input"
-        style={{ fontSize: 10, padding: "2px 6px", width: "auto", minWidth: 80 }}
-        value={currentStrValue}
-        onChange={handleChange}
-        disabled={isPending}
-      >
-        {CADENCE_OPTIONS.map((opt) => (
-          <option key={opt.labelKey} value={opt.value === null ? "null" : String(opt.value)}>
-            {t(opt.labelKey as Parameters<typeof t>[0])}
-          </option>
-        ))}
-      </select>
-      {nextInLabel && (
-        <span className="mono" style={{ fontSize: 10, color: "var(--dim)" }}>
-          {nextInLabel}
-        </span>
-      )}
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────
 // Credential card
 // ─────────────────────────────────────────────────────────────
 
@@ -592,8 +522,18 @@ function CredentialCard({
   const [reloginAdapter, setReloginAdapter] = useState<BankAdapterMeta | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [accountLinks, setAccountLinks] = useState<LinkRow[]>([]);
-  const [syncResult, setSyncResult] = useState<null | { created: number; updated: number; skipped: number; errorClass: string | null }>(null);
-  const [showCompletionDialog, setShowCompletionDialog] = useState(false);
+
+  // Route per-card sync through the same polling path as the global sync button.
+  // Pass a single-element list so the hook calls syncAction(credId) and polls
+  // for the "launched -> done" sequence rather than a fire-and-forget.
+  const syncCredProp: SyncCredentialProp = {
+    id: cred.id,
+    adapterId: cred.adapterId,
+    displayLabel: cred.displayLabel,
+    lastSyncAt: cred.lastSyncAt,
+    lastErrorAt: cred.lastErrorAt,
+  };
+  const { trigger: triggerSync, state: syncState } = useSyncAll([syncCredProp]);
 
   const supportsLinking = adapter?.supports.listExternalAccounts === true;
 
@@ -615,24 +555,18 @@ function CredentialCard({
     });
   }, [cred.id, supportsLinking]);
 
+  // Refresh parent list after sync completes (state goes idle after polling ends)
+  const prevSyncState = useRef(syncState);
+  useEffect(() => {
+    if (prevSyncState.current === "syncing" && syncState === "idle") {
+      onRefresh();
+    }
+    prevSyncState.current = syncState;
+  }, [syncState, onRefresh]);
+
   function doSync() {
     setFeedback(null);
-    startTransition(async () => {
-      const result: SyncResult = await syncAction(cred.id);
-      if (result.ok) {
-        const data = result.data;
-        setSyncResult({
-          created: data.created ?? 0,
-          updated: data.updated ?? 0,
-          skipped: data.skipped ?? 0,
-          errorClass: data.errorClass ?? null,
-        });
-      } else {
-        setSyncResult({ created: 0, updated: 0, skipped: 0, errorClass: result.error ?? "unknown" });
-      }
-      setShowCompletionDialog(true);
-      onRefresh();
-    });
+    triggerSync();
   }
 
   function doDisconnect() {
@@ -687,11 +621,6 @@ function CredentialCard({
           <div className="mono" style={{ fontSize: 10, color: "var(--dim)" }}>
             {t("settings.integrations.sync.last_sync")} {new Date(cred.lastSyncAt).toLocaleString()}
           </div>
-        )}
-
-        {/* Autosync cadence */}
-        {cred.status === "CONNECTED" && (
-          <CadenceDropdown cred={cred} />
         )}
 
         {/* Feedback */}
@@ -832,11 +761,6 @@ function CredentialCard({
         />
       )}
 
-      <SyncCompletionDialog
-        open={showCompletionDialog}
-        result={syncResult}
-        onClose={() => setShowCompletionDialog(false)}
-      />
     </>
   );
 }

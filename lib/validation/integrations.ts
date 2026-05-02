@@ -156,6 +156,22 @@ export const setScheduleIntervalSchema = z.object({
 
 export type SetScheduleIntervalInput = z.infer<typeof setScheduleIntervalSchema>;
 
+// ── Sync status query ─────────────────────────────────────────
+
+export const syncStatusInput = z.object({
+  credentialIds: z.array(z.string().cuid()).max(20),
+});
+
+export type SyncStatusInput = z.infer<typeof syncStatusInput>;
+
+// ── Autosync cadence (global, in BudgetSettings) ──────────────
+
+export const autosyncCadenceInput = z.object({
+  value: z.enum(["off", "43200000", "86400000"]),
+});
+
+export type AutosyncCadenceInput = z.infer<typeof autosyncCadenceInput>;
+
 // ── Disconnect / Delete ───────────────────────────────────────
 
 export const disconnectInputSchema = z.object({

@@ -8,6 +8,7 @@ import { IntegrationsSection } from "@/components/settings/integrations-section"
 import { ExportSection } from "@/components/settings/export-section";
 import { DangerZone } from "@/components/settings/danger-zone";
 import { LocaleSwitcher } from "@/components/settings/locale-switcher";
+import { AutosyncCadence } from "@/components/settings/autosync-cadence";
 
 export const dynamic = "force-dynamic";
 
@@ -77,7 +78,12 @@ export default async function SettingsPage() {
 
           <div className="settings-divider" />
 
-          {/* 3. Budget */}
+          {/* 3. Autosync */}
+          <AutosyncCadence current={budgetSettings?.autosyncIntervalMs ?? null} />
+
+          <div className="settings-divider" />
+
+          {/* 4. Budget */}
           <BudgetSection
             activeMode={budgetSettings?.activeMode ?? "NORMAL"}
             primaryCurrencyCode={budgetSettings?.primaryCurrencyCode ?? "RUB"}

@@ -81,6 +81,15 @@ export const enDict: RuDictShape = {
         en: "English",
       },
     },
+    autosync: {
+      section_title: "Autosync",
+      hint: "Applies to all integrations. For immediate sync, use the Sync button on Transactions.",
+      option: {
+        "12h": "12 h",
+        "24h": "24 h",
+        off: "Off",
+      },
+    },
     profile: {
       section_title: "Profile",
       field_name: "Name",
@@ -884,6 +893,18 @@ export const enDict: RuDictShape = {
       in_progress: "syncing…",
       error: "error",
       no_credentials: "Connect a bank in settings",
+      toast_no_credentials: "No connected integrations",
+      toast_adapter_ok: "{name}: {count} new",
+      toast_adapter_synced: "{name}: synced",
+      toast_adapter_err: "{name}: error",
+      toast_already_running: "Already running",
+      toast: {
+        launched: "Sync started",
+        timeout: "Sync timed out",
+      },
+      button_no_integrations: "no integrations",
+      button_syncing: "syncing…",
+      button_relative: "synced {when}",
     },
     feed: {
       title: "feed",

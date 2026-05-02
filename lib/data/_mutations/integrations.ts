@@ -258,7 +258,7 @@ export async function submitOtpForCredential(
 export async function syncCredential(
   userId: string,
   credentialId: string,
-  opts?: { range?: { from: Date; to: Date }; accountId?: string },
+  opts?: { range?: { from: Date; to: Date }; accountId?: string; logId?: string },
 ) {
   assertAdminIntegrations(userId);
 
@@ -319,14 +319,22 @@ export async function syncCredential(
     }
   }
 
-  // ── Create RUNNING sync log entry ─────────────────────────────
+  // ── Create or reuse RUNNING sync log entry ────────────────────
+  // When called from enqueueManualSync a placeholder log row is already
+  // created as the jobId anchor. Reuse it to avoid orphan RUNNING rows.
   const syncLogStart = new Date();
-  const syncLog = await db.integrationSyncLog.create({
-    data: {
-      credentialId,
-      status: "RUNNING",
-    },
-  });
+  const syncLog = opts?.logId
+    ? await db.integrationSyncLog.update({
+        where: { id: opts.logId },
+        data: { startedAt: syncLogStart },
+        select: { id: true },
+      })
+    : await db.integrationSyncLog.create({
+        data: {
+          credentialId,
+          status: "RUNNING",
+        },
+      });
 
   let rowsCreated = 0;
   let rowsUpdated = 0;
