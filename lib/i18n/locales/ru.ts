@@ -544,6 +544,18 @@ export const ruDict = {
         error_row: "Строка {index}: {message}",
         parse_error: "Невалидный JSON",
       },
+      json: {
+        button: "JSON",
+        title: "Подписки · JSON",
+        empty_hint: "Список пуст — ниже пример формата.",
+        valid: "Валидно",
+        parse_error: "Ошибка JSON: {message}",
+        schema_error: "Ошибка схемы: {path} — {message}",
+        diff_summary: "Создать: {created} · Обновить: {updated} · Удалить: {deleted}",
+        confirm_apply: "Применить?",
+        cancel: "Отмена",
+        apply: "Применить",
+      },
     },
     filter: {
       label_section: "РАЗДЕЛ",

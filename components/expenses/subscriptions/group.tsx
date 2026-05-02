@@ -3,10 +3,9 @@ import { SubscriptionCard } from "./card";
 
 type Props = {
   group: SubscriptionGroupView;
-  markPaidLabel: string;
 };
 
-export function SubscriptionGroup({ group, markPaidLabel }: Props) {
+export function SubscriptionGroup({ group }: Props) {
   return (
     <div className="section fade-in">
       <div className="section-hd">
@@ -28,7 +27,7 @@ export function SubscriptionGroup({ group, markPaidLabel }: Props) {
         ) : (
           <div className="sub-grid">
             {group.items.map((card) => (
-              <SubscriptionCard key={card.id} card={card} markPaidLabel={markPaidLabel} />
+              <SubscriptionCard key={card.id} card={card} />
             ))}
           </div>
         )}

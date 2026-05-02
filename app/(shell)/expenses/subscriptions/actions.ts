@@ -8,6 +8,8 @@ import {
   subscriptionCreateSchema,
   subscriptionUpdateSchema,
   subscriptionPaySchema,
+  subscriptionsBulkReplaceSchema,
+  type SubscriptionJsonItem,
 } from "@/lib/validation/subscription";
 import {
   subscriptionShareCreateSchema,
@@ -193,5 +195,72 @@ export async function deleteShareAction(shareId: string) {
     return actionOk({ id: shareId });
   } catch {
     return actionError("internal_error");
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Replace all subscriptions (JSON editor diff-apply)
+// ─────────────────────────────────────────────────────────────
+
+export type ReplaceSubscriptionsSummary = {
+  created: number;
+  updated: number;
+  deleted: number;
+};
+
+export async function replaceSubscriptionsAction(rawItems: unknown): Promise<
+  { ok: true; summary: ReplaceSubscriptionsSummary } | { ok: false; error: string }
+> {
+  const userId = await getCurrentUserId();
+
+  const parsed = subscriptionsBulkReplaceSchema.safeParse(rawItems);
+  if (!parsed.success) {
+    const first = parsed.error.issues[0];
+    const path = first.path.join(".");
+    return { ok: false, error: path ? `${path}: ${first.message}` : first.message };
+  }
+
+  const items: SubscriptionJsonItem[] = parsed.data;
+
+  const existing = await db.subscription.findMany({
+    where: { userId, deletedAt: null },
+    select: { id: true },
+  });
+
+  const existingIds = new Set(existing.map((s) => s.id));
+  const incomingIds = new Set(items.filter((i) => i.id && existingIds.has(i.id)).map((i) => i.id!));
+
+  const toCreate = items.filter((i) => !i.id || !existingIds.has(i.id));
+  const toUpdate = items.filter((i) => i.id && existingIds.has(i.id));
+  const toDeleteIds = [...existingIds].filter((id) => !incomingIds.has(id));
+
+  try {
+    await db.$transaction([
+      ...toDeleteIds.map((id) =>
+        db.subscription.update({ where: { id }, data: { deletedAt: new Date() } }),
+      ),
+      ...toUpdate.map(({ id, ...fields }) =>
+        db.subscription.update({ where: { id: id! }, data: fields }),
+      ),
+      ...toCreate.map(({ id: _id, ...fields }) =>
+        db.subscription.create({ data: { ...fields, userId } }),
+      ),
+    ]);
+
+    revalidateTag("subscriptions", "default");
+    revalidatePath("/expenses/subscriptions");
+    revalidatePath("/", "layout");
+
+    return {
+      ok: true,
+      summary: {
+        created: toCreate.length,
+        updated: toUpdate.length,
+        deleted: toDeleteIds.length,
+      },
+    };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "internal_error";
+    return { ok: false, error: msg };
   }
 }

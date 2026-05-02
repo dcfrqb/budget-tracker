@@ -11,7 +11,6 @@ import { useT } from "@/lib/i18n";
 
 type Props = {
   card: SubscriptionCardView;
-  markPaidLabel: string;
 };
 
 export function SubscriptionCard({ card }: Props) {

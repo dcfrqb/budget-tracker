@@ -2,9 +2,14 @@
 
 import { useState } from "react";
 import { useT } from "@/lib/i18n";
-import { SubscriptionImportDialog } from "./import-dialog";
+import { SubscriptionsJsonDialog } from "./json-dialog";
 
-export function SubscriptionImportButton() {
+type Props = {
+  initialJson: string;
+  existingIds: string[];
+};
+
+export function SubscriptionImportButton({ initialJson, existingIds }: Props) {
   const t = useT();
   const [open, setOpen] = useState(false);
 
@@ -12,13 +17,17 @@ export function SubscriptionImportButton() {
     <>
       <button
         type="button"
-        className="btn"
-        style={{ padding: "3px 9px", fontSize: 10 }}
+        className="btn btn-xs"
         onClick={() => setOpen(true)}
       >
-        {t("expenses.subscriptions.import.button")}
+        {t("expenses.subscriptions.json.button")}
       </button>
-      <SubscriptionImportDialog open={open} onOpenChange={setOpen} />
+      <SubscriptionsJsonDialog
+        open={open}
+        onOpenChange={setOpen}
+        initialJson={initialJson}
+        existingIds={existingIds}
+      />
     </>
   );
 }

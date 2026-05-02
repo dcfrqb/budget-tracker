@@ -536,6 +536,18 @@ export const enDict: RuDictShape = {
         error_row: "Row {index}: {message}",
         parse_error: "Invalid JSON",
       },
+      json: {
+        button: "JSON",
+        title: "Subscriptions · JSON",
+        empty_hint: "List is empty — example below.",
+        valid: "Valid",
+        parse_error: "JSON error: {message}",
+        schema_error: "Schema error: {path} — {message}",
+        diff_summary: "Create: {created} · Update: {updated} · Delete: {deleted}",
+        confirm_apply: "Apply?",
+        cancel: "Cancel",
+        apply: "Apply",
+      },
     },
     filter: {
       label_section: "SECTION",

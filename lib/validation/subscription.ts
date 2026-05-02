@@ -18,6 +18,21 @@ const subscriptionBaseSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
+// JSON editor item: includes optional id for update/create diff semantics.
+export const subscriptionJsonItemSchema = subscriptionBaseSchema.extend({
+  id: zCuid.optional(),
+}).superRefine((data, ctx) => {
+  if (data.sharingType === "SPLIT" && (data.totalUsers == null || data.totalUsers < 2)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["totalUsers"],
+      message: "totalUsers is required and must be ≥ 2 for SPLIT subscriptions",
+    });
+  }
+});
+
+export const subscriptionsBulkReplaceSchema = z.array(subscriptionJsonItemSchema).max(500);
+
 // Create: totalUsers is required (≥ 2) when sharingType is SPLIT.
 // Refinement is applied only here; update uses the base schema to allow .partial().
 export const subscriptionCreateSchema = subscriptionBaseSchema.superRefine(
@@ -48,3 +63,5 @@ export type SubscriptionCreateInput = z.infer<typeof subscriptionCreateSchema>;
 export type SubscriptionUpdateInput = z.infer<typeof subscriptionUpdateSchema>;
 export type SubscriptionPayInput = z.infer<typeof subscriptionPaySchema>;
 export type SubscriptionsBulkImportInput = z.infer<typeof subscriptionsBulkImportSchema>;
+export type SubscriptionJsonItem = z.infer<typeof subscriptionJsonItemSchema>;
+export type SubscriptionsBulkReplaceInput = z.infer<typeof subscriptionsBulkReplaceSchema>;
