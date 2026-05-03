@@ -1,7 +1,28 @@
 import type { DateRange } from "@/lib/data/analytics";
+import type { TKey } from "@/lib/i18n/t";
 
 export type AnalyticsPeriod = "1m" | "3m" | "6m" | "12m" | "ytd";
 export type AnalyticsCompare = "prev" | "yoy" | "none";
+
+export function periodShortLabel(period: AnalyticsPeriod, t: (key: TKey) => string): string {
+  if (period === "1m") return t("common.period.1m");
+  if (period === "3m") return t("common.period.3m");
+  if (period === "6m") return t("common.period.6m");
+  if (period === "12m") return t("common.period.12m");
+  return t("common.period.ytd");
+}
+
+export function periodMonthCount(period: AnalyticsPeriod, range: DateRange): number {
+  if (period === "ytd") {
+    const months = range.to.getUTCMonth() - range.from.getUTCMonth()
+      + (range.to.getUTCFullYear() - range.from.getUTCFullYear()) * 12;
+    return Math.max(1, months + 1);
+  }
+  if (period === "1m") return 1;
+  if (period === "6m") return 6;
+  if (period === "12m") return 12;
+  return 3;
+}
 
 export const DEFAULT_ANALYTICS_PERIOD: AnalyticsPeriod = "3m";
 export const DEFAULT_ANALYTICS_COMPARE: AnalyticsCompare = "prev";

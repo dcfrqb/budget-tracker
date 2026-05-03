@@ -24,15 +24,20 @@ function Val({ v, fmt }: { v: number; fmt: string }) {
 export function AnalyticsKpiRow({
   items,
   periodLabel,
+  periodShort,
 }: {
   items: AnalyticsKpiItem[];
   periodLabel?: string;
+  periodShort?: string;
 }) {
   const t = useT();
+  const periodDim = periodShort
+    ? t("analytics.kpi.title_period", { vars: { period: periodShort } })
+    : "";
   return (
     <div className="section fade-in" style={{ animationDelay: "120ms" }}>
       <div className="section-hd">
-        <div className="ttl mono"><b>{t("analytics.kpi.title")}</b> <span className="dim">{t("analytics.kpi.title_period")}</span></div>
+        <div className="ttl mono"><b>{t("analytics.kpi.title")}</b>{periodDim ? <span className="dim"> {periodDim}</span> : null}</div>
         <div className="meta mono">{periodLabel ?? t("analytics.kpi.period_default")}</div>
       </div>
       <div className="section-body flush">

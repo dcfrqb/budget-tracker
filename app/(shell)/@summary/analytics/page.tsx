@@ -8,67 +8,87 @@ import { Sparkline } from "@/components/shell/sparkline";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { getCurrentUserId } from "@/lib/api/auth";
 import { resolveRange, getPeriodKpis, getPeriodCompare, getWeather } from "@/lib/data/analytics";
+import {
+  parseAnalyticsPeriod,
+  parseAnalyticsCompare,
+  resolveCompareRange,
+  formatPeriodLabel,
+  periodShortLabel,
+  periodMonthCount,
+} from "@/lib/analytics/period";
 import { Prisma } from "@prisma/client";
 import { formatRubPrefix } from "@/lib/format/money";
-import { getT } from "@/lib/i18n/server";
+import { getT, getLocale } from "@/lib/i18n/server";
 
-const MONTH_KEYS = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"] as const;
+type SearchParams = Promise<{ p?: string; cmp?: string }>;
 
-export default async function AnalyticsSummary() {
-  const now = new Date();
-  const range3m = resolveRange("3m");
-  const range1m = resolveRange("1m");
+export default async function AnalyticsSummary({
+  searchParams,
+}: {
+  searchParams?: SearchParams;
+}) {
+  const sp = searchParams ? await searchParams : {};
+  const period = parseAnalyticsPeriod(sp.p);
+  const compareMode = parseAnalyticsCompare(sp.cmp);
 
-  const [userId, t] = await Promise.all([getCurrentUserId(), getT()]);
-  const monthShort = MONTH_KEYS.map(k => t(`common.month.short.${k}` as Parameters<typeof t>[0]));
+  const [userId, t, locale] = await Promise.all([getCurrentUserId(), getT(), getLocale()]);
 
-  const prevMonthDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
-  const prevMonthLabel = monthShort[prevMonthDate.getUTCMonth()];
-  const curMonthLabel = monthShort[now.getUTCMonth()];
+  const currentRange = resolveRange(period);
+  const compareRange = resolveCompareRange(currentRange, compareMode);
 
-  const [kpis3m, compare1m, weather] = await Promise.all([
-    getPeriodKpis(userId, range3m, DEFAULT_CURRENCY),
-    getPeriodCompare(userId, range1m, DEFAULT_CURRENCY),
+  const periodShort = periodShortLabel(period, t);
+  const monthCount = periodMonthCount(period, currentRange);
+
+  const [kpis, compareRows, weather] = await Promise.all([
+    getPeriodKpis(userId, currentRange, DEFAULT_CURRENCY),
+    getPeriodCompare(userId, currentRange, DEFAULT_CURRENCY, compareRange),
     getWeather(userId, DEFAULT_CURRENCY),
   ]);
 
-  const net3m = new Prisma.Decimal(kpis3m.netBase);
-  const avgNet3m = net3m.div(3);
+  const net = new Prisma.Decimal(kpis.netBase);
+  const avgNet = net.div(monthCount);
 
-  const topDeltas = compare1m
+  const currentPeriodLabel = formatPeriodLabel(currentRange, locale);
+  const comparePeriodLabel = compareRange ? formatPeriodLabel(compareRange, locale) : null;
+
+  const topDeltas = compareRows
     .filter((r) => r.deltaPct !== null)
     .sort((a, b) => Math.abs(b.deltaPct!) - Math.abs(a.deltaPct!))
     .slice(0, 5)
     .map((r) => ({
       k: r.categoryName,
       v: r.deltaPct! > 0
-        ? `\u25b2 ${Math.abs(r.deltaPct!).toFixed(1)}%`
-        : `\u25bc ${Math.abs(r.deltaPct!).toFixed(1)}%`,
+        ? `▲ ${Math.abs(r.deltaPct!).toFixed(1)}%`
+        : `▼ ${Math.abs(r.deltaPct!).toFixed(1)}%`,
       tone: r.deltaPct! > 0 ? ("neg" as const) : ("pos" as const),
     }));
 
   const weatherKey = weather.kind as "sun" | "cloud" | "rain" | "storm";
-  const wxLabel = t(`summary.analytics.weather_${weatherKey}` as Parameters<typeof t>[0]) ?? "\u2014";
+  const wxLabel = t(`summary.analytics.weather_${weatherKey}` as Parameters<typeof t>[0]) ?? "—";
   const savingsStr = weather.savingsRatePct !== null
     ? `${weather.savingsRatePct.toFixed(0)}%`
     : t("summary.analytics.no_data");
+
+  const deltaRangeLabel = comparePeriodLabel
+    ? `${comparePeriodLabel} vs ${currentPeriodLabel}`
+    : currentPeriodLabel;
 
   return (
     <SummaryShell>
       <div className="sum-block" style={{ padding: "12px 8px" }}>
         <div className="period-hero">
           <div className="lbl">
-            <span>{t("summary.analytics.period_label")}</span>
-            <span className="tiny">{prevMonthLabel} &ndash; {curMonthLabel}</span>
+            <span>{t("summary.analytics.period_label", { vars: { period: periodShort } })}</span>
+            <span className="tiny">{currentPeriodLabel}</span>
           </div>
           <div className="row">
-            <span className="big mono"><CountUp to={Math.abs(Number(avgNet3m.toFixed(0)))} /></span>
+            <span className="big mono"><CountUp to={Math.abs(Number(avgNet.toFixed(0)))} /></span>
             <span className="unit mono">{t("summary.analytics.avg_net_unit")}</span>
           </div>
           <div className="sub mono">
             {t("summary.analytics.avg_net_sub")} &middot;{" "}
-            <span className={net3m.gte(0) ? "acc" : "neg"}>
-              {net3m.gte(0) ? "+" : "\u2212"}{formatRubPrefix(net3m.abs())}
+            <span className={net.gte(0) ? "acc" : "neg"}>
+              {net.gte(0) ? "+" : "−"}{formatRubPrefix(net.abs())}
             </span>
           </div>
         </div>
@@ -88,7 +108,7 @@ export default async function AnalyticsSummary() {
       <div className="sum-block">
         <div className="lbl">
           <span>{t("summary.analytics.delta_label")}</span>
-          <span className="tiny mono">{prevMonthLabel} vs {curMonthLabel}</span>
+          <span className="tiny mono">{deltaRangeLabel}</span>
         </div>
         <div className="period-stats">
           {topDeltas.map((d, i) => (
@@ -107,7 +127,7 @@ export default async function AnalyticsSummary() {
 
       <div className="sum-block">
         <div className="lbl">
-          <span>{t("summary.analytics.flow_label")}</span>
+          <span>{t("summary.analytics.flow_label", { vars: { period: periodShort } })}</span>
           <span className="tiny mono">{t("summary.analytics.flow_meta")}</span>
         </div>
         {/* TODO: pass real cashflow points when historical data is available */}

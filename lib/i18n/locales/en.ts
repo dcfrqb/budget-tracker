@@ -402,7 +402,7 @@ export const enDict: RuDictShape = {
       nearest_none: "no events",
     },
     analytics: {
-      period_label: "period · 3 mo",
+      period_label: "period · {period}",
       avg_net_unit: "₽/mo",
       avg_net_sub: "avg net",
       weather_label: "weather · status",
@@ -410,7 +410,7 @@ export const enDict: RuDictShape = {
       status_key: "status",
       delta_label: "top growth · cat",
       no_data: "no data",
-      flow_label: "flow · 3 mo",
+      flow_label: "flow · {period}",
       flow_meta: "live",
       mode_key: "mode",
       mode_val: "normal",
@@ -715,11 +715,11 @@ export const enDict: RuDictShape = {
 
   analytics: {
     kpi: {
-      income_3m: "INCOME 3M",
+      income_period: "INCOME {period}",
       income_sub: "total income",
-      expense_3m: "EXPENSE 3M",
+      expense_period: "EXPENSE {period}",
       expense_sub: "total expenses",
-      net_3m: "NET 3M",
+      net_period: "NET {period}",
       net_sub: "net flow",
       net_sub_pos: "positive",
       net_sub_neg: "negative",
@@ -727,7 +727,7 @@ export const enDict: RuDictShape = {
       no_data: "no data",
       // === wave-1+2 shell ===
       title: "key metrics",
-      title_period: "· 3 mo",
+      title_period: "· {period}",
       period_default: "current period",
     },
     forecast: {

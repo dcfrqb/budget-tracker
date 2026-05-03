@@ -5,6 +5,7 @@ import {
   parseAnalyticsCompare,
   resolveCompareRange,
   formatPeriodLabel,
+  periodShortLabel,
 } from "@/lib/analytics/period";
 import { CategoryPie } from "@/components/analytics/category-pie";
 import { Compare } from "@/components/analytics/compare";
@@ -49,14 +50,6 @@ function trendGranularity(period: string): "weekly" | "monthly" {
   return period === "1m" ? "weekly" : "monthly";
 }
 
-function periodToResolvable(period: string): "1m" | "3m" | "6m" | "12m" {
-  if (period === "1m") return "1m";
-  if (period === "6m") return "6m";
-  if (period === "12m") return "12m";
-  // TODO: add native YTD support in resolveRange (currently aliased to 12m which is incorrect for January-March)
-  if (period === "ytd") return "12m";
-  return "3m"; // default for "3m" and unknown
-}
 
 type SearchParams = Promise<{ p?: string; cmp?: string }>;
 
@@ -71,7 +64,7 @@ export default async function AnalyticsPage({
   const trendPeriod = parseAnalyticsPeriod(sp.p);
   const compareMode = parseAnalyticsCompare(sp.cmp);
 
-  const currentRange = resolveRange(periodToResolvable(trendPeriod));
+  const currentRange = resolveRange(trendPeriod);
   const granularity = trendGranularity(trendPeriod);
 
   const compareRange = resolveCompareRange(currentRange, compareMode);
@@ -92,6 +85,7 @@ export default async function AnalyticsPage({
   ]);
 
   const safeUntilDays = homeDash.safeUntilDays;
+  const periodShort = periodShortLabel(trendPeriod, t);
 
   // ── KPI items ────────────────────────────────────────────────
   const inflow = new Prisma.Decimal(kpis.inflowBase);
@@ -100,7 +94,7 @@ export default async function AnalyticsPage({
 
   const kpiItems: AnalyticsKpiItem[] = [
     {
-      k: t("analytics.kpi.income_3m"),
+      k: t("analytics.kpi.income_period", { vars: { period: periodShort } }),
       v: Number(inflow.toFixed(0)),
       vFormat: "money",
       delta: kpis.savingsRatePct !== null
@@ -111,7 +105,7 @@ export default async function AnalyticsPage({
       c: "pos",
     },
     {
-      k: t("analytics.kpi.expense_3m"),
+      k: t("analytics.kpi.expense_period", { vars: { period: periodShort } }),
       v: Number(outflow.toFixed(0)),
       vFormat: "money",
       delta: "",
@@ -120,7 +114,7 @@ export default async function AnalyticsPage({
       c: "neg",
     },
     {
-      k: t("analytics.kpi.net_3m"),
+      k: t("analytics.kpi.net_period", { vars: { period: periodShort } }),
       v: Math.abs(Number(net.toFixed(0))),
       vFormat: net.gte(0) ? "money-pos" : "money-neg",
       delta: net.gte(0) ? t("analytics.kpi.net_sub_pos") : t("analytics.kpi.net_sub_neg"),
@@ -247,7 +241,7 @@ export default async function AnalyticsPage({
         savingsRatePct={weather.savingsRatePct}
         reason={weather.reason}
       />
-      <AnalyticsKpiRow items={kpiItems} periodLabel={currentPeriodLabel} />
+      <AnalyticsKpiRow items={kpiItems} periodLabel={currentPeriodLabel} periodShort={periodShort} />
       <TrendCharts points={trendPoints} granularity={granularity} safeUntilDaysNow={safeUntilDays} />
       <CategoryPie
         slices={pieSlices}

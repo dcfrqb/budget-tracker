@@ -91,7 +91,7 @@ function confirmedAmt(t: {
 // ─────────────────────────────────────────────────────────────
 
 export function resolveRange(
-  period: "1m" | "3m" | "6m" | "12m" | "custom",
+  period: "1m" | "3m" | "6m" | "12m" | "ytd" | "custom",
   from?: Date,
   to?: Date,
 ): DateRange {
@@ -100,6 +100,11 @@ export function resolveRange(
   if (period === "custom") {
     if (!from || !to) throw new Error("period=custom requires from and to");
     return { from, to };
+  }
+
+  if (period === "ytd") {
+    const ytdFrom = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
+    return { from: ytdFrom, to: now };
   }
 
   const days: Record<string, number> = {

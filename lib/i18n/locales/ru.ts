@@ -410,7 +410,7 @@ export const ruDict = {
       nearest_none: "нет событий",
     },
     analytics: {
-      period_label: "период · 3 мес",
+      period_label: "период · {period}",
       avg_net_unit: "₽/мес",
       avg_net_sub: "средний нетто",
       weather_label: "погода · статус",
@@ -418,7 +418,7 @@ export const ruDict = {
       status_key: "статус",
       delta_label: "топ прирост · кат",
       no_data: "нет данных",
-      flow_label: "поток · 3 мес",
+      flow_label: "поток · {period}",
       flow_meta: "live",
       mode_key: "режим",
       mode_val: "норма",
@@ -723,11 +723,11 @@ export const ruDict = {
 
   analytics: {
     kpi: {
-      income_3m: "ДОХОД 3М",
+      income_period: "ДОХОД {period}",
       income_sub: "суммарный доход",
-      expense_3m: "РАСХОД 3М",
+      expense_period: "РАСХОД {period}",
       expense_sub: "суммарный расход",
-      net_3m: "НЕТТО 3М",
+      net_period: "НЕТТО {period}",
       net_sub: "чистый поток",
       net_sub_pos: "положительный",
       net_sub_neg: "отрицательный",
@@ -735,7 +735,7 @@ export const ruDict = {
       no_data: "нет данных",
       // === wave-1+2 shell ===
       title: "ключевые метрики",
-      title_period: "· 3 мес",
+      title_period: "· {period}",
       period_default: "текущий период",
     },
     forecast: {
