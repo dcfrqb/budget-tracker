@@ -456,7 +456,11 @@ export const enDict: RuDictShape = {
   expenses: {
     loans: {
       section_title: "Loans",
+      empty: "no loans yet",
+      add: "+ Loan",
+      amortization: "amortization",
     },
+    long_projects: {},
     kpi: {
       loans: "LOANS",
       loans_sub: "/mo · {count} active",
@@ -466,7 +470,7 @@ export const enDict: RuDictShape = {
       taxes: "TAXES · HINTS",
       taxes_sub: "pay manually",
       projects: "LONG PROJECTS",
-      projects_sub: "active · {budget} budget",
+      projects_sub: "{count_label} · {budget} budget",
       section_title: "obligations overview",
       section_meta: "current month",
     },
@@ -607,6 +611,7 @@ export const enDict: RuDictShape = {
       empty_cta_title: "Add a work source",
       empty_cta_body: "To see tax, hourly rate, and the hours-to-purchase calculation.",
       empty_cta_button: "+ Add work source",
+      section_title: "income",
     },
     work_sources: {
       add: "+ Add source",
@@ -933,6 +938,7 @@ export const enDict: RuDictShape = {
       meta: "newest first",
       shown_of: "{shown} of {total}",
       load_more: "Load more",
+      daily_net: "daily net",
     },
     new: {
       no_accounts: "No accounts found. Create an account in Wallet first.",
@@ -2064,4 +2070,5 @@ export const enPluralForms = {
   categories:    ["category",     "categories"]    as [string, string],
   institutions:  ["institution",  "institutions"]  as [string, string],
   sources:       ["source",       "sources"]       as [string, string],
+  projects:      ["project",      "projects"]      as [string, string],
 } as const;

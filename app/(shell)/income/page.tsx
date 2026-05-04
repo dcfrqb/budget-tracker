@@ -219,6 +219,8 @@ export default async function IncomePage({
   const inflowLabel = t(`income.kpi.inflow_label.${periodValue}` as Parameters<typeof t>[0]);
 
   const kpi = {
+    sectionTitle: t("income.kpi.section_title"),
+    periodLabel: inflowLabel,
     ytd: {
       value: Number(inflowTotal.toFixed(0)),
       label: inflowLabel,

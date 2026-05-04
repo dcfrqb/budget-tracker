@@ -362,7 +362,6 @@ function dayTotalsFromTxns(
   }
 
   const totals: TxnDayTotal[] = [];
-  const prefix = hasConverted ? "≈ " : "";
   const hasSettled = txns.some((txn) => {
     if (
       txn.status !== TransactionStatus.DONE &&
@@ -381,16 +380,14 @@ function dayTotalsFromTxns(
   });
   if (!inflowTotal.isZero() || !outflowTotal.isZero() || hasSettled) {
     const net = inflowTotal.minus(outflowTotal);
-    const absNet = net.abs();
-    const netSign = net.greaterThan(0) ? "+" : net.lessThan(0) ? "−" : "";
     const netTone: TxnDayTotal["tone"] = net.isZero()
       ? "mut"
       : net.greaterThan(0)
       ? "pos"
       : "neg";
     totals.push({
-      label: "",
-      value: `${prefix}${netSign}${formatRub(absNet)}`,
+      label: t("transactions.feed.daily_net"),
+      value: formatMoney(net, "RUB", { signDisplay: "always", approx: hasConverted }),
       tone: netTone,
     });
   }

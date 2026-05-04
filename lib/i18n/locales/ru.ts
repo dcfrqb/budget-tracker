@@ -464,7 +464,11 @@ export const ruDict = {
   expenses: {
     loans: {
       section_title: "Кредиты",
+      empty: "пока нет кредитов",
+      add: "+ Кредит",
+      amortization: "амортизация",
     },
+    long_projects: {},
     kpi: {
       loans: "КРЕДИТЫ",
       loans_sub: "/мес · {count} активен",
@@ -474,7 +478,7 @@ export const ruDict = {
       taxes: "НАЛОГИ · ПОДСК",
       taxes_sub: "платить вручную",
       projects: "ДОЛГИЕ ПРОЕКТЫ",
-      projects_sub: "активно · {budget} бюджет",
+      projects_sub: "{count_label} · {budget} бюджет",
       section_title: "обзор обязательств",
       section_meta: "текущий месяц",
     },
@@ -615,6 +619,7 @@ export const ruDict = {
       empty_cta_title: "Добавь источник дохода",
       empty_cta_body: "Чтобы видеть налоги, ставку в час и расчёт «сколько часов до покупки».",
       empty_cta_button: "+ Добавить источник",
+      section_title: "доходы",
     },
     work_sources: {
       add: "+ Добавить источник",
@@ -941,6 +946,7 @@ export const ruDict = {
       meta: "новые сверху",
       shown_of: "{shown} из {total}",
       load_more: "Ещё",
+      daily_net: "нетто за день",
     },
     new: {
       no_accounts: "Нет счетов. Создайте счёт в разделе Кошелёк.",
@@ -2077,4 +2083,5 @@ export const ruPluralForms = {
   categories:    ["категория",   "категории",   "категорий"]   as [string, string, string],
   institutions:  ["организация", "организации", "организаций"] as [string, string, string],
   sources:       ["источник",    "источника",   "источников"]  as [string, string, string],
+  projects:      ["проект",      "проекта",     "проектов"]    as [string, string, string],
 } as const;

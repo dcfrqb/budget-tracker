@@ -106,9 +106,9 @@ function DayGroup({ day, accounts, expandedId, onToggle }: DayGroupProps) {
         </span>
         <span className="tot mono">
           {day.totals.map((t, i) => (
-            <span key={i}>
+            <span key={i} className="money">
               {i > 0 && <span className="day-sep dim"> · </span>}
-              {t.label && `${t.label} `}
+              {t.label && <span className="dim">{t.label} </span>}
               <b className={t.tone}>{t.value}</b>
             </span>
           ))}

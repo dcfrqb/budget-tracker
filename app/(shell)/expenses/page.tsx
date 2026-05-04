@@ -17,7 +17,10 @@ import { db } from "@/lib/db";
 import { Prisma, TransactionKind, TransactionStatus } from "@prisma/client";
 import { formatMoney } from "@/lib/format/money";
 import { computeAmortization } from "@/lib/amortization";
-import { getT } from "@/lib/i18n/server";
+import { getT, getLocale } from "@/lib/i18n/server";
+import { pluralRu, pluralEn } from "@/lib/i18n/plural";
+import { ruPluralForms } from "@/lib/i18n/locales/ru";
+import { enPluralForms } from "@/lib/i18n/locales/en";
 import type { LongProjectView } from "@/components/expenses/long-projects";
 import type { ExpenseCategoryView } from "@/components/expenses/categories";
 import type { SubSummaryItem, SubsMonthlyTotals } from "@/components/expenses/subscriptions";
@@ -58,7 +61,7 @@ export default async function ExpensesPage({
   searchParams: SearchParams;
 }) {
   const sp = await searchParams;
-  const [userId, t] = await Promise.all([getCurrentUserId(), getT()]);
+  const [userId, t, locale] = await Promise.all([getCurrentUserId(), getT(), getLocale()]);
 
   const activeSection = (sp.section ?? "all") as SectionId;
 
@@ -226,7 +229,12 @@ export default async function ExpensesPage({
       label: t("expenses.kpi.projects"),
       value: longProjectsRaw.length,
       sub: t("expenses.kpi.projects_sub", {
-        vars: { budget: fmtBase(longProjectsRaw.reduce((s, p) => s.plus(p.budget), new Prisma.Decimal(0))) },
+        vars: {
+          count_label: locale === "ru"
+            ? `${longProjectsRaw.length} ${pluralRu(longProjectsRaw.length, ruPluralForms.projects)}`
+            : `${longProjectsRaw.length} ${pluralEn(longProjectsRaw.length, ...enPluralForms.projects)}`,
+          budget: fmtBase(longProjectsRaw.reduce((s, p) => s.plus(p.budget), new Prisma.Decimal(0))),
+        },
       }),
     },
   };

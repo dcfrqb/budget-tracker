@@ -100,7 +100,7 @@ function LoanCard({ loan, accounts }: LoanCardProps) {
         </div>
         <div className="loan-cell">
           <div className="mono" style={{ fontSize: 10, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 8 }}>
-            амортизация
+            {t("expenses.loans.amortization")}
           </div>
           <AmortChart />
           {loan.overpayStats.length > 0 && (
@@ -194,19 +194,23 @@ export function LoansSection({
 
 // Backward-compat export (for expenses/page.tsx that doesn't pass props yet)
 export function Loans() {
+  const t = useT();
   return (
     <div className="section fade-in" style={{ animationDelay: "120ms" }}>
       <div className="section-hd">
-        <div className="ttl mono"><b>кредиты / ипотека</b></div>
+        <div className="ttl mono"><b>{t("expenses.loans.section_title")}</b></div>
         <div className="meta mono">
           <Link
             href="/expenses/loans/new"
             className="btn primary"
             style={{ padding: "3px 9px", fontSize: 10 }}
           >
-            + Кредит
+            {t("expenses.loans.add")}
           </Link>
         </div>
+      </div>
+      <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
+        {t("expenses.loans.empty")}
       </div>
     </div>
   );

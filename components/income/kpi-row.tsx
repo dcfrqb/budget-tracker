@@ -3,6 +3,8 @@ import { getT } from "@/lib/i18n/server";
 import { CountUp } from "@/components/count-up";
 
 export type IncomeKpiData = {
+  sectionTitle: string;
+  periodLabel: string;
   ytd: { value: number; label: string; sub: string };
   sources: { value: number; label: string; sub: string };
   tax: { value: number; label: string; sub: string };
@@ -22,7 +24,10 @@ export async function IncomeKpiRow({
     <div className="section fade-in" style={{ animationDelay: "60ms" }}>
       <div className="section-hd">
         <div className="ttl mono">
-          <b>{kpi.ytd.label}</b>
+          <b>{kpi.sectionTitle}</b>
+          <span className="meta" style={{ marginLeft: 8, fontWeight: 400, textTransform: "lowercase" }}>
+            {kpi.periodLabel}
+          </span>
         </div>
         <div className="meta mono">{kpi.sources.value}</div>
       </div>
