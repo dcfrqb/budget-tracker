@@ -719,6 +719,12 @@ export const ruDict = {
       empty_body: "Добавь источник дохода, чтобы видеть стоимость покупки в часах работы.",
       empty_cta: "+ Добавить источник",
     },
+    upcoming_dates: {
+      title: "ближайшие даты",
+      subtitle: "автопредложение отложить",
+      meta: "{count} {word}",
+      empty: "нет ближайших событий",
+    },
   },
 
   analytics: {
@@ -850,6 +856,15 @@ export const ruDict = {
         storm_threshold: "расход > доход 3 мес",
       },
     },
+    category_pie: {
+      title: "категории расходов",
+      period_default: "текущий месяц",
+      meta: "{count} {word} · отсорт. по сумме",
+      total_label: "ИТОГО",
+      legend_period: "период {period}",
+      legend_period_default: "текущий период",
+      empty: "нет данных по категориям",
+    },
   },
 
   family: {
@@ -884,6 +899,13 @@ export const ruDict = {
       shared_balance: "общий баланс",
     },
     your_share: "твоя доля",
+    shared_funds: {
+      title: "общие накопления",
+      subtitle: "кто сколько вложил",
+      meta: "{count} {word}",
+      empty: "нет общих накоплений",
+      progress_key: "прогресс",
+    },
   },
 
   transactions: {

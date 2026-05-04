@@ -27,6 +27,9 @@ import {
   toWalletTotalsView,
 } from "@/lib/view/wallet";
 import { fetchCbrRates, getCbrAvailableCodes } from "@/lib/fx/cbr-fetcher";
+import { pluralRu, pluralEn } from "@/lib/i18n/plural";
+import { ruPluralForms } from "@/lib/i18n/locales/ru";
+import { enPluralForms } from "@/lib/i18n/locales/en";
 
 export const dynamic = "force-dynamic";
 
@@ -191,10 +194,18 @@ export default async function WalletPage({
   const archivedView = filteredArchived.map(toArchivedView);
 
   const cashCcyCount = new Set(filteredCash.map((a) => a.currencyCode)).size;
+  const locWord = locale === "ru"
+    ? pluralRu(filteredCash.length, ruPluralForms.locations)
+    : pluralEn(filteredCash.length, ...enPluralForms.locations);
+  const curWord = locale === "ru"
+    ? pluralRu(cashCcyCount, ruPluralForms.currencies)
+    : pluralEn(cashCcyCount, ...enPluralForms.currencies);
   const cashMeta = t("wallet.cash_meta", {
     vars: {
       locations: String(filteredCash.length),
       currencies: String(cashCcyCount),
+      locWord,
+      curWord,
     },
   });
 

@@ -17,12 +17,20 @@ export type SharedFundCard = {
   footV: string;
 };
 
-export function SharedFunds({ funds }: { funds: SharedFundCard[] }) {
+export type SharedFundsLabels = {
+  title: string;
+  subtitle: string;
+  meta: string;
+  empty: string;
+  progressKey: string;
+};
+
+export function SharedFunds({ funds, labels }: { funds: SharedFundCard[]; labels: SharedFundsLabels }) {
   return (
     <div className="section fade-in" style={{ animationDelay: "320ms" }}>
       <div className="section-hd">
-        <div className="ttl mono"><b>общие накопления</b> <span className="dim">· кто сколько вложил</span></div>
-        <div className="meta mono">{funds.length} активных фондов</div>
+        <div className="ttl mono"><b>{labels.title}</b> <span className="dim">· {labels.subtitle}</span></div>
+        <div className="meta mono">{labels.meta}</div>
       </div>
       <div className="section-body flush">
         <div className="sfund-grid">
@@ -53,14 +61,14 @@ export function SharedFunds({ funds }: { funds: SharedFundCard[] }) {
                 <div className="fill" style={{ width: `${f.pct}%` }} />
               </div>
               <div className="sfund-foot">
-                <span className="k">прогресс</span>
+                <span className="k">{labels.progressKey}</span>
                 <span className="v">{f.footV}</span>
               </div>
             </article>
           ))}
           {funds.length === 0 && (
             <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
-              нет общих накоплений
+              {labels.empty}
             </div>
           )}
         </div>

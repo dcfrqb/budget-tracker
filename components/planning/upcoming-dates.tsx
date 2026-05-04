@@ -7,14 +7,21 @@ export type UpcomingDateItem = {
   amount: string;
 };
 
-export function UpcomingDates({ items }: { items: UpcomingDateItem[] }) {
+export type UpcomingDatesLabels = {
+  title: string;
+  subtitle: string;
+  meta: string;
+  empty: string;
+};
+
+export function UpcomingDates({ items, labels }: { items: UpcomingDateItem[]; labels: UpcomingDatesLabels }) {
   return (
     <div className="section fade-in" style={{ animationDelay: "360ms", marginBottom: 0 }}>
       <div className="section-hd">
         <div className="ttl mono">
-          <b>ближайшие даты</b> <span className="dim">· автопредложение отложить</span>
+          <b>{labels.title}</b> <span className="dim">· {labels.subtitle}</span>
         </div>
-        <div className="meta mono">{items.length} событий</div>
+        <div className="meta mono">{labels.meta}</div>
       </div>
       <div className="bh-row">
         {items.map((b) => (
@@ -29,7 +36,7 @@ export function UpcomingDates({ items }: { items: UpcomingDateItem[] }) {
         ))}
         {items.length === 0 && (
           <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
-            нет ближайших событий
+            {labels.empty}
           </div>
         )}
       </div>

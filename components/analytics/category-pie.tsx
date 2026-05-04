@@ -8,14 +8,26 @@ export type PieSliceView = {
   deltaTone: string;
 };
 
+export type CategoryPieLabels = {
+  title: string;
+  periodDefault: string;
+  meta: string;
+  totalLabel: string;
+  legendPeriod: string;
+  legendPeriodDefault: string;
+  empty: string;
+};
+
 export function CategoryPie({
   slices,
   totalLabel,
   periodLabel,
+  labels,
 }: {
   slices: PieSliceView[];
   totalLabel?: string;
   periodLabel?: string;
+  labels: CategoryPieLabels;
 }) {
   // perimeter 2πr with r=80 ≈ 502.65
   const P = 502.65;
@@ -31,10 +43,10 @@ export function CategoryPie({
     <div className="section fade-in" style={{ animationDelay: "240ms" }}>
       <div className="section-hd">
         <div className="ttl mono">
-          <b>категории расходов</b>{" "}
-          <span className="dim">· {periodLabel ?? "текущий месяц"}</span>
+          <b>{labels.title}</b>{" "}
+          <span className="dim">· {periodLabel ?? labels.periodDefault}</span>
         </div>
-        <div className="meta mono">{slices.length} категорий · отсорт. по сумме</div>
+        <div className="meta mono">{labels.meta}</div>
       </div>
       <div className="section-body flush">
         <div className="cat-breakdown">
@@ -53,12 +65,12 @@ export function CategoryPie({
                   />
                 ))}
               </g>
-              <text x={100} y={94} textAnchor="middle" fontFamily="'JetBrains Mono', monospace" fontSize={10} fill="#7D8898" letterSpacing={1}>ИТОГО</text>
+              <text x={100} y={94} textAnchor="middle" fontFamily="'JetBrains Mono', monospace" fontSize={10} fill="#7D8898" letterSpacing={1}>{labels.totalLabel}</text>
               <text x={100} y={114} textAnchor="middle" fontFamily="'JetBrains Mono', monospace" fontSize={16} fontWeight={700} fill="#E6EDF3">{totalLabel ?? "—"}</text>
             </svg>
             <div className="pie-total mono">
-              <b>{slices.length} категорий</b>
-              {periodLabel ? `период ${periodLabel}` : "текущий период"}
+              <b>{labels.meta}</b>
+              {periodLabel ? labels.legendPeriod.replace("{period}", periodLabel) : labels.legendPeriodDefault}
             </div>
           </div>
 
@@ -76,7 +88,7 @@ export function CategoryPie({
             ))}
             {slices.length === 0 && (
               <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 0" }}>
-                нет данных по категориям
+                {labels.empty}
               </div>
             )}
           </div>

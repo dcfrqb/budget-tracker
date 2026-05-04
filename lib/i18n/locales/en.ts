@@ -114,16 +114,16 @@ export const enDict: RuDictShape = {
     },
     categories_summary: {
       section_title: "Categories",
-      summary: "{active} active, {archived} archived",
+      summary: "{active} active {activeWord}, {archived} archived {archivedWord}",
     },
     work_sources_summary: {
       section_title: "Income sources",
-      summary: "{count} sources",
+      summary: "{count} {word}",
       summary_zero: "no sources",
     },
     accounts_summary: {
       section_title: "Accounts & institutions",
-      summary: "{accounts} accounts, {institutions} institutions",
+      summary: "{accounts} {accountsWord}, {institutions} {institutionsWord}",
     },
     integrations: {
       section_title: "Integrations",
@@ -651,7 +651,7 @@ export const enDict: RuDictShape = {
     },
     kpi: {
       saved: "SAVED",
-      saved_sub: "{count} funds",
+      saved_sub: "{count} {word}",
       monthly: "CONTRIB / MO",
       monthly_sub: "total contribution",
       next_event: "NEXT EVENT",
@@ -660,7 +660,7 @@ export const enDict: RuDictShape = {
       hours_no_rate: "rate not set",
       section_title: "future plan",
       section_subtitle: "overview",
-      funds_count: "{n} funds",
+      funds_count: "{n} {word}",
     },
     fund_kind: {
       TRIP: "trip",
@@ -710,6 +710,12 @@ export const enDict: RuDictShape = {
       empty_title: "no rate set",
       empty_body: "Add a work source to see how many hours a purchase costs.",
       empty_cta: "+ Add work source",
+    },
+    upcoming_dates: {
+      title: "upcoming dates",
+      subtitle: "auto-suggest saving",
+      meta: "{count} {word}",
+      empty: "no upcoming events",
     },
   },
 
@@ -793,7 +799,7 @@ export const enDict: RuDictShape = {
       no_data_short: "no data",
       empty: "no data for comparison",
       summary: {
-        rising: "{count} categories rising",
+        rising: "{count} {word} rising",
         falling: "{count} falling",
       },
       col: {
@@ -842,6 +848,15 @@ export const enDict: RuDictShape = {
         storm_threshold: "expenses > income 3 months",
       },
     },
+    category_pie: {
+      title: "expense categories",
+      period_default: "current month",
+      meta: "{count} {word} · sorted by amount",
+      total_label: "TOTAL",
+      legend_period: "period {period}",
+      legend_period_default: "current period",
+      empty: "no category data",
+    },
   },
 
   family: {
@@ -876,6 +891,13 @@ export const enDict: RuDictShape = {
       shared_balance: "shared balance",
     },
     your_share: "your share",
+    shared_funds: {
+      title: "shared savings",
+      subtitle: "who contributed what",
+      meta: "{count} {word}",
+      empty: "no shared savings",
+      progress_key: "progress",
+    },
   },
 
   transactions: {
@@ -1001,7 +1023,7 @@ export const enDict: RuDictShape = {
       currency_all: "All",
       day_progress: "d{day}/{days}",
     },
-    cash_meta: "{locations} locations · {currencies} currencies",
+    cash_meta: "{locations} {locWord} · {currencies} {curWord}",
     add_account: {
       title: "Add new account",
       sub: "manual entry or integration",

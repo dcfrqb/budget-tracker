@@ -27,12 +27,15 @@ import {
 } from "@/lib/data/analytics";
 import { getRunwayByMode } from "@/lib/data/analytics-runway";
 import { getHomeDashboard } from "@/lib/data/dashboard";
-import { getT } from "@/lib/i18n/server";
+import { getLocale, getT } from "@/lib/i18n/server";
+import { pluralRu, pluralEn } from "@/lib/i18n/plural";
+import { ruPluralForms } from "@/lib/i18n/locales/ru";
+import { enPluralForms } from "@/lib/i18n/locales/en";
 import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
 import { formatMoney } from "@/lib/format/money";
 import type { AnalyticsKpiItem } from "@/components/analytics/kpi-row";
-import type { PieSliceView } from "@/components/analytics/category-pie";
+import type { PieSliceView, CategoryPieLabels } from "@/components/analytics/category-pie";
 import type { CompareRow } from "@/components/analytics/compare";
 import type { ForecastCell } from "@/components/analytics/forecast";
 import type { ModeCard } from "@/components/analytics/modes-reference";
@@ -58,7 +61,7 @@ export default async function AnalyticsPage({
 }: {
   searchParams?: SearchParams;
 }) {
-  const [userId, t] = await Promise.all([getCurrentUserId(), getT()]);
+  const [userId, t, locale] = await Promise.all([getCurrentUserId(), getT(), getLocale()]);
 
   const sp = searchParams ? await searchParams : {};
   const trendPeriod = parseAnalyticsPeriod(sp.p);
@@ -136,6 +139,19 @@ export default async function AnalyticsPage({
     delta: "",
     deltaTone: "muted",
   }));
+
+  const pieCategoryWord = locale === "ru"
+    ? pluralRu(pieSlices.length, ruPluralForms.categories)
+    : pluralEn(pieSlices.length, ...enPluralForms.categories);
+  const categoryPieLabels: CategoryPieLabels = {
+    title: t("analytics.category_pie.title"),
+    periodDefault: t("analytics.category_pie.period_default"),
+    meta: t("analytics.category_pie.meta", { vars: { count: String(pieSlices.length), word: pieCategoryWord } }),
+    totalLabel: t("analytics.category_pie.total_label"),
+    legendPeriod: t("analytics.category_pie.legend_period"),
+    legendPeriodDefault: t("analytics.category_pie.legend_period_default"),
+    empty: t("analytics.category_pie.empty"),
+  };
 
   // ── Compare rows ─────────────────────────────────────────────
   const compareRows: CompareRow[] = compareMode === "none" ? [] : compare
@@ -247,6 +263,7 @@ export default async function AnalyticsPage({
         slices={pieSlices}
         totalLabel={formatMoney(pieTotal, "RUB")}
         periodLabel={currentPeriodLabel}
+        labels={categoryPieLabels}
       />
       <Compare
         rows={compareRows}
@@ -259,7 +276,14 @@ export default async function AnalyticsPage({
           disabled: t("analytics.compare.disabled"),
           noDataShort: t("analytics.compare.no_data_short"),
           empty: t("analytics.compare.empty"),
-          summaryRising: (count) => t("analytics.compare.summary.rising", { vars: { count: String(count) } }),
+          summaryRising: (count) => t("analytics.compare.summary.rising", {
+            vars: {
+              count: String(count),
+              word: locale === "ru"
+                ? pluralRu(count, ruPluralForms.categories)
+                : pluralEn(count, ...enPluralForms.categories),
+            },
+          }),
           summaryFalling: (count) => t("analytics.compare.summary.falling", { vars: { count: String(count) } }),
           colCategory: t("analytics.compare.col.category"),
           colPreviousDefault: t("analytics.compare.col.previous_default"),

@@ -1,6 +1,9 @@
 import { getCurrentUserId } from "@/lib/api/auth";
-import { getT } from "@/lib/i18n/server";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { db } from "@/lib/db";
+import { pluralRu, pluralEn } from "@/lib/i18n/plural";
+import { ruPluralForms } from "@/lib/i18n/locales/ru";
+import { enPluralForms } from "@/lib/i18n/locales/en";
 import { ProfileSection } from "@/components/settings/profile-section";
 import { BudgetSection } from "@/components/settings/budget-section";
 import { LinkSection } from "@/components/settings/link-section";
@@ -13,9 +16,10 @@ import { AutosyncCadence } from "@/components/settings/autosync-cadence";
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
-  const [userId, t] = await Promise.all([
+  const [userId, t, locale] = await Promise.all([
     getCurrentUserId(),
     getT(),
+    getLocale(),
   ]);
 
   const [user, budgetSettings, categoryActive, categoryArchived, workSourceCount, accountCount, institutionCount] =
@@ -32,21 +36,43 @@ export default async function SettingsPage() {
       db.institution.count({ where: { userId } }),
     ]);
 
+  const isRu = locale === "ru";
+
   const categorySummary = t("settings.categories_summary.summary", {
-    vars: { active: String(categoryActive), archived: String(categoryArchived) },
+    vars: {
+      active: String(categoryActive),
+      archived: String(categoryArchived),
+      activeWord: isRu
+        ? pluralRu(categoryActive, ruPluralForms.categories)
+        : pluralEn(categoryActive, ...enPluralForms.categories),
+      archivedWord: isRu
+        ? pluralRu(categoryArchived, ruPluralForms.categories)
+        : pluralEn(categoryArchived, ...enPluralForms.categories),
+    },
   });
 
   const workSourceSummary =
     workSourceCount === 0
       ? t("settings.work_sources_summary.summary_zero")
       : t("settings.work_sources_summary.summary", {
-          vars: { count: String(workSourceCount) },
+          vars: {
+            count: String(workSourceCount),
+            word: isRu
+              ? pluralRu(workSourceCount, ruPluralForms.sources)
+              : pluralEn(workSourceCount, ...enPluralForms.sources),
+          },
         });
 
   const accountsSummary = t("settings.accounts_summary.summary", {
     vars: {
       accounts: String(accountCount),
       institutions: String(institutionCount),
+      accountsWord: isRu
+        ? pluralRu(accountCount, ruPluralForms.accounts)
+        : pluralEn(accountCount, ...enPluralForms.accounts),
+      institutionsWord: isRu
+        ? pluralRu(institutionCount, ruPluralForms.organizations)
+        : pluralEn(institutionCount, ...enPluralForms.organizations),
     },
   });
 

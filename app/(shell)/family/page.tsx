@@ -4,7 +4,7 @@ import { GroupHeader } from "@/components/family/group-header";
 import { InviteBanner } from "@/components/family/invite-banner";
 import { MembersManager } from "@/components/family/members-manager";
 import { FamilySetup } from "@/components/family/family-setup";
-import { SharedFunds } from "@/components/family/shared-funds";
+import { SharedFunds, type SharedFundsLabels } from "@/components/family/shared-funds";
 import { SharedLedger } from "@/components/family/shared-ledger";
 import { SharedSubs } from "@/components/family/shared-subs";
 import { SpaceTabs } from "@/components/family/space-tabs";
@@ -12,7 +12,10 @@ import { getCurrentUserId } from "@/lib/api/auth";
 import { getUserFamily, getFamilyWithMembers } from "@/lib/data/families";
 import { getFundsWithProgress } from "@/lib/data/funds";
 import { getSubscriptionsGrouped } from "@/lib/data/subscriptions";
-import { getT } from "@/lib/i18n/server";
+import { getLocale, getT } from "@/lib/i18n/server";
+import { pluralRu, pluralEn } from "@/lib/i18n/plural";
+import { ruPluralForms } from "@/lib/i18n/locales/ru";
+import { enPluralForms } from "@/lib/i18n/locales/en";
 import { formatMoney } from "@/lib/format/money";
 import Link from "next/link";
 import type { GroupHeaderData } from "@/components/family/group-header";
@@ -29,7 +32,7 @@ const MEMBER_COLORS = [
 ];
 
 export default async function FamilyPage() {
-  const [userId, t] = await Promise.all([getCurrentUserId(), getT()]);
+  const [userId, t, locale] = await Promise.all([getCurrentUserId(), getT(), getLocale()]);
 
   const monthShort = MONTH_KEYS.map(k => t(`common.month.short.${k}` as Parameters<typeof t>[0]));
 
@@ -61,6 +64,19 @@ export default async function FamilyPage() {
     },
   ];
 
+  function buildSharedFundsLabels(count: number): SharedFundsLabels {
+    const word = locale === "ru"
+      ? pluralRu(count, ruPluralForms.funds)
+      : pluralEn(count, ...enPluralForms.funds);
+    return {
+      title: t("family.shared_funds.title"),
+      subtitle: t("family.shared_funds.subtitle"),
+      meta: t("family.shared_funds.meta", { vars: { count: String(count), word } }),
+      empty: t("family.shared_funds.empty"),
+      progressKey: t("family.shared_funds.progress_key"),
+    };
+  }
+
   // No family case — show setup component
   if (!family) {
     return (
@@ -71,7 +87,7 @@ export default async function FamilyPage() {
         <SpaceTabs spaces={spaces} />
         <FamilyBalances flows={[]} />
         <SharedLedger rows={[]} />
-        <SharedFunds funds={[]} />
+        <SharedFunds funds={[]} labels={buildSharedFundsLabels(0)} />
         <SharedSubs rows={[]} />
       </>
     );
@@ -174,7 +190,7 @@ export default async function FamilyPage() {
       <MembersManager familyId={family.id} members={memberViews} />
       <FamilyBalances flows={[]} />
       <SharedLedger rows={[]} />
-      <SharedFunds funds={sharedFundCards} />
+      <SharedFunds funds={sharedFundCards} labels={buildSharedFundsLabels(sharedFundsRaw.length)} />
       <SharedSubs rows={sharedSubRows} />
     </>
   );

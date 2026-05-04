@@ -10,14 +10,17 @@ import { getCurrentUserId } from "@/lib/api/auth";
 import { getFundsWithProgress } from "@/lib/data/funds";
 import { getPlannedEvents } from "@/lib/data/planned-events";
 import { getPrimaryWorkSource } from "@/lib/data/work-sources";
-import { getT } from "@/lib/i18n/server";
+import { getLocale, getT } from "@/lib/i18n/server";
+import { pluralRu, pluralEn } from "@/lib/i18n/plural";
+import { ruPluralForms } from "@/lib/i18n/locales/ru";
+import { enPluralForms } from "@/lib/i18n/locales/en";
 import { Prisma } from "@prisma/client";
 import { formatMoney } from "@/lib/format/money";
 import { db } from "@/lib/db";
 import type { FundCardView } from "@/components/planning/funds";
 import type { BigPurchaseView } from "@/components/planning/big-purchases";
 import type { CalendarMonth, CalendarEvent } from "@/components/planning/calendar";
-import type { UpcomingDateItem } from "@/components/planning/upcoming-dates";
+import type { UpcomingDateItem, UpcomingDatesLabels } from "@/components/planning/upcoming-dates";
 import type { PlanningKpiData } from "@/components/planning/kpi-row";
 
 export const dynamic = "force-dynamic";
@@ -29,7 +32,7 @@ type FundKind = "TRIP" | "BUY" | "VAULT" | "GIFT" | "OTHER";
 type EventKind = "BIRTHDAY" | "HOLIDAY" | "TRIP" | "PURCHASE" | "OTHER";
 
 export default async function PlanningPage() {
-  const [userId, t] = await Promise.all([getCurrentUserId(), getT()]);
+  const [userId, t, locale] = await Promise.all([getCurrentUserId(), getT(), getLocale()]);
 
   const monthShort = MONTH_KEYS.map(k => t(`common.month.short.${k}` as Parameters<typeof t>[0]));
   const weekdayShort = WEEKDAY_KEYS.map(k => t(`common.weekday.short.${k}` as Parameters<typeof t>[0]));
@@ -103,16 +106,19 @@ export default async function PlanningPage() {
     : 0;
 
   const fundsCount = funds.length;
+  const fundsWord = locale === "ru"
+    ? pluralRu(fundsCount, ruPluralForms.funds)
+    : pluralEn(fundsCount, ...enPluralForms.funds);
 
   const kpi: PlanningKpiData = {
     sectionTitle: t("planning.kpi.section_title"),
     sectionSubtitle: t("planning.kpi.section_subtitle"),
-    fundsCountLabel: t("planning.kpi.funds_count", { vars: { n: String(fundsCount) } }),
+    fundsCountLabel: t("planning.kpi.funds_count", { vars: { n: String(fundsCount), word: fundsWord } }),
     hoursUnit: t("common.unit.hour"),
     saved: {
       label: t("planning.kpi.saved"),
       value: Number(totalSaved.toFixed(0)),
-      sub: t("planning.kpi.saved_sub", { vars: { count: String(fundsCount) } }),
+      sub: t("planning.kpi.saved_sub", { vars: { count: String(fundsCount), word: fundsWord } }),
     },
     monthly: {
       label: t("planning.kpi.monthly"),
@@ -259,6 +265,16 @@ export default async function PlanningPage() {
     amount: evt.expectedAmount ? formatMoney(new Prisma.Decimal(evt.expectedAmount), evt.currencyCode ?? "RUB") : "—",
   }));
 
+  const upcomingWord = locale === "ru"
+    ? pluralRu(upcomingItems.length, ruPluralForms.events)
+    : pluralEn(upcomingItems.length, ...enPluralForms.events);
+  const upcomingDatesLabels: UpcomingDatesLabels = {
+    title: t("planning.upcoming_dates.title"),
+    subtitle: t("planning.upcoming_dates.subtitle"),
+    meta: t("planning.upcoming_dates.meta", { vars: { count: String(upcomingItems.length), word: upcomingWord } }),
+    empty: t("planning.upcoming_dates.empty"),
+  };
+
   return (
     <>
       <PlanningStatusStrip />
@@ -272,7 +288,7 @@ export default async function PlanningPage() {
       <PlanningCalendar months={calendarMonths} />
       <FundsSection funds={fundViews} accounts={accounts} />
       <BigPurchases purchases={bigPurchaseViews} hourlyRate={hourlyRateLabel || undefined} />
-      <UpcomingDates items={upcomingItems} />
+      <UpcomingDates items={upcomingItems} labels={upcomingDatesLabels} />
     </>
   );
 }
