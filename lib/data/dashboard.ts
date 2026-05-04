@@ -624,10 +624,10 @@ export const getHomeDashboard = cache(async (
     prevByCat.set(t.categoryId, (prevByCat.get(t.categoryId) ?? new Prisma.Decimal(0)).plus(inBase));
   }
 
-  // Top-3 по currentMonthBase
+  // Top-6 по currentMonthBase
   const sortedCats = [...currentByCat.entries()]
     .sort((a, b) => b[1].comparedTo(a[1]))
-    .slice(0, 3);
+    .slice(0, 6);
 
   const topCategoriesDelta: TopCategoryDelta[] = sortedCats.map(([catId, currentBase]) => {
     const cat = catMap.get(catId);

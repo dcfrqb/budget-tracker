@@ -284,7 +284,14 @@ export default async function AnalyticsPage({
                 : pluralEn(count, ...enPluralForms.categories),
             },
           }),
-          summaryFalling: (count) => t("analytics.compare.summary.falling", { vars: { count: String(count) } }),
+          summaryFalling: (count) => t("analytics.compare.summary.falling", {
+            vars: {
+              count: String(count),
+              word: locale === "ru"
+                ? pluralRu(count, ruPluralForms.categories)
+                : pluralEn(count, ...enPluralForms.categories),
+            },
+          }),
           colCategory: t("analytics.compare.col.category"),
           colPreviousDefault: t("analytics.compare.col.previous_default"),
           colCurrentDefault: t("analytics.compare.col.current_default"),

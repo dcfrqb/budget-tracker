@@ -800,7 +800,7 @@ export const enDict: RuDictShape = {
       empty: "no data for comparison",
       summary: {
         rising: "{count} {word} rising",
-        falling: "{count} falling",
+        falling: "{count} {word} falling",
       },
       col: {
         category: "Category",
@@ -1702,6 +1702,7 @@ export const enDict: RuDictShape = {
       meta:  "current month",
       // === wave-3 polish ===
       no_plan: "no plan set",
+      of_amount: "of {amount}",
       net_eom_sub: "end of month ≈ {amount}",
       period_label: {
         "7d":  "last 7d",
@@ -1891,7 +1892,7 @@ export const enDict: RuDictShape = {
     summary: {
       aria: "Summary",
       safe: {
-        label:       "safe until",
+        label:       "safe for",
         zero_income: "@ zero income",
         days:        "days",
       },

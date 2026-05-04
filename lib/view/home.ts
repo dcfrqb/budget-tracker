@@ -123,12 +123,20 @@ function formatBaseAmount(amountBaseStr: string): string {
 }
 
 function toObligationView(ob: UpcomingObligation): HomeObligationView {
+  const isBaseCurrency = ob.currencyCode === "RUB";
+  const origFormatted = isBaseCurrency
+    ? null
+    : formatMoney(new Prisma.Decimal(ob.amount), ob.currencyCode);
+  const sub = origFormatted
+    ? `${ob.currencyCode} · ${origFormatted}`
+    : "";
+
   return {
     id: ob.id,
     tag: OBLIGATION_TAG[ob.kind],
     tagClass: OBLIGATION_CLASS[ob.kind],
     name: ob.label,
-    sub: `${ob.currencyCode} · ${ob.kind}`,
+    sub,
     date: formatDueAt(ob.dueAt),
     amount: formatBaseAmount(ob.amountBase),
     meta: ob.kind,
@@ -171,7 +179,7 @@ function toTopCategoryView(cat: TopCategoryDelta, rank: number): HomeTopCategory
 // Main mapper
 // ─────────────────────────────────────────────────────────────
 
-export function toHomeView(dashboard: HomeDashboard, t?: TFunc): HomeView {
+export function toHomeView(dashboard: HomeDashboard, t: TFunc): HomeView {
   const totalBase = Number(new Prisma.Decimal(dashboard.totalBalanceBase).toFixed(0));
   const reservedBase = Number(new Prisma.Decimal(dashboard.reservedBase).toFixed(0));
   const freeBase = Number(new Prisma.Decimal(dashboard.freeBase).toFixed(0));
@@ -196,7 +204,7 @@ export function toHomeView(dashboard: HomeDashboard, t?: TFunc): HomeView {
       plan: inflowPlan,
       sign: "",
       sub: hasInflowPlan
-        ? `из ${formatMoney(new Prisma.Decimal(inflowPlan), "RUB")} · ${Math.round((inflowFact / inflowPlan) * 100)}%`
+        ? `${t("home.plan_fact.of_amount", { vars: { amount: formatMoney(new Prisma.Decimal(inflowPlan), "RUB") } })} · ${Math.round((inflowFact / inflowPlan) * 100)}%`
         : "",
       noPlan: !hasInflowPlan,
       color: "pos",
@@ -208,7 +216,7 @@ export function toHomeView(dashboard: HomeDashboard, t?: TFunc): HomeView {
       plan: outflowPlan,
       sign: "",
       sub: hasOutflowPlan
-        ? `из ${formatMoney(new Prisma.Decimal(outflowPlan), "RUB")} · ${Math.round((outflowFact / outflowPlan) * 100)}%`
+        ? `${t("home.plan_fact.of_amount", { vars: { amount: formatMoney(new Prisma.Decimal(outflowPlan), "RUB") } })} · ${Math.round((outflowFact / outflowPlan) * 100)}%`
         : "",
       noPlan: !hasOutflowPlan,
       color: "info",
@@ -222,9 +230,7 @@ export function toHomeView(dashboard: HomeDashboard, t?: TFunc): HomeView {
       sub: netPlan !== 0
         ? (() => {
             const amount = `${netPlan >= 0 ? "+" : "−"}${formatMoney(new Prisma.Decimal(Math.abs(netPlan)), "RUB")}`;
-            return t
-              ? t("home.plan_fact.net_eom_sub", { vars: { amount } })
-              : `кон. мес ≈ ${amount}`;
+            return t("home.plan_fact.net_eom_sub", { vars: { amount } });
           })()
         : "",
       noPlan: !hasInflowPlan && !hasOutflowPlan,

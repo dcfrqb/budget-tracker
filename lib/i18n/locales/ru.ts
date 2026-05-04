@@ -808,7 +808,7 @@ export const ruDict = {
       empty: "нет данных для сравнения",
       summary: {
         rising: "{count} {word} растут",
-        falling: "{count} падают",
+        falling: "{count} {word} падают",
       },
       col: {
         category: "Категория",
@@ -1711,6 +1711,7 @@ export const ruDict = {
       meta:  "текущий месяц",
       // === wave-3 polish ===
       no_plan: "нет плана",
+      of_amount: "из {amount}",
       net_eom_sub: "кон. мес ≈ {amount}",
       period_label: {
         "7d":  "посл. 7д",
@@ -1900,7 +1901,7 @@ export const ruDict = {
     summary: {
       aria: "Сводка",
       safe: {
-        label:       "безопасно до",
+        label:       "безопасно ещё",
         zero_income: "@ нулевой доход",
         days:        "дней",
       },

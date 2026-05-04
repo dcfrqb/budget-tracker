@@ -65,7 +65,7 @@ export function CategoryPie({
                   />
                 ))}
               </g>
-              <text x={100} y={94} textAnchor="middle" fontFamily="'JetBrains Mono', monospace" fontSize={10} fill="#7D8898" letterSpacing={1}>{labels.totalLabel}</text>
+              <text x={100} y={94} textAnchor="middle" fontFamily="'JetBrains Mono', monospace" fontSize={10} fill="var(--muted)" letterSpacing={1}>{labels.totalLabel}</text>
               <text x={100} y={114} textAnchor="middle" fontFamily="'JetBrains Mono', monospace" fontSize={16} fontWeight={700} fill="#E6EDF3">{totalLabel ?? "—"}</text>
             </svg>
             <div className="pie-total mono">
