@@ -4,6 +4,7 @@ import type { ImportRow } from "@/lib/import/types";
 import { listCardTransactions } from "@/lib/integrations/bybit/card-records";
 import { fetchCardSpendingPower } from "@/lib/integrations/bybit/balance";
 import { BybitApiError } from "@/lib/integrations/bybit/types";
+import { listAccountLinks } from "@/lib/data/_queries/integrations";
 
 const log = (msg: string) => console.log(`[bybit-card] ${msg}`);
 
@@ -202,6 +203,13 @@ export const bybitCardAdapter: BankAdapter = {
     const firstCurrencyByPan4 = new Map<string, string>();
     const cardLast4ByExternal = new Map<string, string[]>();
 
+    // Build pan4 → internal accountId map from IntegrationAccountLink rows.
+    const accountLinks = await listAccountLinks(ctx.credentialId);
+    const accountIdByPan4 = new Map<string, string>();
+    for (const link of accountLinks) {
+      accountIdByPan4.set(link.externalAccountId, link.accountId);
+    }
+
     for (const record of result.rows) {
       // Track first-seen currency per card (USD for Bybit Card)
       if (!firstCurrencyByPan4.has(record.pan4)) {
@@ -238,6 +246,7 @@ export const bybitCardAdapter: BankAdapter = {
         cardLast4: record.pan4,
         source: "bybit-card",
         note,
+        accountId: accountIdByPan4.get(record.pan4) ?? undefined,
         raw: {
           transactionId: record.transactionId,
           outOrderId: record.outOrderId,
@@ -249,7 +258,12 @@ export const bybitCardAdapter: BankAdapter = {
       rows.push(row);
     }
 
-    log(`runSync: total ImportRows=${rows.length} from ${result.rawCount} raw records`);
+    const unlinkedCount = rows.filter((r) => !r.accountId).length;
+    if (unlinkedCount > 0) {
+      log(`runSync: WARNING ${unlinkedCount} rows have no IntegrationAccountLink — falling through to Bucket B`);
+    }
+
+    log(`runSync: total ImportRows=${rows.length} from ${result.rawCount} raw records (linked=${rows.length - unlinkedCount})`);
 
     // Card balance source: Earn-only.
     //

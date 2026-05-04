@@ -532,6 +532,7 @@ export async function syncCredential(
 
                   if (row.externalId) {
                     // Upsert: DB constraint importDedupe(accountId, source, externalId) handles dedupe.
+                    console.log(`[persist] adapter=${cred.adapterId} bucket=A path=upsert accountId=${accountId} source=${source} externalId=${row.externalId} amount=${row.amount} occurredAt=${row.occurredAt}`);
                     await tx.transaction.upsert({
                       where: {
                         importDedupe: {
@@ -570,6 +571,7 @@ export async function syncCredential(
                       rowsSkipped++;
                       continue;
                     }
+                    console.log(`[persist] adapter=${cred.adapterId} bucket=A path=create-no-extid accountId=${accountId} source=${source} amount=${row.amount} occurredAt=${row.occurredAt} desc=${(row.description ?? "").slice(0, 40)}`);
                     await tx.transaction.create({
                       data: {
                         userId,
@@ -632,7 +634,10 @@ export async function syncCredential(
       }
 
       // ── Bucket B: legacy single-account path (CSV adapters) ──
+      // CSV adapters (tinkoff-csv, generic-csv, tinkoff-email) do not set accountId on rows.
+      // bybit-card rows that lack an IntegrationAccountLink also fall through here.
       if (rowsWithoutAccountId.length > 0) {
+        console.warn(`[orchestrator] Bucket B: rows without accountId; adapter=${cred.adapterId} count=${rowsWithoutAccountId.length} — fallback to first account by sortOrder`);
         let accountId = opts?.accountId;
         if (!accountId) {
           const fallback = await db.account.findFirst({
@@ -684,14 +689,16 @@ export async function syncCredential(
                   row.kind === "TRANSFER" ? TransactionKind.TRANSFER :
                   TransactionKind.EXPENSE;
                 const name = (row.description ?? row.rawCategory ?? "Sync import").substring(0, 240);
+                const bucketBSource = row.source ?? cred.adapterId;
 
                 if (row.externalId) {
                   // Upsert: DB constraint importDedupe(accountId, source, externalId) handles dedupe.
+                  console.log(`[persist] adapter=${cred.adapterId} bucket=B path=upsert accountId=${accountId} source=${bucketBSource} externalId=${row.externalId} amount=${row.amount} occurredAt=${row.occurredAt}`);
                   await tx.transaction.upsert({
                     where: {
                       importDedupe: {
                         accountId,
-                        source: "tinkoff-retail",
+                        source: bucketBSource,
                         externalId: row.externalId,
                       },
                     },
@@ -711,7 +718,7 @@ export async function syncCredential(
                       occurredAt: new Date(row.occurredAt),
                       name,
                       externalId: row.externalId,
-                      source: "tinkoff-retail",
+                      source: bucketBSource,
                     },
                   });
                 } else {
@@ -721,6 +728,7 @@ export async function syncCredential(
                     rowsSkipped++;
                     continue;
                   }
+                  console.log(`[persist] adapter=${cred.adapterId} bucket=B path=create-no-extid accountId=${accountId} source=${bucketBSource} amount=${row.amount} occurredAt=${row.occurredAt} desc=${(row.description ?? "").slice(0, 40)}`);
                   await tx.transaction.create({
                     data: {
                       userId,
