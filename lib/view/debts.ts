@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import type { DebtWithTxns, DebtProgress } from "@/lib/data/debts";
-import { formatAmount } from "@/lib/format/money";
+import { formatMoney } from "@/lib/format/money";
 import { formatDateRu } from "@/lib/view/transactions";
 import type { TKey } from "@/lib/i18n/t";
 
@@ -20,10 +20,6 @@ export type DebtView = {
   progressLabel: string;
 };
 
-function reverseSymbol(formatted: string): string {
-  const idx = formatted.lastIndexOf(" ");
-  return `${formatted.slice(idx + 1)} ${formatted.slice(0, idx)}`;
-}
 
 function returnsSuffix(n: number, t: TFn): string {
   if (n === 1) return t("debts.returns_suffix.one");
@@ -48,13 +44,13 @@ export function toDebtView(
     ? debt.nextExpected.plannedAt
       ? t("debts.next_payment", {
           vars: {
-            amount: reverseSymbol(formatAmount(debt.nextExpected.amount, debt.currency)),
+            amount: formatMoney(debt.nextExpected.amount, debt.currency.code),
             date: formatDateRu(debt.nextExpected.plannedAt),
           },
         })
       : t("debts.next_payment_no_date", {
           vars: {
-            amount: reverseSymbol(formatAmount(debt.nextExpected.amount, debt.currency)),
+            amount: formatMoney(debt.nextExpected.amount, debt.currency.code),
           },
         })
     : debt.returnsCount > 0
@@ -70,7 +66,7 @@ export function toDebtView(
   const until = debt.dueAt ? formatDateRu(debt.dueAt) : t("common.no_deadline");
 
   const amtSign = dir === "out" ? "−" : "+";
-  const amountFormatted = reverseSymbol(formatAmount(principal, debt.currency));
+  const amountFormatted = formatMoney(principal, debt.currency.code);
   const amount = `${amtSign}${amountFormatted}`;
 
   const progressLabel = t("debts.progress_label", {

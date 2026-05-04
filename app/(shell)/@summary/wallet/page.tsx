@@ -22,11 +22,11 @@ export default async function WalletSummary() {
         <div className="net-hero">
           <div className="lbl">
             <span>{t("summary.wallet.net_label")}</span>
-            <span className="tiny">₽ {DEFAULT_CURRENCY}</span>
+            <span className="tiny">₽</span>
           </div>
           <div className="row">
-            <span className="big mono">
-              ₽ <CountUp to={totalNum} />
+            <span className="big mono money">
+              <CountUp to={totalNum} /> ₽
             </span>
           </div>
           <div className="sub mono">{t("summary.wallet.accounts_sub", { vars: { n: String(accountCount) } })}</div>

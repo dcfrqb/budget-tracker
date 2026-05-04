@@ -10,7 +10,7 @@ import { getCurrentUserId } from "@/lib/api/auth";
 import { db } from "@/lib/db";
 import { getLatestRatesMap, convertToBase } from "@/lib/data/wallet";
 import { Prisma, TransactionKind, TransactionStatus } from "@prisma/client";
-import { formatRubPrefix, formatRubPrefixRounded } from "@/lib/format/money";
+import { formatMoney } from "@/lib/format/money";
 import { getT } from "@/lib/i18n/server";
 
 export default async function IncomeSummary() {
@@ -70,11 +70,10 @@ export default async function IncomeSummary() {
 
   const upcomingRows = upcomingTxns.map((tx) => {
     const diffDays = Math.ceil((tx.occurredAt.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
-    const sym = tx.currencyCode === "RUB" ? "₽" : tx.currencyCode === "USD" ? "$" : tx.currencyCode === "EUR" ? "€" : tx.currencyCode;
     return {
       d: `${tx.occurredAt.getUTCDate()} ${monthShort[tx.occurredAt.getUTCMonth()]}`,
       n: tx.name,
-      v: `${sym} ${Number(new Prisma.Decimal(tx.amount).toFixed(0)).toLocaleString("ru-RU")} · ${diffDays}${t("common.unit.day")}`,
+      v: `${formatMoney(new Prisma.Decimal(tx.amount).toFixed(0), tx.currencyCode)} · ${diffDays}${t("common.unit.day")}`,
     };
   });
 
@@ -89,10 +88,10 @@ export default async function IncomeSummary() {
           <span className="tiny mono">{monthLabel}</span>
         </div>
         <div className="mono" style={{ fontSize: 24, fontWeight: 700, color: "var(--pos)" }}>
-          +{formatRubPrefixRounded(monthFact)}
+          +{formatMoney(monthFact, "RUB", { decimals: 0 })}
         </div>
         <div className="sum-table" style={{ marginTop: 6 }}>
-          <div className="r"><span>{t("summary.income.fact_key")}</span><span className="v">{formatRubPrefix(monthFact)}</span></div>
+          <div className="r"><span>{t("summary.income.fact_key")}</span><span className="v">{formatMoney(monthFact, "RUB")}</span></div>
         </div>
       </div>
       <div className="sum-block">

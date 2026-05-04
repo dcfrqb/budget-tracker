@@ -82,16 +82,14 @@ export function resolveCompareRange(
   return null;
 }
 
-const MONTH_SHORT_RU = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
-const MONTH_SHORT_EN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTH_KEYS = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"] as const;
 
-export function formatPeriodLabel(range: DateRange, locale: string): string {
-  const months = locale === "ru" ? MONTH_SHORT_RU : MONTH_SHORT_EN;
+export function formatPeriodLabel(range: DateRange, t: (key: TKey) => string): string {
   const from = range.from;
   const to = range.to;
 
-  const fromMon = months[from.getUTCMonth()];
-  const toMon = months[to.getUTCMonth()];
+  const fromMon = t(`common.month.short.${MONTH_KEYS[from.getUTCMonth()]}` as TKey);
+  const toMon = t(`common.month.short.${MONTH_KEYS[to.getUTCMonth()]}` as TKey);
 
   const fromYear = from.getUTCFullYear();
   const toYear = to.getUTCFullYear();

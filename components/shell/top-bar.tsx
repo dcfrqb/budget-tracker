@@ -4,7 +4,6 @@ import { getLatestRatesWithMeta, ensureFreshRates } from "@/lib/data/wallet";
 import { getHomeDashboard } from "@/lib/data/dashboard";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { getCurrentUserId } from "@/lib/api/auth";
-import { formatRate } from "@/lib/format/money";
 import { getT, getLocale } from "@/lib/i18n/server";
 import { getConnectedCredentials } from "@/lib/data/_queries/integrations";
 import { SyncButton } from "./sync-button";
@@ -63,9 +62,9 @@ export async function TopBar() {
       <div className="right">
         {(usdRub || eurRub) && (
           <span className="mono" title={ratesTitle ?? undefined}>
-            {usdRub && <>USD/RUB <b style={{ color: "var(--muted)" }}>{formatRate(usdRub.rate)}</b></>}
+            {usdRub && <>USD/RUB <b style={{ color: "var(--muted)" }}>{usdRub.rate.toFixed(2)}</b></>}
             {usdRub && eurRub && " · "}
-            {eurRub && <>EUR/RUB <b style={{ color: "var(--muted)" }}>{formatRate(eurRub.rate)}</b></>}
+            {eurRub && <>EUR/RUB <b style={{ color: "var(--muted)" }}>{eurRub.rate.toFixed(2)}</b></>}
           </span>
         )}
         <LiveClock />

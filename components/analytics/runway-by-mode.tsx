@@ -7,7 +7,7 @@ import { Segmented } from "@/components/segmented";
 import type { SegmentedOption } from "@/components/segmented";
 import { useT, useLocale } from "@/lib/i18n";
 import { formatDate } from "@/lib/format/date";
-import { formatRubPrefix } from "@/lib/format/money";
+import { formatMoney } from "@/lib/format/money";
 import { Prisma } from "@prisma/client";
 import type { RunwayDashboard } from "@/lib/data/analytics-runway";
 
@@ -103,7 +103,7 @@ export function RunwayByMode({ data, defaultMode }: Props) {
                     <li key={cat.categoryId} className="runway-breakdown-row mono">
                       <span className="runway-cat-name">{cat.name}</span>
                       <span className="runway-cat-limit num">
-                        {formatRubPrefix(new Prisma.Decimal(cat.limitBase))}
+                        {formatMoney(new Prisma.Decimal(cat.limitBase), "RUB")}
                       </span>
                     </li>
                   ))}

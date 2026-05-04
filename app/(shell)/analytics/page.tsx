@@ -27,10 +27,10 @@ import {
 } from "@/lib/data/analytics";
 import { getRunwayByMode } from "@/lib/data/analytics-runway";
 import { getHomeDashboard } from "@/lib/data/dashboard";
-import { getT, getLocale } from "@/lib/i18n/server";
+import { getT } from "@/lib/i18n/server";
 import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
-import { formatRubPrefix } from "@/lib/format/money";
+import { formatMoney } from "@/lib/format/money";
 import type { AnalyticsKpiItem } from "@/components/analytics/kpi-row";
 import type { PieSliceView } from "@/components/analytics/category-pie";
 import type { CompareRow } from "@/components/analytics/compare";
@@ -58,7 +58,7 @@ export default async function AnalyticsPage({
 }: {
   searchParams?: SearchParams;
 }) {
-  const [userId, t, locale] = await Promise.all([getCurrentUserId(), getT(), getLocale()]);
+  const [userId, t] = await Promise.all([getCurrentUserId(), getT()]);
 
   const sp = searchParams ? await searchParams : {};
   const trendPeriod = parseAnalyticsPeriod(sp.p);
@@ -69,8 +69,8 @@ export default async function AnalyticsPage({
 
   const compareRange = resolveCompareRange(currentRange, compareMode);
 
-  const currentPeriodLabel = formatPeriodLabel(currentRange, locale);
-  const previousPeriodLabel = compareRange ? formatPeriodLabel(compareRange, locale) : null;
+  const currentPeriodLabel = formatPeriodLabel(currentRange, t);
+  const previousPeriodLabel = compareRange ? formatPeriodLabel(compareRange, t) : null;
 
   const [kpis, pie, compare, forecast, weather, budgetSettings, runwayDashboard, trendPoints, homeDash] = await Promise.all([
     getPeriodKpis(userId, currentRange, DEFAULT_CURRENCY),
@@ -130,7 +130,7 @@ export default async function AnalyticsPage({
   const pieSlices: PieSliceView[] = pie.slice(0, 8).map((sl, i) => ({
     name: sl.categoryName,
     sub: sl.icon ?? "",
-    amount: formatRubPrefix(new Prisma.Decimal(sl.amountBase)),
+    amount: formatMoney(new Prisma.Decimal(sl.amountBase), "RUB"),
     pct: sl.pct,
     color: BAR_COLORS[i % BAR_COLORS.length],
     delta: "",
@@ -152,8 +152,8 @@ export default async function AnalyticsPage({
       return {
         name: r.categoryName,
         sub: "",
-        prev: formatRubPrefix(new Prisma.Decimal(r.previousBase)),
-        curr: formatRubPrefix(new Prisma.Decimal(r.currentBase)),
+        prev: formatMoney(new Prisma.Decimal(r.previousBase), "RUB"),
+        curr: formatMoney(new Prisma.Decimal(r.currentBase), "RUB"),
         delta: deltaStr,
         deltaTone,
         spark: [],
@@ -168,19 +168,19 @@ export default async function AnalyticsPage({
   const forecastCells: ForecastCell[] = [
     {
       k: t("analytics.forecast.income"),
-      v: formatRubPrefix(fcInflow),
+      v: formatMoney(fcInflow, "RUB"),
       s: t("analytics.forecast.sub_plan"),
       vTone: "pos",
     },
     {
       k: t("analytics.forecast.expense"),
-      v: formatRubPrefix(fcOutflow),
+      v: formatMoney(fcOutflow, "RUB"),
       s: t("analytics.forecast.sub_plan"),
       vTone: "",
     },
     {
       k: t("analytics.forecast.net"),
-      v: formatRubPrefix(fcNet),
+      v: formatMoney(fcNet, "RUB"),
       s: fcNet.gte(0) ? t("analytics.forecast.net_pos") : t("analytics.forecast.net_neg"),
       vTone: fcNet.gte(0) ? "pos" : "neg",
     },
@@ -245,7 +245,7 @@ export default async function AnalyticsPage({
       <TrendCharts points={trendPoints} granularity={granularity} safeUntilDaysNow={safeUntilDays} />
       <CategoryPie
         slices={pieSlices}
-        totalLabel={formatRubPrefix(pieTotal)}
+        totalLabel={formatMoney(pieTotal, "RUB")}
         periodLabel={currentPeriodLabel}
       />
       <Compare

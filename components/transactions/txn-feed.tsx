@@ -76,7 +76,10 @@ function TxnRow({ t, accounts, expanded, onToggle }: TxnRowProps) {
         </div>
         <div className="txn-acc">{t.account}</div>
         <div className={`txn-status ${STATUS_CLASS[t.status]}`}>{t.statusLabel}</div>
-        <div className={amtClass}>{t.amount}</div>
+        <div className="txn-amt-wrap">
+          <div className={amtClass}>{t.amount}</div>
+          {t.fxEquiv && <div className="txn-fx-equiv">{t.fxEquiv}</div>}
+        </div>
       </div>
       {expanded && (
         <div className="txn-row-actions-wrap">

@@ -17,8 +17,8 @@ import {
   periodMonthCount,
 } from "@/lib/analytics/period";
 import { Prisma } from "@prisma/client";
-import { formatRubPrefix } from "@/lib/format/money";
-import { getT, getLocale } from "@/lib/i18n/server";
+import { formatMoney } from "@/lib/format/money";
+import { getT } from "@/lib/i18n/server";
 
 type SearchParams = Promise<{ p?: string; cmp?: string }>;
 
@@ -31,7 +31,7 @@ export default async function AnalyticsSummary({
   const period = parseAnalyticsPeriod(sp.p);
   const compareMode = parseAnalyticsCompare(sp.cmp);
 
-  const [userId, t, locale] = await Promise.all([getCurrentUserId(), getT(), getLocale()]);
+  const [userId, t] = await Promise.all([getCurrentUserId(), getT()]);
 
   const currentRange = resolveRange(period);
   const compareRange = resolveCompareRange(currentRange, compareMode);
@@ -48,8 +48,8 @@ export default async function AnalyticsSummary({
   const net = new Prisma.Decimal(kpis.netBase);
   const avgNet = net.div(monthCount);
 
-  const currentPeriodLabel = formatPeriodLabel(currentRange, locale);
-  const comparePeriodLabel = compareRange ? formatPeriodLabel(compareRange, locale) : null;
+  const currentPeriodLabel = formatPeriodLabel(currentRange, t);
+  const comparePeriodLabel = compareRange ? formatPeriodLabel(compareRange, t) : null;
 
   const topDeltas = compareRows
     .filter((r) => r.deltaPct !== null)
@@ -88,7 +88,7 @@ export default async function AnalyticsSummary({
           <div className="sub mono">
             {t("summary.analytics.avg_net_sub")} &middot;{" "}
             <span className={net.gte(0) ? "acc" : "neg"}>
-              {net.gte(0) ? "+" : "−"}{formatRubPrefix(net.abs())}
+              {net.gte(0) ? "+" : "−"}{formatMoney(net.abs(), "RUB")}
             </span>
           </div>
         </div>

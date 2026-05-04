@@ -15,7 +15,7 @@ import { getLongProjects } from "@/lib/data/long-projects";
 import { getLatestRatesMap, convertToBase } from "@/lib/data/wallet";
 import { db } from "@/lib/db";
 import { Prisma, TransactionKind, TransactionStatus } from "@prisma/client";
-import { formatRubPrefix } from "@/lib/format/money";
+import { formatMoney } from "@/lib/format/money";
 import { computeAmortization } from "@/lib/amortization";
 import { getT } from "@/lib/i18n/server";
 import type { LongProjectView } from "@/components/expenses/long-projects";
@@ -49,7 +49,7 @@ function parsePeriodDays(period: string | undefined): number {
 const MONTH_KEYS = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"] as const;
 
 function fmtBase(n: Prisma.Decimal): string {
-  return formatRubPrefix(n);
+  return formatMoney(n, "RUB");
 }
 
 export default async function ExpensesPage({
@@ -234,16 +234,11 @@ export default async function ExpensesPage({
   // ── Subscriptions summary view ──────────────────────────────
   const { totals: subTotals, personal, split, paidForOthers } = subscriptionsGrouped;
 
-  function fmtMoney(d: Prisma.Decimal): string {
-    const n = Number(d.toFixed(0));
-    return n > 0 ? `₽ ${n.toLocaleString("en-US").replace(/,/g," ")}` : "₽ 0";
-  }
-
   const subsMonthlyTotals: SubsMonthlyTotals = {
-    personal: fmtMoney(subTotals.personalBase),
-    split: fmtMoney(subTotals.splitBase),
-    paidForOthers: fmtMoney(subTotals.paidForOthersBase),
-    total: fmtMoney(subTotals.monthlyBase),
+    personal: formatMoney(subTotals.personalBase, "RUB"),
+    split: formatMoney(subTotals.splitBase, "RUB"),
+    paidForOthers: formatMoney(subTotals.paidForOthersBase, "RUB"),
+    total: formatMoney(subTotals.monthlyBase, "RUB"),
   };
 
   const BADGE_MAP: Record<string, "personal" | "split" | "pays"> = {
@@ -276,8 +271,7 @@ export default async function ExpensesPage({
     const badge = BADGE_MAP[s.sharingType] ?? "personal";
     const diff = Math.ceil((s.nextPaymentDate.getTime() - now.getTime()) / (24*60*60*1000));
     const nextTone: "warn" | "ok" = diff <= 14 ? "warn" : "ok";
-    const sym = s.currencyCode === "RUB" ? "₽" : s.currencyCode === "USD" ? "$" : s.currencyCode === "EUR" ? "€" : s.currencyCode;
-    const amountDisplay = `${sym} ${new Prisma.Decimal(s.price).toFixed(s.currencyCode === "RUB" ? 0 : 2)}`;
+    const amountDisplay = formatMoney(new Prisma.Decimal(s.price), s.currencyCode);
 
     return {
       id: s.id,

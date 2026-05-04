@@ -12,7 +12,7 @@ import { getPlannedEvents } from "@/lib/data/planned-events";
 import { getPrimaryWorkSource } from "@/lib/data/work-sources";
 import { getT } from "@/lib/i18n/server";
 import { Prisma } from "@prisma/client";
-import { formatRubPrefix } from "@/lib/format/money";
+import { formatMoney } from "@/lib/format/money";
 import { db } from "@/lib/db";
 import type { FundCardView } from "@/components/planning/funds";
 import type { BigPurchaseView } from "@/components/planning/big-purchases";
@@ -70,7 +70,7 @@ export default async function PlanningPage() {
       hourlyRate = new Prisma.Decimal(primaryWorkSource.baseAmount).div(hoursPerMonth);
     }
     if (hourlyRate) {
-      hourlyRateLabel = `₽ ${hourlyRate.toFixed(0)}/${t("common.unit.hour")}`;
+      hourlyRateLabel = `${formatMoney(hourlyRate, "RUB", { decimals: 0 })}/${t("common.unit.hour")}`;
     }
   }
 
@@ -163,17 +163,17 @@ export default async function PlanningPage() {
       name: f.name,
       sub: f.note ?? "",
       stats: [
-        { k: t("planning.fund_stat.saved"), v: formatRubPrefix(current), tone: "acc" },
-        { k: t("planning.fund_stat.goal"), v: formatRubPrefix(goal) },
+        { k: t("planning.fund_stat.saved"), v: formatMoney(current, f.currencyCode), tone: "acc" },
+        { k: t("planning.fund_stat.goal"), v: formatMoney(goal, f.currencyCode) },
         ...(monthlyContrib.gt(0)
-          ? [{ k: t("planning.fund_stat.monthly_contrib"), v: formatRubPrefix(monthlyContrib) }]
+          ? [{ k: t("planning.fund_stat.monthly_contrib"), v: formatMoney(monthlyContrib, f.currencyCode) }]
           : []),
         ...(monthsLeft !== null
           ? [{ k: t("planning.fund_stat.months_left"), v: String(monthsLeft) }]
           : []),
       ],
-      progLeft: formatRubPrefix(current),
-      progRight: formatRubPrefix(goal),
+      progLeft: formatMoney(current, f.currencyCode),
+      progRight: formatMoney(goal, f.currencyCode),
       pct,
       hours: hoursToGoal,
       hoursUnit: t("common.unit.hour"),
@@ -238,7 +238,7 @@ export default async function PlanningPage() {
       name: evt.name,
       sub: evt.note ?? "",
       fundLabel: undefined,
-      amount: evt.expectedAmount ? formatRubPrefix(new Prisma.Decimal(evt.expectedAmount)) : "—",
+      amount: evt.expectedAmount ? formatMoney(new Prisma.Decimal(evt.expectedAmount), evt.currencyCode ?? "RUB") : "—",
       amountTone: diffDays <= 14 ? "warn" : undefined,
     };
     monthMap.get(key)!.events.push(calEvt);
@@ -256,7 +256,7 @@ export default async function PlanningPage() {
     mo: monthShort[evt.eventDate.getUTCMonth()],
     n: evt.name,
     m: evt.note ?? fundKindLabel(evt.kind),
-    amount: evt.expectedAmount ? formatRubPrefix(new Prisma.Decimal(evt.expectedAmount)) : "—",
+    amount: evt.expectedAmount ? formatMoney(new Prisma.Decimal(evt.expectedAmount), evt.currencyCode ?? "RUB") : "—",
   }));
 
   return (

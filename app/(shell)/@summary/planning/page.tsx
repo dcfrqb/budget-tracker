@@ -1,4 +1,3 @@
-import { CountUp } from "@/components/count-up";
 import {
   AvailableBlock,
   BalancesBlock,
@@ -10,40 +9,40 @@ import { getCurrentUserId } from "@/lib/api/auth";
 import { getFundsWithProgress } from "@/lib/data/funds";
 import { getPlannedEvents } from "@/lib/data/planned-events";
 import { Prisma } from "@prisma/client";
-import { formatRubPrefix } from "@/lib/format/money";
+import { formatMoney } from "@/lib/format/money";
 import { getT } from "@/lib/i18n/server";
 
 const MONTH_KEYS = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"] as const;
 
 type FundsTotalProps = {
-  totalSaved: number;
-  totalGoal: number;
   progressPct: number;
-  monthlyContrib: number;
   fundsCount: number;
   labels: {
     title: string;
     fundsCount: string;
+    totalSavedFmt: string;
     goalKey: string;
     progressKey: string;
     contribKey: string;
+    totalGoalFmt: string;
+    monthlyContribFmt: string;
   };
 };
 
-function FundsTotal({ totalSaved, totalGoal, progressPct, monthlyContrib, fundsCount, labels }: FundsTotalProps) {
+function FundsTotal({ progressPct, fundsCount, labels }: FundsTotalProps) {
   return (
     <div className="sum-block">
       <div className="lbl">
         <span>{labels.title}</span>
         <span className="tiny mono">{labels.fundsCount}</span>
       </div>
-      <div className="mono" style={{ fontSize: 24, fontWeight: 700, color: "var(--accent)" }}>
-        ₽ <CountUp to={totalSaved} />
+      <div className="mono money" style={{ fontSize: 24, fontWeight: 700, color: "var(--accent)" }}>
+        {labels.totalSavedFmt}
       </div>
       <div className="sum-table" style={{ marginTop: 6 }}>
-        <div className="r"><span>{labels.goalKey}</span><span className="v">₽ {totalGoal.toLocaleString("ru-RU")}</span></div>
+        <div className="r"><span>{labels.goalKey}</span><span className="v money">{labels.totalGoalFmt}</span></div>
         <div className="r"><span>{labels.progressKey}</span><span className="v" style={{ color: "var(--accent)" }}>{progressPct}%</span></div>
-        <div className="r"><span>{labels.contribKey}</span><span className="v">₽ {monthlyContrib.toLocaleString("ru-RU")}</span></div>
+        <div className="r"><span>{labels.contribKey}</span><span className="v money">{labels.monthlyContribFmt}</span></div>
       </div>
     </div>
   );
@@ -109,7 +108,7 @@ export default async function PlanningSummary() {
       d: `${evt.eventDate.getUTCDate()} ${monthShort[evt.eventDate.getUTCMonth()]}`,
       n: evt.name,
       v: evt.expectedAmount
-        ? formatRubPrefix(new Prisma.Decimal(evt.expectedAmount))
+        ? formatMoney(new Prisma.Decimal(evt.expectedAmount), evt.currencyCode ?? "RUB")
         : `${diffDays}${t("common.unit.day")}`,
     };
   });
@@ -123,17 +122,17 @@ export default async function PlanningSummary() {
     <SummaryShell>
       <SafeUntilBlock />
       <FundsTotal
-        totalSaved={Number(totalSaved.toFixed(0))}
-        totalGoal={Number(totalGoal.toFixed(0))}
         progressPct={progressPct}
-        monthlyContrib={Number(totalMonthly.toFixed(0))}
         fundsCount={funds.length}
         labels={{
           title: t("summary.planning.funds_label"),
           fundsCount: `${funds.length} ${t("planning.kpi.saved_sub", { vars: { count: String(funds.length) } }).split(" ").slice(1).join(" ")}`,
+          totalSavedFmt: formatMoney(totalSaved, "RUB", { decimals: 0 }),
           goalKey: t("summary.planning.goal_total_key"),
           progressKey: t("summary.planning.progress_key"),
           contribKey: t("summary.planning.contrib_month_key"),
+          totalGoalFmt: formatMoney(totalGoal, "RUB", { decimals: 0 }),
+          monthlyContribFmt: formatMoney(totalMonthly, "RUB", { decimals: 0 }),
         }}
       />
       <NextEvents

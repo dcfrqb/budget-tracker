@@ -66,8 +66,8 @@ export function GroupHeader({ group }: { group?: GroupHeaderData }) {
           {group.stats.map((s, i) => (
             <div key={i} className="grp-cell">
               <div className="k">{s.k}</div>
-              <div className={`v ${s.tone}`}>
-                {s.prefix ?? "₽"} <CountUp to={s.v} />
+              <div className={`v ${s.tone} money`}>
+                <CountUp to={s.v} /> {s.prefix ?? "₽"}
               </div>
               <div className="s">{s.s}</div>
             </div>

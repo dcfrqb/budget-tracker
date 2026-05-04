@@ -13,6 +13,7 @@ import { getUserFamily, getFamilyWithMembers } from "@/lib/data/families";
 import { getFundsWithProgress } from "@/lib/data/funds";
 import { getSubscriptionsGrouped } from "@/lib/data/subscriptions";
 import { getT } from "@/lib/i18n/server";
+import { formatMoney } from "@/lib/format/money";
 import Link from "next/link";
 import type { GroupHeaderData } from "@/components/family/group-header";
 import type { MemberCardView } from "@/components/family/members";
@@ -123,7 +124,7 @@ export default async function FamilyPage() {
       sub: f.note ?? "",
       contrib: [{
         who: t("family.fund.contrib_total"),
-        amount: `₽ ${Number(f.currentAmount.toFixed(0)).toLocaleString("ru-RU")}`,
+        amount: formatMoney(f.currentAmount.toFixed(0), f.currencyCode),
         tone: "acc",
       }],
       pct,
@@ -136,7 +137,6 @@ export default async function FamilyPage() {
   const splitSubs = [...subsGrouped.split, ...subsGrouped.paidForOthers];
 
   const sharedSubRows = splitSubs.slice(0, 10).map((s) => {
-    const sym = s.currencyCode === "RUB" ? "₽" : s.currencyCode === "USD" ? "$" : s.currencyCode === "EUR" ? "€" : s.currencyCode;
     return {
       id: s.id,
       icon: s.icon ?? s.name.charAt(0).toUpperCase(),
@@ -151,7 +151,7 @@ export default async function FamilyPage() {
         letter: m.letter ?? m.displayName.charAt(0).toUpperCase(),
         color: m.color ?? MEMBER_COLORS[i % MEMBER_COLORS.length],
       })),
-      amount: `${sym} ${Number(s.price).toLocaleString("ru-RU")}`,
+      amount: formatMoney(s.price, s.currencyCode),
       your: t("family.your_share"),
     };
   });

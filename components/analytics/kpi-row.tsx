@@ -16,9 +16,9 @@ export type AnalyticsKpiItem = {
 function Val({ v, fmt }: { v: number; fmt: string }) {
   const t = useT();
   if (fmt === "days") return <><CountUp to={v} format="int" /> {t("common.unit.day")}</>;
-  if (fmt === "money-pos") return <>+₽ <CountUp to={v} /></>;
-  if (fmt === "money-neg") return <>{"−"}₽ <CountUp to={v} /></>;
-  return <>₽ <CountUp to={v} /></>;
+  if (fmt === "money-pos") return <span className="money">+<CountUp to={v} /> ₽</span>;
+  if (fmt === "money-neg") return <span className="money">{"−"}<CountUp to={v} /> ₽</span>;
+  return <span className="money"><CountUp to={v} /> ₽</span>;
 }
 
 export function AnalyticsKpiRow({

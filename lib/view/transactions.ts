@@ -1,5 +1,5 @@
 import { Prisma, TransactionKind, TransactionStatus } from "@prisma/client";
-import { formatAmount } from "@/lib/format/money";
+import { formatMoney } from "@/lib/format/money";
 import { convertToBase } from "@/lib/data/wallet";
 import { DEFAULT_TZ } from "@/lib/constants";
 import type {
@@ -32,6 +32,7 @@ export type TxnView = {
   amountTone?: Tone;
   amountStrike?: boolean;
   reimbursable?: boolean;
+  fxEquiv?: string;
 };
 
 export type TxnDayTotal = {
@@ -163,24 +164,17 @@ export function formatTime(d: Date): string {
   return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 }
 
-// "+₽ 120 000" / "−₽ 1 860" / "₽ 20 000" (transfer) / "+$ 45 000".
-// sign="-" yields Unicode minus (U+2212), not ASCII hyphen, for consistency
-// with day-totals and mock data.
+// "+1 599 ₽" / "−1 860 ₽" / "1 599 ₽" (transfer) / "+$ 45.00".
+// sign="-" yields Unicode minus (U+2212), not ASCII hyphen, for consistency.
 function signedAmount(
   amount: Prisma.Decimal | string,
   currency: { code: string; symbol: string; decimals: number },
   sign: "+" | "-" | "",
 ): string {
-  const base = formatAmount(amount, currency);
-  const [num, sym] = splitTail(base);
-  if (sign === "") return `${sym} ${num}`;
+  const body = formatMoney(amount, currency.code);
+  if (sign === "") return body;
   const visibleSign = sign === "-" ? "−" : "+";
-  return `${visibleSign}${sym} ${num}`;
-}
-
-function splitTail(s: string): [string, string] {
-  const idx = s.lastIndexOf(" ");
-  return [s.slice(0, idx), s.slice(idx + 1)];
+  return `${visibleSign}${body}`;
 }
 
 // ─────────────────────────────────────────────
@@ -243,7 +237,7 @@ function resolveNote(
 
     // Fully reimbursed → "acc" tone, "received" without "of".
     if (expected && !received.isZero() && received.gte(expected)) {
-      const recStr = reverseSymbol(formatAmount(received, txn.currency));
+      const recStr = formatMoney(received, txn.currency.code);
       return {
         note: `${prefix} · ${txn.reimbursementFromName} · ${t("transactions.reimbursement.received")} ${recStr}`,
         noteTone: "acc",
@@ -251,9 +245,9 @@ function resolveNote(
     }
     // Partially reimbursed → "warn" tone, "received X of Y".
     if (!received.isZero()) {
-      const recStr = reverseSymbol(formatAmount(received, txn.currency));
+      const recStr = formatMoney(received, txn.currency.code);
       if (expected) {
-        const expStr = reverseSymbol(formatAmount(expected, txn.currency));
+        const expStr = formatMoney(expected, txn.currency.code);
         return {
           note: `${prefix} · ${txn.reimbursementFromName} · ${t("transactions.reimbursement.received_partial", { vars: { rec: recStr, exp: expStr } })}`,
           noteTone: "warn",
@@ -266,7 +260,7 @@ function resolveNote(
     }
     // Nothing received yet — show expected amount.
     const expectedSuffix = expected
-      ? ` · ${t("transactions.reimbursement.expected", { vars: { amount: reverseSymbol(formatAmount(expected, txn.currency)) } })}`
+      ? ` · ${t("transactions.reimbursement.expected", { vars: { amount: formatMoney(expected, txn.currency.code) } })}`
       : "";
     return {
       note: `${prefix} · ${txn.reimbursementFromName}${expectedSuffix}`,
@@ -280,15 +274,23 @@ function resolveNote(
   return {};
 }
 
-// "3 000 ₽" → "₽ 3 000" (for embedding after "expected").
-function reverseSymbol(formatted: string): string {
-  const [num, sym] = splitTail(formatted);
-  return `${sym} ${num}`;
-}
 
-export function toTxnView(txn: TxnWithJoins, t: TFn): TxnView {
+export function toTxnView(
+  txn: TxnWithJoins,
+  t: TFn,
+  rates?: Map<string, Prisma.Decimal>,
+  baseCcy?: string,
+): TxnView {
   const { tone, sign, strike } = amountToneAndPrefix(txn);
   const { note, noteTone } = resolveNote(txn, t);
+
+  let fxEquiv: string | undefined;
+  if (rates && baseCcy && txn.currencyCode !== baseCcy) {
+    const inBase = convertToBase(txn.amount, txn.currencyCode, baseCcy, rates);
+    if (inBase) {
+      fxEquiv = formatMoney(new Prisma.Decimal(inBase.toFixed(0)), baseCcy, { approx: true });
+    }
+  }
 
   return {
     id: txn.id,
@@ -305,6 +307,7 @@ export function toTxnView(txn: TxnWithJoins, t: TFn): TxnView {
     amountTone: tone,
     ...(strike ? { amountStrike: true } : {}),
     ...(txn.isReimbursable ? { reimbursable: true } : {}),
+    ...(fxEquiv ? { fxEquiv } : {}),
   };
 }
 
@@ -312,7 +315,6 @@ export function toTxnView(txn: TxnWithJoins, t: TFn): TxnView {
 // DAY GROUP → TxnDayView
 // ─────────────────────────────────────────────
 
-const RUB_SHAPE = { code: "RUB", symbol: "₽", decimals: 2 };
 
 function dayTotalsFromTxns(
   txns: TxnWithJoins[],
@@ -410,9 +412,7 @@ function dayTotalsFromTxns(
 }
 
 function formatRub(amount: Prisma.Decimal): string {
-  const base = formatAmount(amount, RUB_SHAPE);
-  const [num, sym] = splitTail(base);
-  return `${sym} ${num}`;
+  return formatMoney(amount, "RUB");
 }
 
 export function toTxnDayView(
@@ -429,7 +429,7 @@ export function toTxnDayView(
     weekday: formatWeekdayRu(d, today, t),
     totals,
     hasConvertedAmounts,
-    txns: raw.txns.map((txn) => toTxnView(txn, t)),
+    txns: raw.txns.map((txn) => toTxnView(txn, t, rates, baseCcy)),
   };
 }
 

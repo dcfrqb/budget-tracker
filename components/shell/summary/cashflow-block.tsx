@@ -3,7 +3,7 @@ import { Sparkline } from "@/components/shell/sparkline";
 import { getCashflow30dDailyNet } from "@/lib/data/dashboard";
 import { getCurrentUserId } from "@/lib/api/auth";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
-import { formatRubPrefix } from "@/lib/format/money";
+import { formatMoney } from "@/lib/format/money";
 import { Prisma } from "@prisma/client";
 
 export async function CashflowBlock({ points, deltaLabel }: { points?: number[]; deltaLabel?: string }) {
@@ -26,9 +26,9 @@ export async function CashflowBlock({ points, deltaLabel }: { points?: number[];
     const diff = last7 - prev7;
     const absDiff = new Prisma.Decimal(Math.abs(diff));
     if (diff >= 0) {
-      resolvedDeltaLabel = t("summary.home.cashflow.delta_pos", { vars: { amount: formatRubPrefix(absDiff) } });
+      resolvedDeltaLabel = t("summary.home.cashflow.delta_pos", { vars: { amount: formatMoney(absDiff, "RUB") } });
     } else {
-      resolvedDeltaLabel = t("summary.home.cashflow.delta_neg", { vars: { amount: formatRubPrefix(absDiff) } });
+      resolvedDeltaLabel = t("summary.home.cashflow.delta_neg", { vars: { amount: formatMoney(absDiff, "RUB") } });
     }
   }
 

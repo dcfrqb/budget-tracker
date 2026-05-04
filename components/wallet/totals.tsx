@@ -15,7 +15,7 @@ export function WalletTotals({ totals }: Props) {
           {totals.map((t, i) => (
             <div key={i} className="total-cell">
               <div className="k">{t.k}</div>
-              <div className={`v ${t.tone}`}>₽ <CountUp to={t.value} /></div>
+              <div className={`v ${t.tone} money`}><CountUp to={t.value} /> ₽</div>
               <div className="s">{t.s}</div>
             </div>
           ))}

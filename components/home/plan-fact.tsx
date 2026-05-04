@@ -69,9 +69,8 @@ export async function PlanFact({
             return (
               <div className="pf-cell" key={cell.code}>
                 <div className={`code ${cell.kind} mono`}>{cell.code}</div>
-                <div className="val mono" style={{ color: BAR_COLOR[cell.color] }}>
-                  {cell.currency}{" "}
-                  <CountUp to={cell.fact} />
+                <div className="val mono money" style={{ color: BAR_COLOR[cell.color] }}>
+                  {cell.sign}<CountUp to={cell.fact} /> ₽
                 </div>
                 <div className="of mono" style={cell.noPlan ? { color: "var(--muted)" } : undefined}>
                   {subText}

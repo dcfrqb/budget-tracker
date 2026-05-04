@@ -12,7 +12,7 @@ import { getSubscriptionsGrouped } from "@/lib/data/subscriptions";
 import { computeAmortization } from "@/lib/amortization";
 import { getLatestRatesMap, convertToBase } from "@/lib/data/wallet";
 import { Prisma } from "@prisma/client";
-import { formatRubPrefix } from "@/lib/format/money";
+import { formatMoney } from "@/lib/format/money";
 import { getT } from "@/lib/i18n/server";
 
 type ReservedRow = { k: string; tag: string; v: string; tone: string };
@@ -48,17 +48,17 @@ export default async function ExpensesSummary() {
   const totalReserve = loanReserve.plus(subsMonthly);
 
   const reservedRows: ReservedRow[] = [
-    { k: t("summary.expenses.loans_key"), tag: "loan", v: formatRubPrefix(loanReserve), tone: loanReserve.gt(0) ? "var(--warn)" : "var(--muted)" },
-    { k: t("summary.expenses.subs_key"), tag: "sub", v: formatRubPrefix(subsMonthly), tone: "var(--info)" },
+    { k: t("summary.expenses.loans_key"), tag: "loan", v: formatMoney(loanReserve, "RUB"), tone: loanReserve.gt(0) ? "var(--warn)" : "var(--muted)" },
+    { k: t("summary.expenses.subs_key"), tag: "sub", v: formatMoney(subsMonthly, "RUB"), tone: "var(--info)" },
   ];
 
   const toneMap = { text: "var(--text)", info: "var(--info)", acc: "var(--accent)" } as const;
 
   const subsMonthlyRows = [
-    { k: t("summary.expenses.personal_key"), v: formatRubPrefix(subsGrouped.totals.personalBase), tone: "text" as const },
-    { k: t("summary.expenses.split_key"), v: formatRubPrefix(subsGrouped.totals.splitBase), tone: "info" as const },
-    { k: t("summary.expenses.paid_for_others_key"), v: formatRubPrefix(subsGrouped.totals.paidForOthersBase), tone: "acc" as const },
-    { k: t("summary.expenses.total_key"), v: formatRubPrefix(subsMonthly), tone: "text" as const },
+    { k: t("summary.expenses.personal_key"), v: formatMoney(subsGrouped.totals.personalBase, "RUB"), tone: "text" as const },
+    { k: t("summary.expenses.split_key"), v: formatMoney(subsGrouped.totals.splitBase, "RUB"), tone: "info" as const },
+    { k: t("summary.expenses.paid_for_others_key"), v: formatMoney(subsGrouped.totals.paidForOthersBase, "RUB"), tone: "acc" as const },
+    { k: t("summary.expenses.total_key"), v: formatMoney(subsMonthly, "RUB"), tone: "text" as const },
   ];
 
   return (
@@ -67,7 +67,7 @@ export default async function ExpensesSummary() {
       <div className="sum-block">
         <div className="lbl">
           <span>{t("summary.expenses.reserve_label")}</span>
-          <span className="tiny mono">{formatRubPrefix(totalReserve)}</span>
+          <span className="tiny mono">{formatMoney(totalReserve, "RUB")}</span>
         </div>
         <div className="reserved">
           {reservedRows.map((r) => (
@@ -82,7 +82,7 @@ export default async function ExpensesSummary() {
       <div className="sum-block">
         <div className="lbl">
           <span>{t("summary.expenses.subs_label")}</span>
-          <span className="tiny mono">{formatRubPrefix(subsMonthly)}</span>
+          <span className="tiny mono">{formatMoney(subsMonthly, "RUB")}</span>
         </div>
         <div className="sum-table">
           {subsMonthlyRows.map((r) => (
@@ -97,7 +97,7 @@ export default async function ExpensesSummary() {
       <SessionStateBlock
         rows={[
           { tone: "pos", k: t("summary.expenses.mode_key"), v: t("summary.expenses.mode_val"), vClass: "pos" },
-          { tone: loanReserve.gt(0) ? "warn" : "pos", k: t("summary.expenses.reserve_key"), v: formatRubPrefix(totalReserve), vClass: loanReserve.gt(0) ? "neg" : "muted" },
+          { tone: loanReserve.gt(0) ? "warn" : "pos", k: t("summary.expenses.reserve_key"), v: formatMoney(totalReserve, "RUB"), vClass: loanReserve.gt(0) ? "neg" : "muted" },
           { tone: "pos", k: t("summary.expenses.subs_count_key"), v: String(subsGrouped.totals.activeCount), vClass: "acc" },
         ]}
       />

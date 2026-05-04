@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import type { AccountKind } from "@prisma/client";
-import { formatAmount, formatRate, formatRubPrefix } from "@/lib/format/money";
+import { formatMoney } from "@/lib/format/money";
 import { formatRelative } from "@/lib/format/relative-time";
 import type { Locale, TOptions } from "@/lib/i18n/types";
 import type { TKey } from "@/lib/i18n/t";
@@ -72,7 +72,7 @@ function approxRubString(
 ): string | null {
   const inBase = convertToBase(amount, fromCcy, baseCcy, rates);
   if (!inBase) return null;
-  return `≈ ${formatRubPrefix(new Prisma.Decimal(inBase.toFixed(0))).replace("₽ ", "")} ₽`;
+  return formatMoney(new Prisma.Decimal(inBase.toFixed(0)), baseCcy, { approx: true });
 }
 
 export function toAccountView(
@@ -81,7 +81,7 @@ export function toAccountView(
   baseCcy: string,
   locale: Locale = "ru",
 ): AccountView {
-  const value = formatAmount(a.balance, a.currency);
+  const value = formatMoney(a.balance, a.currencyCode);
 
   // Собираем updated из 2 частей: "≈ N ₽" (для инвалютных) + "обн N мин" (если трогали баланс).
   const parts: string[] = [];
@@ -109,9 +109,9 @@ export function toAccountView(
 
   if (a.kind === "CREDIT") {
     const state = resolveCreditState(a);
-    creditDebt = formatAmount(state.debt, a.currency);
-    creditAvailable = formatAmount(state.available, a.currency);
-    creditLimit = state.hasLimit ? formatAmount(state.limit!, a.currency) : undefined;
+    creditDebt = formatMoney(state.debt, a.currencyCode);
+    creditAvailable = formatMoney(state.available, a.currencyCode);
+    creditLimit = state.hasLimit ? formatMoney(state.limit!, a.currencyCode) : undefined;
     creditNoLimit = !state.hasLimit;
   }
 
@@ -194,13 +194,14 @@ export function toCashStashView(
   rates: Map<string, Prisma.Decimal>,
   baseCcy: string,
 ): CashStashView {
-  const value = formatAmount(a.balance, a.currency);
+  const value = formatMoney(a.balance, a.currencyCode);
   let sub = a.sub ?? "";
   if (a.currencyCode !== baseCcy) {
     const inBase = convertToBase(a.balance, a.currencyCode, baseCcy, rates);
     if (inBase) {
       const rounded = new Prisma.Decimal(inBase.toFixed(0));
-      sub = `≈ ${formatRubPrefix(rounded).replace("₽ ", "")} ₽${sub ? " · " + sub : ""}`;
+      const approx = formatMoney(rounded, baseCcy, { approx: true });
+      sub = `${approx}${sub ? " · " + sub : ""}`;
     }
   }
   return {
@@ -247,7 +248,7 @@ export function toArchivedView(a: AccountWithCurrency): ArchivedView {
     name: a.name,
     sub: a.sub ?? "",
     ccy: a.currencyCode,
-    value: formatAmount(a.balance, a.currency),
+    value: formatMoney(a.balance, a.currencyCode),
     updated: archivedAgo(a.archivedAt),
   };
 }
@@ -265,7 +266,7 @@ export type FxRateView = {
 
 // Для FX-таблицы: рост курса = валюта иностранная дорожает = цвет neg.
 export function toFxRateView(row: FxRateRow): FxRateView {
-  const val = formatRate(row.rate);
+  const val = new Prisma.Decimal(row.rate).toFixed(2);
   if (row.delta24hPct === null) {
     return { pair: [row.fromCcy, row.toCcy], val, delta: "—", deltaTone: "mut" };
   }

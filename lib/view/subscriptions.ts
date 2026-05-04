@@ -7,7 +7,7 @@ import { Prisma } from "@prisma/client";
 import type { SharingType } from "@prisma/client";
 import type { SubscriptionWithDetails, SubscriptionTotals } from "@/lib/data/subscriptions";
 import { computeMyCost } from "@/lib/subscription-share";
-import { formatAmount, formatRubPrefix } from "@/lib/format/money";
+import { formatMoney } from "@/lib/format/money";
 import { formatShortDate } from "@/lib/format/date";
 import type { TKey } from "@/lib/i18n/t";
 import type { Locale } from "@/lib/i18n/types";
@@ -73,8 +73,8 @@ export function toSubscriptionCardView(
     shares: sharesInput,
   });
 
-  const priceStr = formatAmount(sub.price, sub.currency);
-  const myCostStr = formatAmount(myCost, sub.currency);
+  const priceStr = formatMoney(sub.price, sub.currency.code);
+  const myCostStr = formatMoney(myCost, sub.currency.code);
 
   const myShareStr =
     sub.sharingType !== "PERSONAL" && !myCost.equals(new Prisma.Decimal(sub.price))
@@ -194,13 +194,13 @@ export function toSubscriptionsSummaryView(
       vars: { count: totals.activeCount },
     }),
     monthly: t("expenses.subscriptions.summary.monthly", {
-      vars: { amount: formatRubPrefix(totals.monthlyBase).replace("₽ ", "") },
+      vars: { amount: formatMoney(totals.monthlyBase, "RUB") },
     }),
     personalLabel: t("expenses.subscriptions.summary.personalLabel"),
-    personalAmount: formatRubPrefix(totals.personalBase),
+    personalAmount: formatMoney(totals.personalBase, "RUB"),
     splitLabel: t("expenses.subscriptions.summary.splitLabel"),
-    splitAmount: formatRubPrefix(totals.splitBase),
+    splitAmount: formatMoney(totals.splitBase, "RUB"),
     paidForOthersLabel: t("expenses.subscriptions.summary.paidForOthersLabel"),
-    paidForOthersAmount: formatRubPrefix(totals.paidForOthersBase),
+    paidForOthersAmount: formatMoney(totals.paidForOthersBase, "RUB"),
   };
 }

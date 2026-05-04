@@ -18,6 +18,7 @@ import { db } from "@/lib/db";
 import { toPeriodSummaryView, toTxnDayView } from "@/lib/view/transactions";
 import { toDebtView } from "@/lib/view/debts";
 import { Prisma, TransactionKind } from "@prisma/client";
+import { formatMoney } from "@/lib/format/money";
 import type { ListFilters } from "@/lib/data/transactions";
 
 export const dynamic = "force-dynamic";
@@ -132,7 +133,7 @@ export default async function TransactionsPage({
   }
   const netDebtStr = netDebt.isZero()
     ? "0"
-    : `${netDebt.gt(0) ? "+" : ""}₽ ${Math.floor(netDebt.toNumber()).toLocaleString("ru-RU").replace(/,/g, " ")} ${netDebt.gt(0) ? "out" : netDebt.lt(0) ? "in" : ""}`.trim();
+    : `${netDebt.gt(0) ? "+" : ""}${formatMoney(netDebt.abs(), "RUB")} ${netDebt.gt(0) ? "out" : netDebt.lt(0) ? "in" : ""}`.trim();
   const debtMeta = `${t("transactions.debt_meta", { vars: { count: String(debts.length) } })} ${netDebtStr}`.trim();
 
   // First non-archived account as default for quick input

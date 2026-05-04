@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getT } from "@/lib/i18n/server";
+import { formatMoney } from "@/lib/format/money";
 
 type Props = {
   hourlyRate: string | null;
@@ -49,8 +50,8 @@ export async function HoursCalculator({
   const hpm = hoursPerMonth ?? 160;
   const weeksNeeded = hpm > 0 ? (hoursNeeded / (hpm / 4)).toFixed(1) : "—";
 
-  const rateFmt = `₽ ${Math.round(rate).toLocaleString("ru-RU").replace(/,/g, " ")}`;
-  const priceFmt = `₽ ${examplePrice.toLocaleString("ru-RU").replace(/,/g, " ")}`;
+  const rateFmt = formatMoney(Math.round(rate), "RUB");
+  const priceFmt = formatMoney(examplePrice, "RUB");
 
   return (
     <div className="section fade-in" style={{ animationDelay: "120ms" }}>

@@ -1,6 +1,10 @@
 import { Prisma } from "@prisma/client";
-import { formatRubPrefix } from "@/lib/format/money";
+import { formatMoney } from "@/lib/format/money";
 import type { HomeDashboard, UpcomingObligation, TopCategoryDelta } from "@/lib/data/dashboard";
+import type { TKey } from "@/lib/i18n/t";
+import type { TOptions } from "@/lib/i18n/types";
+
+type TFunc = (key: TKey, options?: TOptions) => string;
 
 // ─────────────────────────────────────────────────────────────
 // Home view types — приближены к mock-форме для механической
@@ -17,7 +21,7 @@ export type HomePlanFactCell = {
   kind: "inc" | "exp" | "net";
   fact: number;        // for CountUp
   plan: number;
-  currency: string;   // "₽" / "+₽"
+  sign: string;        // "" | "+" | "−"
   sub: string;
   color: "pos" | "neg" | "info" | "acc";
   noPlan?: boolean;
@@ -115,7 +119,7 @@ function formatDueAt(isoDate: string): string {
 }
 
 function formatBaseAmount(amountBaseStr: string): string {
-  return formatRubPrefix(new Prisma.Decimal(amountBaseStr));
+  return formatMoney(new Prisma.Decimal(amountBaseStr), "RUB");
 }
 
 function toObligationView(ob: UpcomingObligation): HomeObligationView {
@@ -157,7 +161,7 @@ function toTopCategoryView(cat: TopCategoryDelta, rank: number): HomeTopCategory
     rank: String(rank).padStart(2, "0"),
     name: cat.categoryName,
     sub: cat.icon ? cat.icon : "",
-    amount: formatRubPrefix(current),
+    amount: formatMoney(current, "RUB"),
     delta,
     deltaDir,
   };
@@ -167,7 +171,7 @@ function toTopCategoryView(cat: TopCategoryDelta, rank: number): HomeTopCategory
 // Main mapper
 // ─────────────────────────────────────────────────────────────
 
-export function toHomeView(dashboard: HomeDashboard): HomeView {
+export function toHomeView(dashboard: HomeDashboard, t?: TFunc): HomeView {
   const totalBase = Number(new Prisma.Decimal(dashboard.totalBalanceBase).toFixed(0));
   const reservedBase = Number(new Prisma.Decimal(dashboard.reservedBase).toFixed(0));
   const freeBase = Number(new Prisma.Decimal(dashboard.freeBase).toFixed(0));
@@ -190,9 +194,9 @@ export function toHomeView(dashboard: HomeDashboard): HomeView {
       kind: "inc",
       fact: inflowFact,
       plan: inflowPlan,
-      currency: "₽",
+      sign: "",
       sub: hasInflowPlan
-        ? `из ${formatRubPrefix(new Prisma.Decimal(inflowPlan))} · ${Math.round((inflowFact / inflowPlan) * 100)}%`
+        ? `из ${formatMoney(new Prisma.Decimal(inflowPlan), "RUB")} · ${Math.round((inflowFact / inflowPlan) * 100)}%`
         : "",
       noPlan: !hasInflowPlan,
       color: "pos",
@@ -202,9 +206,9 @@ export function toHomeView(dashboard: HomeDashboard): HomeView {
       kind: "exp",
       fact: outflowFact,
       plan: outflowPlan,
-      currency: "₽",
+      sign: "",
       sub: hasOutflowPlan
-        ? `из ${formatRubPrefix(new Prisma.Decimal(outflowPlan))} · ${Math.round((outflowFact / outflowPlan) * 100)}%`
+        ? `из ${formatMoney(new Prisma.Decimal(outflowPlan), "RUB")} · ${Math.round((outflowFact / outflowPlan) * 100)}%`
         : "",
       noPlan: !hasOutflowPlan,
       color: "info",
@@ -214,9 +218,14 @@ export function toHomeView(dashboard: HomeDashboard): HomeView {
       kind: "net",
       fact: Math.abs(netFact),
       plan: Math.abs(netPlan),
-      currency: netFact > 0 ? "+₽" : netFact < 0 ? "−₽" : "₽",
+      sign: netFact > 0 ? "+" : netFact < 0 ? "−" : "",
       sub: netPlan !== 0
-        ? `кон. мес ≈ ${netPlan >= 0 ? "+" : "−"}${formatRubPrefix(new Prisma.Decimal(Math.abs(netPlan)))}`
+        ? (() => {
+            const amount = `${netPlan >= 0 ? "+" : "−"}${formatMoney(new Prisma.Decimal(Math.abs(netPlan)), "RUB")}`;
+            return t
+              ? t("home.plan_fact.net_eom_sub", { vars: { amount } })
+              : `кон. мес ≈ ${amount}`;
+          })()
         : "",
       noPlan: !hasInflowPlan && !hasOutflowPlan,
       color: netFact > 0 ? "pos" : netFact < 0 ? "neg" : "acc",

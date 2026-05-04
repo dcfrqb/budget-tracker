@@ -29,18 +29,18 @@ export const enDict: RuDictShape = {
         oct: "Oct",
         nov: "Nov",
         dec: "Dec",
-        "1":  "jan",
-        "2":  "feb",
-        "3":  "mar",
-        "4":  "apr",
-        "5":  "may",
-        "6":  "jun",
-        "7":  "jul",
-        "8":  "aug",
-        "9":  "sep",
-        "10": "oct",
-        "11": "nov",
-        "12": "dec",
+        "1":  "Jan",
+        "2":  "Feb",
+        "3":  "Mar",
+        "4":  "Apr",
+        "5":  "May",
+        "6":  "Jun",
+        "7":  "Jul",
+        "8":  "Aug",
+        "9":  "Sep",
+        "10": "Oct",
+        "11": "Nov",
+        "12": "Dec",
       },
     },
     period: {
@@ -501,7 +501,7 @@ export const enDict: RuDictShape = {
       },
       summary: {
         activeCount: "{count} active",
-        monthly: "₽ {amount}/mo",
+        monthly: "{amount}/mo",
         personalLabel: "personal",
         splitLabel: "shared",
         paidForOthersLabel: "for others",
@@ -1680,6 +1680,7 @@ export const enDict: RuDictShape = {
       meta:  "current month",
       // === wave-3 polish ===
       no_plan: "no plan set",
+      net_eom_sub: "end of month ≈ {amount}",
       period_label: {
         "7d":  "last 7d",
         "30d": "last 30d",
@@ -2022,3 +2023,22 @@ export const enDict: RuDictShape = {
     progress_label: "returned {returned} / {total}",
   },
 };
+
+/**
+ * Plural forms for English nouns used with pluralEn() helper.
+ * Stored outside enDict because the i18n Dict type only allows string leaves.
+ * Format: [singular, plural]
+ */
+export const enPluralForms = {
+  locations:     ["location",     "locations"]     as [string, string],
+  currencies:    ["currency",     "currencies"]    as [string, string],
+  accounts:      ["account",      "accounts"]      as [string, string],
+  organizations: ["organization", "organizations"] as [string, string],
+  transactions:  ["transaction",  "transactions"]  as [string, string],
+  funds:         ["fund",         "funds"]         as [string, string],
+  events:        ["event",        "events"]        as [string, string],
+  subscriptions: ["subscription", "subscriptions"] as [string, string],
+  categories:    ["category",     "categories"]    as [string, string],
+  institutions:  ["institution",  "institutions"]  as [string, string],
+  sources:       ["source",       "sources"]       as [string, string],
+} as const;

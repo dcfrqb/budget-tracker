@@ -122,16 +122,16 @@ export const ruDict = {
     },
     categories_summary: {
       section_title: "Категории",
-      summary: "{active} активных, {archived} архивных",
+      summary: "{active} {activeWord}, {archived} {archivedWord}",
     },
     work_sources_summary: {
       section_title: "Источники дохода",
-      summary: "{count} источников",
+      summary: "{count} {word}",
       summary_zero: "нет источников",
     },
     accounts_summary: {
       section_title: "Счета и институции",
-      summary: "{accounts} счетов, {institutions} организаций",
+      summary: "{accounts} {accountsWord}, {institutions} {institutionsWord}",
     },
     integrations: {
       section_title: "Интеграции",
@@ -509,7 +509,7 @@ export const ruDict = {
       },
       summary: {
         activeCount: "{count} активно",
-        monthly: "₽ {amount}/мес",
+        monthly: "{amount}/мес",
         personalLabel: "только ты",
         splitLabel: "шеринг",
         paidForOthersLabel: "за других",
@@ -635,7 +635,7 @@ export const ruDict = {
     expected: {
       status_label: "Ожидаемые",
       empty: "Нет запланированных поступлений",
-      events_count: "{count} событий ближайших 90 дней",
+      events_count: "{count} {word} ближайших 90 дней",
       add: "+ Запланировать поступление",
     },
     today: "сегодня",
@@ -659,7 +659,7 @@ export const ruDict = {
     },
     kpi: {
       saved: "НАКОПЛЕНО",
-      saved_sub: "{count} фондов",
+      saved_sub: "{count} {word}",
       monthly: "ВЗНОС / МЕС",
       monthly_sub: "суммарный взнос",
       next_event: "БЛИЖ. СОБЫТИЕ",
@@ -668,7 +668,7 @@ export const ruDict = {
       hours_no_rate: "ставка не задана",
       section_title: "план будущего",
       section_subtitle: "обзор",
-      funds_count: "{n} накоплений",
+      funds_count: "{n} {word}",
     },
     fund_kind: {
       TRIP: "трип",
@@ -696,7 +696,7 @@ export const ruDict = {
     },
     calendar: {
       section_title: "События",
-      events_count: "{n} событий",
+      events_count: "{n} {word}",
       in_days: " · {n}д",
     },
     upcoming: {
@@ -801,7 +801,7 @@ export const ruDict = {
       no_data_short: "нет данных",
       empty: "нет данных для сравнения",
       summary: {
-        rising: "{count} категорий растут",
+        rising: "{count} {word} растут",
         falling: "{count} падают",
       },
       col: {
@@ -996,7 +996,7 @@ export const ruDict = {
       savings_label:     "подушка / вклады",
       savings_sub:       "{n} накопительных",
       cash_label:        "наличка",
-      cash_sub:          "{n} локаций",
+      cash_sub:          "{n} {word}",
     },
     strip: {
       group: "ГРУППА",
@@ -1009,7 +1009,7 @@ export const ruDict = {
       currency_all: "Все",
       day_progress: "д{day}/{days}",
     },
-    cash_meta: "{locations} локаций · {currencies} валют",
+    cash_meta: "{locations} {locWord} · {currencies} {curWord}",
     add_account: {
       title: "Добавить новый счёт",
       sub: "ручной ввод или интеграция",
@@ -1689,6 +1689,7 @@ export const ruDict = {
       meta:  "текущий месяц",
       // === wave-3 polish ===
       no_plan: "нет плана",
+      net_eom_sub: "кон. мес ≈ {amount}",
       period_label: {
         "7d":  "посл. 7д",
         "30d": "посл. 30д",
@@ -2035,3 +2036,22 @@ export const ruDict = {
 export type RuDict = typeof ruDict;
 /** Structural shape of ruDict with all leaf strings widened to string. */
 export type RuDictShape = DictShape<typeof ruDict>;
+
+/**
+ * Plural forms for Russian nouns used with pluralRu() helper.
+ * Stored outside ruDict because the i18n Dict type only allows string leaves.
+ * Format: [one, few, many] — e.g. ['счёт', 'счёта', 'счетов']
+ */
+export const ruPluralForms = {
+  locations:     ["локация",     "локации",     "локаций"]     as [string, string, string],
+  currencies:    ["валюта",      "валюты",      "валют"]       as [string, string, string],
+  accounts:      ["счёт",        "счёта",       "счетов"]      as [string, string, string],
+  organizations: ["организация", "организации", "организаций"] as [string, string, string],
+  transactions:  ["транзакция",  "транзакции",  "транзакций"]  as [string, string, string],
+  funds:         ["фонд",        "фонда",       "фондов"]      as [string, string, string],
+  events:        ["событие",     "события",     "событий"]     as [string, string, string],
+  subscriptions: ["подписка",    "подписки",    "подписок"]    as [string, string, string],
+  categories:    ["категория",   "категории",   "категорий"]   as [string, string, string],
+  institutions:  ["организация", "организации", "организаций"] as [string, string, string],
+  sources:       ["источник",    "источника",   "источников"]  as [string, string, string],
+} as const;

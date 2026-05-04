@@ -11,7 +11,7 @@ import { getCurrentUserId } from "@/lib/api/auth";
 import { db } from "@/lib/db";
 import { getLatestRatesMap, convertToBase } from "@/lib/data/wallet";
 import { Prisma, TransactionKind, TransactionStatus } from "@prisma/client";
-import { formatRubPrefix } from "@/lib/format/money";
+import { formatMoney } from "@/lib/format/money";
 import { getT } from "@/lib/i18n/server";
 
 export default async function TransactionsSummary() {
@@ -75,9 +75,9 @@ export default async function TransactionsSummary() {
         </div>
         <div className="filt-summary">
           <div className="row"><span className="k">{t("summary.transactions.found_key")}</span><span className="v">{txns30d.length}</span></div>
-          <div className="row"><span className="k">{t("summary.transactions.inflow_key")}</span><span className="v pos">{formatRubPrefix(inflow)}</span></div>
-          <div className="row"><span className="k">{t("summary.transactions.outflow_key")}</span><span className="v info">{formatRubPrefix(outflow)}</span></div>
-          <div className="row"><span className="k">{t("summary.transactions.avg_day_key")}</span><span className="v">{formatRubPrefix(avgPerDay)}</span></div>
+          <div className="row"><span className="k">{t("summary.transactions.inflow_key")}</span><span className="v pos money">{formatMoney(inflow, "RUB")}</span></div>
+          <div className="row"><span className="k">{t("summary.transactions.outflow_key")}</span><span className="v info money">{formatMoney(outflow, "RUB")}</span></div>
+          <div className="row"><span className="k">{t("summary.transactions.avg_day_key")}</span><span className="v money">{formatMoney(avgPerDay, "RUB")}</span></div>
         </div>
       </div>
       <AvailableBlock />

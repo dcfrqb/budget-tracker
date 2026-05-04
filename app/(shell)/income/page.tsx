@@ -12,19 +12,12 @@ import { getActiveWorkSources } from "@/lib/data/work-sources";
 import { getLatestRatesMap, convertToBase } from "@/lib/data/wallet";
 import { getT } from "@/lib/i18n/server";
 import { Prisma, TransactionKind, TransactionStatus } from "@prisma/client";
-import { formatAmount, formatRubPrefix } from "@/lib/format/money";
+import { formatMoney } from "@/lib/format/money";
 import type { ExpectedRow } from "@/components/income/expected";
 import type { OtherIncomeRow } from "@/components/income/other-income";
 
-const CCY_SHAPES: Record<string, { code: string; symbol: string; decimals: number }> = {
-  RUB: { code: "RUB", symbol: "₽", decimals: 2 },
-  USD: { code: "USD", symbol: "$", decimals: 2 },
-  EUR: { code: "EUR", symbol: "€", decimals: 2 },
-};
-
 function fmtWorkMoney(amount: Prisma.Decimal, ccy: string): string {
-  const shape = CCY_SHAPES[ccy] ?? { code: ccy, symbol: ccy, decimals: 2 };
-  return formatAmount(amount, shape);
+  return formatMoney(amount, ccy);
 }
 
 export const dynamic = "force-dynamic";
@@ -233,7 +226,7 @@ export default async function IncomePage({
         ? t("income.kpi.inflow_sub", {
             vars: {
               days: String(inflowWindowDays),
-              avg: formatRubPrefix(new Prisma.Decimal(inflowAvgPerMonth)),
+              avg: formatMoney(new Prisma.Decimal(inflowAvgPerMonth), "RUB"),
             },
           })
         : "",
@@ -278,10 +271,7 @@ export default async function IncomePage({
     orderBy: { occurredAt: "asc" },
   });
 
-  const RU_CCY: Record<string, string> = { RUB: "₽", USD: "$", EUR: "€" };
-
   const expectedRows: ExpectedRow[] = plannedRows.map(txn => {
-    const sym = RU_CCY[txn.currencyCode] ?? txn.currencyCode;
     const src = txn.workSource?.name ?? txn.account.institution?.name ?? txn.account.name;
     return {
       id: txn.id,
@@ -293,7 +283,7 @@ export default async function IncomePage({
       src,
       status: "expected" as const,
       statusLabel: t("income.expected.status_label"),
-      amount: `+${sym} ${new Prisma.Decimal(txn.amount).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g," ")}`,
+      amount: `+${formatMoney(new Prisma.Decimal(txn.amount), txn.currencyCode)}`,
     };
   });
 
@@ -313,7 +303,6 @@ export default async function IncomePage({
   });
 
   const otherIncomeRows: OtherIncomeRow[] = otherRows.map(txn => {
-    const sym = RU_CCY[txn.currencyCode] ?? txn.currencyCode;
     const src = txn.account.institution?.name ?? txn.account.name;
     const firstChar = txn.name.charAt(0).toUpperCase();
     return {
@@ -323,7 +312,7 @@ export default async function IncomePage({
       sub: txn.note ?? "",
       src,
       date: shortDate(txn.occurredAt),
-      amount: `+${sym} ${new Prisma.Decimal(txn.amount).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g," ")}`,
+      amount: `+${formatMoney(new Prisma.Decimal(txn.amount), txn.currencyCode)}`,
     };
   });
 

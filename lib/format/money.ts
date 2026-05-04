@@ -1,14 +1,87 @@
 import { Prisma } from "@prisma/client";
 import type { Locale } from "@/lib/i18n/types";
 
-type CurrencyShape = { code: string; symbol: string; decimals: number };
+// Currencies that place the symbol BEFORE the amount (e.g. $ 1 599, € 1 599).
+const PREFIX_CURRENCIES = new Set(["USD", "EUR"]);
+
+const CURRENCY_DECIMALS: Record<string, number> = {
+  RUB: 2, USD: 2, EUR: 2, GEL: 2,
+  USDT: 6, USDC: 6, BTC: 8,
+};
+
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  RUB: "₽", USD: "$", EUR: "€", GEL: "₾",
+  USDT: "₮", USDC: "USDC", BTC: "₿",
+};
+
+export type FormatMoneyOptions = {
+  approx?: boolean;
+  signDisplay?: "auto" | "always" | "never";
+  decimals?: number;
+};
+
+/**
+ * Canonical money formatter.
+ *
+ * Rules:
+ *   RUB         → symbol after, NBSP  — `1 599 ₽`
+ *   USD / EUR   → symbol before, NBSP — `$ 1 599`, `€ 1 599`
+ *   Other       → symbol after, NBSP  — `265.40 USDT`, `0.00097 ₿`
+ *
+ * Negative sign comes first in the full string:  `-$ 20.40`, `-1 599 ₽`.
+ * Thousands separator: NBSP. Decimal separator: dot.
+ * Approximation prefix (`≈ `) prepended when options.approx is true.
+ */
+export function formatMoney(
+  value: Prisma.Decimal | string | number,
+  currency: string,
+  options: FormatMoneyOptions = {},
+): string {
+  const amount = toDecimal(value);
+  const { approx = false, signDisplay = "auto", decimals } = options;
+
+  const isNeg = amount.isNegative();
+  const abs = isNeg ? amount.abs() : amount;
+
+  const currencyDec = CURRENCY_DECIMALS[currency] ?? 2;
+
+  let fd: number;
+  if (decimals !== undefined) {
+    fd = decimals;
+  } else {
+    const isInt = abs.modulo(1).isZero();
+    fd = isInt ? 0 : currencyDec;
+  }
+
+  const stripTrailing = (decimals ?? currencyDec) > 2;
+  const formatted = formatNumber(abs, fd, stripTrailing);
+
+  const symbol = CURRENCY_SYMBOLS[currency] ?? currency;
+  const isPrefix = PREFIX_CURRENCIES.has(currency);
+
+  // U+00A0 NBSP
+  const nbsp = " ";
+  const body = isPrefix
+    ? `${symbol}${nbsp}${formatted}`
+    : `${formatted}${nbsp}${symbol}`;
+
+  let sign = "";
+  if (signDisplay === "always") {
+    sign = isNeg ? "-" : "+";
+  } else if (signDisplay !== "never" && isNeg) {
+    sign = "-";
+  }
+
+  const result = sign ? `${sign}${body}` : body;
+  return approx ? `≈${nbsp}${result}` : result;
+}
 
 function toDecimal(v: Prisma.Decimal | string | number): Prisma.Decimal {
   return v instanceof Prisma.Decimal ? v : new Prisma.Decimal(v);
 }
 
-// Группировка целой части + склейка с дробью. stripTrailingZeros убирает
-// хвостовые нули из дробной части ("0.00097000" → "0.00097").
+// Groups integer part + joins with fraction. stripTrailingZeros removes
+// trailing zeros from fraction ("0.00097000" → "0.00097").
 function formatNumber(
   amount: Prisma.Decimal,
   fractionDigits: number,
@@ -19,40 +92,8 @@ function formatNumber(
   if (decPart && stripTrailingZeros) {
     decPart = decPart.replace(/0+$/, "");
   }
-  const grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  const grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
   return decPart ? `${grouped}.${decPart}` : grouped;
-}
-
-// Отображение суммы со знаком валюты ПОСЛЕ: "142 680 ₽", "2 145 $", "0.00097 ₿".
-// Если amount целый — без дробной части. Иначе — currency.decimals знаков,
-// с отсечкой хвостовых нулей для крипто-точности (decimals > 2).
-export function formatAmount(
-  value: Prisma.Decimal | string | number,
-  currency: CurrencyShape,
-): string {
-  const amount = toDecimal(value);
-  const isInt = amount.modulo(1).isZero();
-  const fd = isInt ? 0 : currency.decimals;
-  const stripTrailing = currency.decimals > 2;
-  const formatted = formatNumber(amount, fd, stripTrailing);
-  return `${formatted} ${currency.symbol}`;
-}
-
-// Отображение RUB-суммы с префиксом: "₽ 484 620".
-export function formatRubPrefix(value: Prisma.Decimal | string | number): string {
-  const amount = toDecimal(value);
-  const fd = amount.modulo(1).isZero() ? 0 : 2;
-  return `₽ ${formatNumber(amount, fd)}`;
-}
-
-// Hero displays use 0 decimals; body tables may show 2.
-export function formatRubPrefixRounded(value: Prisma.Decimal | string | number): string {
-  return `₽ ${formatNumber(toDecimal(value), 0)}`;
-}
-
-// "92.10" для пары USD-RUB в rates-row (всегда 2 decimals).
-export function formatRate(value: Prisma.Decimal | string | number): string {
-  return formatNumber(toDecimal(value), 2);
 }
 
 /**

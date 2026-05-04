@@ -23,12 +23,12 @@ export function PlanningKpiRow({ kpi }: { kpi: PlanningKpiData }) {
         <div className="kpi-row">
           <div className="kpi">
             <div className="c acc">{k.saved.label}</div>
-            <div className="v acc">₽ <CountUp to={k.saved.value} /></div>
+            <div className="v acc money"><CountUp to={k.saved.value} /> ₽</div>
             <div className="s">{k.saved.sub}</div>
           </div>
           <div className="kpi">
             <div className="c pos">{k.monthly.label}</div>
-            <div className="v pos">₽ <CountUp to={k.monthly.value} /></div>
+            <div className="v pos money"><CountUp to={k.monthly.value} /> ₽</div>
             <div className="s">{k.monthly.sub}</div>
           </div>
           <div className="kpi">

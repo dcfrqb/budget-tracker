@@ -15,9 +15,9 @@ import { DEFAULT_CURRENCY } from "@/lib/constants";
 // ─────────────────────────────────────────────────────────────
 
 async function loadSharedSummary() {
-  const userId = await getCurrentUserId();
+  const [userId, t] = await Promise.all([getCurrentUserId(), getT()]);
   const dashboard = await getHomeDashboard(userId, DEFAULT_CURRENCY);
-  return toHomeView(dashboard);
+  return toHomeView(dashboard, t);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -103,7 +103,7 @@ export async function AvailableBlock({ data }: { data?: AvailableData }) {
         <span>{t("shell.summary.avail.label")}</span>
       </div>
       <div className="big2 mono">
-        ₽ <CountUp to={displayBase} />
+        <CountUp to={displayBase} /> ₽
       </div>
       <div className="sub">
         <span>

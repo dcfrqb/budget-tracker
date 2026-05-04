@@ -77,8 +77,8 @@ export function Compare({
                   {r.name}
                   <div className="s">{r.sub}</div>
                 </div>
-                <div className="num">{r.prev}</div>
-                <div className="num">{r.curr}</div>
+                <div className="num money">{r.prev}</div>
+                <div className="num money">{r.curr}</div>
                 <div className={`delta ${r.deltaTone}`}>{r.delta}</div>
                 <div className="spark">
                   {r.spark.map((h, j) => (

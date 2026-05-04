@@ -38,8 +38,8 @@ export function PeriodSummary({ summary }: Props) {
         <div className="period-grid">
           <div className="period-cell">
             <div className="code inflow">{t("transactions.period.column.inflow")}</div>
-            <div className="val inflow">
-              +₽ <CountUp to={inflow.value} />
+            <div className="val inflow money">
+              +<CountUp to={inflow.value} /> ₽
             </div>
             <div className="meta">
               {inflow.count} {t("transactions.period.txn_short")} ·{" "}
@@ -48,8 +48,8 @@ export function PeriodSummary({ summary }: Props) {
           </div>
           <div className="period-cell">
             <div className="code outflow">{t("transactions.period.column.outflow")}</div>
-            <div className="val outflow">
-              −₽ <CountUp to={outflow.value} />
+            <div className="val outflow money">
+              −<CountUp to={outflow.value} /> ₽
             </div>
             <div className="meta">
               {outflow.count} {t("transactions.period.txn_short")} ·{" "}
@@ -58,8 +58,8 @@ export function PeriodSummary({ summary }: Props) {
           </div>
           <div className="period-cell">
             <div className="code xfr">{t("transactions.period.column.xfr")}</div>
-            <div className="val xfr">
-              ₽ <CountUp to={transfers.value} />
+            <div className="val xfr money">
+              <CountUp to={transfers.value} /> ₽
             </div>
             <div className="meta">
               {transfers.count} {t("transactions.period.txn_short")}
@@ -67,8 +67,8 @@ export function PeriodSummary({ summary }: Props) {
           </div>
           <div className="period-cell">
             <div className="code net">{t("transactions.period.column.net")}</div>
-            <div className={netValClass}>
-              {netSign}₽ <CountUp to={Math.abs(net.value)} />
+            <div className={`${netValClass} money`}>
+              {netSign}<CountUp to={Math.abs(net.value)} /> ₽
             </div>
             <div className="meta">{netNote}</div>
           </div>

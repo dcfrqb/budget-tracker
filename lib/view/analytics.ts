@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { formatRubPrefix } from "@/lib/format/money";
+import { formatMoney } from "@/lib/format/money";
 import type {
   PeriodKpis,
   CategoryPieSlice,
@@ -98,7 +98,7 @@ const PIE_COLORS = [
 // ─────────────────────────────────────────────────────────────
 
 function fmtBase(s: string): string {
-  return formatRubPrefix(new Prisma.Decimal(s));
+  return formatMoney(new Prisma.Decimal(s), "RUB");
 }
 
 function deltaTone(pct: number | null, higherIsBad: boolean): "pos" | "neg" | "mut" {
@@ -234,19 +234,19 @@ export function toForecastView(f: ForecastMonth): AnalyticsForecastView[] {
   return [
     {
       k: "ожидаемый доход",
-      v: formatRubPrefix(new Prisma.Decimal(inflow)),
+      v: formatMoney(new Prisma.Decimal(inflow), "RUB"),
       vTone: "pos",
       s: "все транзакции месяца",
     },
     {
       k: "ожидаемый расход",
-      v: formatRubPrefix(new Prisma.Decimal(outflow)),
+      v: formatMoney(new Prisma.Decimal(outflow), "RUB"),
       vTone: "info",
       s: "план + факт текущего месяца",
     },
     {
       k: "нетто к концу месяца",
-      v: `${net >= 0 ? "+" : ""}${formatRubPrefix(new Prisma.Decimal(net))}`,
+      v: `${net >= 0 ? "+" : ""}${formatMoney(new Prisma.Decimal(net), "RUB")}`,
       vTone: net >= 0 ? "acc" : "neg",
       s: "без учёта незапланированных трат",
     },

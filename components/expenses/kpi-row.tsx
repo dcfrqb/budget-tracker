@@ -21,22 +21,22 @@ export function ExpensesKpiRow({ kpi }: { kpi: ExpensesKpiData }) {
         <div className="kpi-row" style={{ ["--kpi-cols" as string]: 5 } as React.CSSProperties}>
           <div className="kpi">
             <div className="c loan">{kpi.loans.label}</div>
-            <div className="v neg">₽ <CountUp to={kpi.loans.value} /></div>
+            <div className="v neg money"><CountUp to={kpi.loans.value} /> ₽</div>
             <div className="s">{kpi.loans.sub}</div>
           </div>
           <div className="kpi">
             <div className="c sub">{kpi.subs.label}</div>
-            <div className="v info">₽ <CountUp to={kpi.subs.value} /></div>
+            <div className="v info money"><CountUp to={kpi.subs.value} /> ₽</div>
             <div className="s">{kpi.subs.sub}</div>
           </div>
           <div className="kpi">
             <div className="c util">{kpi.utilities.label}</div>
-            <div className="v warn">₽ <CountUp to={kpi.utilities.value} /></div>
+            <div className="v warn money"><CountUp to={kpi.utilities.value} /> ₽</div>
             <div className="s">{kpi.utilities.sub}</div>
           </div>
           <div className="kpi">
             <div className="c warn">{kpi.taxes.label}</div>
-            <div className="v warn">₽ <CountUp to={kpi.taxes.value} /></div>
+            <div className="v warn money"><CountUp to={kpi.taxes.value} /> ₽</div>
             <div className="s">{kpi.taxes.sub}</div>
           </div>
           <div className="kpi">

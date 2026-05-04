@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getT } from "@/lib/i18n/server";
-import { formatAmount } from "@/lib/format/money";
+import { formatMoney } from "@/lib/format/money";
 import type { CreditCardObligationView } from "@/lib/data/credit-cards";
 
 type Props = {
@@ -11,12 +11,6 @@ export async function CreditCards({ cards }: Props) {
   if (cards.length === 0) return null;
 
   const t = await getT();
-
-  function formatMoney(amount: number, currency: string): string {
-    const sym = currency === "RUB" ? "₽" : currency === "USD" ? "$" : currency === "EUR" ? "€" : currency;
-    const n = Math.round(amount);
-    return `${sym} ${n.toLocaleString("en-US").replace(/,/g, " ")}`;
-  }
 
   function dueLabel(card: CreditCardObligationView): string | null {
     if (card.daysUntilDue === null) return null;

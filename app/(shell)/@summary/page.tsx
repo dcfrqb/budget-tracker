@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 export default async function HomeSummary() {
   const [userId, t] = await Promise.all([getCurrentUserId(), getT()]);
   const dashboard = await getHomeDashboard(userId, DEFAULT_CURRENCY);
-  const view = toHomeView(dashboard);
+  const view = toHomeView(dashboard, t);
 
   const modeLabels: Record<string, string> = {
     ECONOMY: t("summary.home.mode_economy"),
