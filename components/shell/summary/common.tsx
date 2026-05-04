@@ -59,7 +59,6 @@ export async function SafeUntilBlock({ data }: { data?: SafeUntilData }) {
   const dateIso = data?.dateIso;
   const deltaLabel = data?.deltaLabel;
   const isDanger = days !== null && days === 0;
-  const valueColor = isDanger ? "var(--neg)" : undefined;
 
   return (
     <div className="sum-block" style={{ padding: "12px 8px" }}>
@@ -69,10 +68,18 @@ export async function SafeUntilBlock({ data }: { data?: SafeUntilData }) {
           <span className="tiny">{t("shell.summary.safe.zero_income")}</span>
         </div>
         <div className="row">
-          <span className="big mono" style={valueColor ? { color: valueColor } : undefined}>
-            {days !== null ? <CountUp to={days} format="int" /> : "—"}
-          </span>
-          <span className="unit mono" style={valueColor ? { color: valueColor } : undefined}>{t("shell.summary.safe.days")}</span>
+          {isDanger ? (
+            <span className="big mono" style={{ color: "var(--neg)" }}>
+              {t("shell.summary.safe.days_zero")}
+            </span>
+          ) : (
+            <>
+              <span className="big mono">
+                {days !== null ? <CountUp to={days} format="int" /> : "—"}
+              </span>
+              <span className="unit mono">{t("shell.summary.safe.days")}</span>
+            </>
+          )}
         </div>
         {(dateIso || deltaLabel) && (
           <div className="sub mono">

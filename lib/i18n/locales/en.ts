@@ -1901,6 +1901,7 @@ export const enDict: RuDictShape = {
         label:       "safe for",
         zero_income: "@ zero income",
         days:        "days",
+        days_zero:   "today",
       },
       avail: {
         label:    "available now",

@@ -1910,6 +1910,7 @@ export const ruDict = {
         label:       "безопасно ещё",
         zero_income: "@ нулевой доход",
         days:        "дней",
+        days_zero:   "сегодня",
       },
       avail: {
         label:    "доступно сейчас",
