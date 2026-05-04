@@ -1643,7 +1643,7 @@ a { color: inherit; text-decoration: none; }
 .lg-sw { width: 10px; height: 10px; border-radius: 2px; }
 .lg-name { font-size: 13px; font-weight: 500; }
 .lg-sub  { font-family: var(--mono-font), monospace; font-size: 10px; color: var(--muted); margin-top: 2px; }
-.lg-amt  { font-family: var(--mono-font), monospace; font-weight: 700; font-size: 13px; text-align: right; }
+.lg-amt  { font-family: var(--mono-font), monospace; font-weight: 700; font-size: 13px; text-align: right; white-space: nowrap; }
 .lg-delta{ font-family: var(--mono-font), monospace; font-size: 11px; font-weight: 700; text-align: right; }
 
 /* Compare */
@@ -1660,7 +1660,7 @@ a { color: inherit; text-decoration: none; }
 .cmp-row:hover > * { background: var(--panel-2); }
 .cmp-row .name { font-size: 13px; font-weight: 500; }
 .cmp-row .name .s { font-family: var(--mono-font), monospace; font-size: 10px; color: var(--muted); margin-top: 2px; }
-.cmp-row .num   { font-family: var(--mono-font), monospace; font-weight: 700; font-size: 13px; text-align: right; }
+.cmp-row .num   { font-family: var(--mono-font), monospace; font-weight: 700; font-size: 13px; text-align: right; white-space: nowrap; }
 .cmp-row .delta { font-family: var(--mono-font), monospace; font-size: 12px; font-weight: 700; text-align: right; }
 .cmp-row .spark {
   display: flex; align-items: flex-end; justify-content: flex-end;
