@@ -213,6 +213,10 @@ function amountToneAndPrefix(
 function resolveAccountLabel(t: TxnWithJoins): string {
   const baseName = t.account.institution?.name ?? t.account.name;
   if (t.kind === TransactionKind.TRANSFER && t.transfer) {
+    if (t.accountId === t.transfer.fromAccountId) {
+      const toName = t.transfer.toAccount.institution?.name ?? t.transfer.toAccount.name;
+      return `${baseName} → ${toName}`;
+    }
     if (t.accountId === t.transfer.toAccountId) {
       return `→ ${baseName}`;
     }

@@ -754,12 +754,16 @@ export const tinkoffRetailAdapter: BankAdapter = {
             const accountAmountCurrency = op.accountAmount?.currency?.name ?? "";
             const merchantName = op.merchant?.name ?? "";
 
+            const isInnerTransfer =
+              op.payment?.providerId === "transfer-inner" ||
+              op.description === "Между своими счетами";
+
             rows.push({
               externalId: op.id,
               occurredAt: new Date(op.operationTime.milliseconds).toISOString(),
               amount: Math.abs(op.amount.value).toFixed(2),
               currencyCode: op.amount.currency.name,
-              kind: op.type === "Credit" ? "INCOME" : "EXPENSE",
+              kind: isInnerTransfer ? "TRANSFER" : op.type === "Credit" ? "INCOME" : "EXPENSE",
               direction: op.type === "Credit" ? "in" : "out",
               description: op.description,
               accountId: link.accountId,

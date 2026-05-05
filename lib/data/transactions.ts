@@ -20,7 +20,10 @@ export type TxnWithJoins = Transaction & {
   facts: TransactionFact[];
   reimbursements: ReimbursementFact[];
   transfer:
-    | (Transfer & { fromAccount: Account; toAccount: Account })
+    | (Transfer & {
+        fromAccount: Account & { institution: Institution | null };
+        toAccount: Account & { institution: Institution | null };
+      })
     | null;
 };
 
@@ -46,7 +49,12 @@ const TXN_INCLUDE = {
   currency: true,
   facts: { orderBy: { occurredAt: "desc" as const } },
   reimbursements: { orderBy: { receivedAt: "desc" as const } },
-  transfer: { include: { fromAccount: true, toAccount: true } },
+  transfer: {
+    include: {
+      fromAccount: { include: { institution: true } },
+      toAccount: { include: { institution: true } },
+    },
+  },
 };
 
 function buildWhere(userId: string, f: ListFilters): Prisma.TransactionWhereInput {
@@ -74,6 +82,7 @@ function buildWhere(userId: string, f: ListFilters): Prisma.TransactionWhereInpu
 }
 
 // Группировка по дню occurredAt (UTC). Order: дни DESC, внутри дня — occurredAt DESC.
+// When no accountId filter is set, Transfer pairs are folded to one row (from-leg only).
 export async function getTransactionsGroupedByDay(
   userId: string,
   filters: ListFilters,
@@ -83,8 +92,21 @@ export async function getTransactionsGroupedByDay(
     orderBy: [{ occurredAt: "desc" }, { id: "desc" }],
     include: TXN_INCLUDE,
   });
+
+  // Fold transfer legs: when not filtering by account, keep only the from-leg.
+  // Each properly-paired Transfer has exactly one from-leg, so a simple from-side
+  // check is sufficient (no transferId-dedup needed). Orphan TRANSFER rows without
+  // a Transfer record (transferId IS NULL) pass through as-is.
+  const foldTransfers = !filters.accountId;
+  const filtered = foldTransfers
+    ? rows.filter((t) => {
+        if (t.kind !== "TRANSFER" || !t.transferId || !t.transfer) return true;
+        return t.accountId === t.transfer.fromAccountId;
+      })
+    : rows;
+
   const byDay = new Map<string, TxnWithJoins[]>();
-  for (const t of rows) {
+  for (const t of filtered) {
     const key = t.occurredAt.toISOString().slice(0, 10);
     const list = byDay.get(key);
     if (list) list.push(t);

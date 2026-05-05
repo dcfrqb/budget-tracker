@@ -1,4 +1,5 @@
 import { AccountKind, CategoryKind, IntegrationStatus, TransactionKind, TransactionStatus, Prisma } from "@prisma/client";
+import { autoPairTransfers } from "./transfer-pairing";
 import { db } from "@/lib/db";
 import { encrypt, decrypt } from "@/lib/integrations/crypto";
 import { assertAdminIntegrations } from "@/lib/integrations/guard";
@@ -799,6 +800,12 @@ export async function syncCredential(
       }).catch(() => {});
     }
   }
+
+  // Auto-pair transfer legs produced by this sync. Runs after all persist loops.
+  // Errors here must not fail the overall sync result.
+  await autoPairTransfers({ userId }).catch((err) => {
+    console.error("[orchestrator] autoPairTransfers failed:", err);
+  });
 
   return {
     created: rowsCreated,
