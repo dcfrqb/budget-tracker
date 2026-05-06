@@ -86,8 +86,7 @@ export function AnalyticsStatusStrip() {
       <span className="lbl">{t("analytics.status_strip.compare_label")}</span>
       <Segmented options={CMP} value={cmp} onChange={handleCmpChange} />
       <div className="clock-right">
-        <span>{monthLabel} · <b>{t("home.status_strip.day_prefix")}{MONTH_DAY}/{MONTH_DAYS}</b></span>
-        <span>{t("analytics.status_strip.sync", { vars: { sec: "2" } })}</span>
+        <span>{monthLabel} · <b title={t("analytics.status_strip.day_hint")}>{MONTH_DAY}/{MONTH_DAYS}</b></span>
       </div>
     </div>
   );

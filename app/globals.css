@@ -439,7 +439,7 @@ a { color: inherit; text-decoration: none; }
 .qa-btn .k { color: var(--dim); font-size: 11px; }
 
 /* ── OBLIGATIONS ────────────────────────────────────────────────── */
-.ob-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1px; background: var(--border); }
+.ob-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1px; background: var(--border); }
 .ob-card {
   background: var(--panel-2); padding: 15px 17px; cursor: pointer;
   display: flex; flex-direction: column; gap: 10px;
@@ -1698,7 +1698,7 @@ a { color: inherit; text-decoration: none; }
 .lg-delta{ font-family: var(--mono-font), monospace; font-size: 11px; font-weight: 700; text-align: right; }
 
 /* Compare */
-.cmp-grid { display: grid; grid-template-columns: 1fr 110px 110px 80px 100px; gap: 0; }
+.cmp-grid { display: grid; grid-template-columns: 1fr 110px 110px 80px; gap: 0; }
 .cmp-hd   { display: contents; }
 .cmp-hd > * {
   padding: 10px 14px;

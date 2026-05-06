@@ -81,6 +81,9 @@ export default async function AnalyticsSummary({
             <span>{t("summary.analytics.period_label", { vars: { period: periodShort } })}</span>
             <span className="tiny">{currentPeriodLabel}</span>
           </div>
+          <div className="sub mono" style={{ marginBottom: 2 }}>
+            {t("summary.analytics.avg_net_label")}
+          </div>
           <div className="row">
             <span className="big mono"><CountUp to={Math.abs(Number(avgNet.toFixed(0)))} /></span>
             <span className="unit mono">{t("summary.analytics.avg_net_unit")}</span>

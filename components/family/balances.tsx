@@ -1,3 +1,5 @@
+import { getT } from "@/lib/i18n/server";
+
 export type BalanceFlowPerson = { letter: string; color: string };
 
 export type BalanceFlow = {
@@ -19,13 +21,31 @@ function Arrow() {
   );
 }
 
-export function FamilyBalances({ flows }: { flows: BalanceFlow[] }) {
+function InfoIcon({ title }: { title: string }) {
+  return (
+    <span
+      title={title}
+      style={{ cursor: "help", color: "var(--dim)", fontSize: 11, marginLeft: 4 }}
+      aria-label={title}
+    >
+      ⓘ
+    </span>
+  );
+}
+
+export async function FamilyBalances({ flows }: { flows: BalanceFlow[] }) {
+  const t = await getT();
   return (
     <div className="section fade-in" style={{ animationDelay: "240ms" }}>
       <div className="section-hd">
-        <div className="ttl mono"><b>сверка</b> <span className="dim">· кто кому должен</span></div>
+        <div className="ttl mono">
+          <b>{t("family.balances.title")}</b>{" "}
+          <span className="dim">· {t("family.balances.subtitle")}</span>
+        </div>
         <div className="meta mono">
-          <button type="button" className="btn primary" style={{ padding: "3px 9px", fontSize: 10 }}>Провести выплату</button>
+          <button type="button" className="btn primary" style={{ padding: "3px 9px", fontSize: 10 }}>
+            {t("family.balances.settle_btn")}
+          </button>
         </div>
       </div>
       <div className="bal-chord">
@@ -52,11 +72,11 @@ export function FamilyBalances({ flows }: { flows: BalanceFlow[] }) {
         ))}
         {flows.length === 0 && (
           <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
-            нет текущих задолженностей
+            {t("family.balances.empty")}
           </div>
         )}
         <div className="mono" style={{ fontSize: 11, color: "var(--muted)", paddingTop: 6 }}>
-          алгоритм: минимальное число переводов чтобы обнулить все разницы
+          <InfoIcon title={t("family.balances.algo_hint")} />
         </div>
       </div>
     </div>

@@ -66,7 +66,7 @@ export function WalletStatusStrip({ currencies, monthLabel, dayProgress }: Walle
       <span className="lbl">{t("wallet.strip.currency")}</span>
       <Segmented options={ccyOptions} value={currentCcy} onChange={setCcy} />
       <div className="clock-right">
-        <span>{monthLabel} · <b>{dayProgress}</b></span>
+        <span>{monthLabel} · <b title={t("wallet.strip.day_hint")}>{dayProgress}</b></span>
       </div>
     </div>
   );

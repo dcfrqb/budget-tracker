@@ -42,7 +42,6 @@ export type AnalyticsCmpRowView = {
   curr: string;
   delta: string;
   deltaTone: "pos" | "neg" | "mut";
-  spark: number[]; // bar heights (px) — для MVP заполняем заглушкой [10,10,10,10,10,10]
 };
 
 export type AnalyticsTrendPointView = {
@@ -186,7 +185,7 @@ export function toPieView(
   });
 }
 
-// TODO Фаза 9: сверить с компонентом compare.tsx — ожидает {name, sub, prev, curr, delta, deltaTone, spark}
+// TODO Фаза 9: сверить с компонентом compare.tsx — ожидает {name, sub, prev, curr, delta, deltaTone}
 export function toCompareView(rows: PeriodCompareRow[]): AnalyticsCmpRowView[] {
   return rows.map((r) => ({
     name: r.categoryName,
@@ -195,8 +194,6 @@ export function toCompareView(rows: PeriodCompareRow[]): AnalyticsCmpRowView[] {
     curr: fmtBase(r.currentBase),
     delta: fmtDelta(r.deltaPct),
     deltaTone: deltaTone(r.deltaPct, true),
-    // spark заглушка для MVP — нет исторических данных по неделям
-    spark: [10, 10, 10, 10, 10, 10],
   }));
 }
 

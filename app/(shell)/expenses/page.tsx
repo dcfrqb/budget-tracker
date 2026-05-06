@@ -228,6 +228,7 @@ export default async function ExpensesPage({
     projects: {
       label: t("expenses.kpi.projects"),
       value: longProjectsRaw.length,
+      valueLabel: `${longProjectsRaw.length} ${t("expenses.kpi.projects_unit")}`,
       sub: t("expenses.kpi.projects_sub", {
         vars: {
           count_label: locale === "ru"

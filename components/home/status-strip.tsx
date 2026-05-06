@@ -72,10 +72,7 @@ export function StatusStrip({ activePeriod }: Props) {
 
       <div className="clock-right">
         <span>
-          {monthLabel} · <b>{t("home.status_strip.day_prefix")}{MONTH_DAY}/{MONTH_DAYS}</b>
-        </span>
-        <span title={t("home.status_strip.sync_tooltip", { vars: { sec: 2 } })}>
-          {t("home.status_strip.sync", { vars: { sec: 2 } })}
+          {monthLabel} · <b title={t("home.status_strip.day_hint")}>{MONTH_DAY}/{MONTH_DAYS}</b>
         </span>
       </div>
     </div>

@@ -411,12 +411,13 @@ export const ruDict = {
     },
     analytics: {
       period_label: "период · {period}",
+      avg_net_label: "в среднем за месяц",
       avg_net_unit: "₽/мес",
       avg_net_sub: "средний нетто",
       weather_label: "погода · статус",
       savings_key: "экономия",
       status_key: "статус",
-      delta_label: "топ прирост · кат",
+      delta_label: "топ прирост · категории",
       no_data: "нет данных",
       flow_label: "поток · {period}",
       flow_meta: "live",
@@ -475,9 +476,10 @@ export const ruDict = {
       subs: "ПОДПИСКИ",
       subs_sub: "/мес · {count} активно",
       utilities: "ЖКХ + ДОМ",
-      taxes: "НАЛОГИ · ПОДСК",
+      taxes: "НАЛОГИ · ПОДСКАЗКИ",
       taxes_sub: "платить вручную",
       projects: "ДОЛГИЕ ПРОЕКТЫ",
+      projects_unit: "шт",
       projects_sub: "{count_label} · {budget} бюджет",
       section_title: "обзор обязательств",
       section_meta: "текущий месяц",
@@ -655,6 +657,7 @@ export const ruDict = {
       period_90d: "90д",
       period_1y: "1г",
       period_all: "всё",
+      day_of_month_hint: "день месяца / дней в месяце",
     },
   },
 
@@ -800,7 +803,7 @@ export const ruDict = {
         yoy:  "год назад",
         none: "нет",
       },
-      sync: "синхр {sec}с назад",
+      day_hint: "день месяца / дней в месяце",
     },
     compare: {
       label_prev: "к предыдущему периоду",
@@ -904,6 +907,19 @@ export const ruDict = {
       shared_balance: "общий баланс",
     },
     your_share: "твоя доля",
+    spaces: {
+      title: "пространства",
+      subtitle: "личное / общее",
+      hint: "переключай при добавлении транзакции",
+      empty: "нет пространств",
+    },
+    balances: {
+      title: "сверка",
+      subtitle: "кто кому должен",
+      settle_btn: "Провести выплату",
+      empty: "нет текущих задолженностей",
+      algo_hint: "алгоритм: минимальное число переводов чтобы обнулить все разницы",
+    },
     shared_funds: {
       title: "общие накопления",
       subtitle: "кто сколько вложил",
@@ -1038,6 +1054,10 @@ export const ruDict = {
   wallet: {
     // === wave-2 parser+wallet+breadcrumbs ===
     totals: {
+      section_title:     "итого по кошельку",
+      section_sub:       "все счета в ₽",
+      rates_updated:     "курсы · обн {ago}",
+      rates_never:       "курсы · нет данных",
       net_label:         "чистая сумма",
       net_sub:           "всего по {n} счетам",
       banks_crypto_label: "доступно в банках и крипто",
@@ -1057,6 +1077,7 @@ export const ruDict = {
       group_arch: "Архив",
       currency_all: "Все",
       day_progress: "д{day}/{days}",
+      day_hint: "день месяца / дней в месяце",
     },
     cash_meta: "{locations} {locWord} · {currencies} {curWord}",
     add_account: {
@@ -1128,7 +1149,7 @@ export const ruDict = {
     },
     cash: {
       section_title: "наличка",
-      section_sub: "· разные локации и валюты",
+      section_sub: "· разные места и валюты",
       add_location: {
         title: "Новая локация наличных",
         placeholder_location: "Название локации (напр. «сейф дома»)",
@@ -1761,10 +1782,7 @@ export const ruDict = {
         normal: "Норма",
         free:   "Свобода",
       },
-      sync:       "синхр {sec}с",
-      day_prefix: "д",
-      // === wave-3 polish ===
-      sync_tooltip: "Возраст данных: {sec} сек назад",
+      day_hint:   "день месяца / дней в месяце",
     },
     quick: {
       title: "быстрые действия",
@@ -2064,6 +2082,13 @@ export const ruDict = {
       no_csv: "Вставьте или загрузите CSV-файл",
       no_account: "Выберите счёт",
       mapping_incomplete: "Укажите колонки для даты и суммы",
+    },
+  },
+  tooltip: {
+    abbrev: {
+      obn: "обновлено",
+      podsk: "подсказки",
+      kat: "категории",
     },
   },
   debts: {

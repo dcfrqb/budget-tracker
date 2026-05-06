@@ -7,7 +7,7 @@ export type ExpensesKpiData = {
   subs: { label: string; value: number; sub: string };
   utilities: { label: string; value: number; sub: string };
   taxes: { label: string; value: number; sub: string };
-  projects: { label: string; value: number; sub: string };
+  projects: { label: string; value: number; valueLabel?: string; sub: string };
 };
 
 export function ExpensesKpiRow({ kpi }: { kpi: ExpensesKpiData }) {
@@ -41,7 +41,7 @@ export function ExpensesKpiRow({ kpi }: { kpi: ExpensesKpiData }) {
           </div>
           <div className="kpi">
             <div className="c acc">{kpi.projects.label}</div>
-            <div className="v acc">{kpi.projects.value}</div>
+            <div className="v acc">{kpi.projects.valueLabel ?? kpi.projects.value}</div>
             <div className="s">{kpi.projects.sub}</div>
           </div>
         </div>

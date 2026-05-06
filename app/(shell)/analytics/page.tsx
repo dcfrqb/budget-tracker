@@ -295,7 +295,6 @@ export default async function AnalyticsPage({
           colCategory: t("analytics.compare.col.category"),
           colPreviousDefault: t("analytics.compare.col.previous_default"),
           colCurrentDefault: t("analytics.compare.col.current_default"),
-          colTrend6m: t("analytics.compare.col.trend_6m"),
         }}
       />
       <Forecast cells={forecastCells} />

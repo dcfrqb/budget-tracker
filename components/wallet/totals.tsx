@@ -1,22 +1,31 @@
 import { CountUp } from "@/components/count-up";
+import { getT, getLocale } from "@/lib/i18n/server";
+import { formatAgo } from "@/lib/fx/freshness";
 import type { WalletTotalView } from "@/lib/view/wallet";
 
-type Props = { totals: WalletTotalView[] };
+type Props = { totals: WalletTotalView[]; latestRecordedAt?: Date | null };
 
-export function WalletTotals({ totals }: Props) {
+export async function WalletTotals({ totals, latestRecordedAt }: Props) {
+  const [t, locale] = await Promise.all([getT(), getLocale()]);
+  const ratesMeta = latestRecordedAt
+    ? t("wallet.totals.rates_updated", { vars: { ago: formatAgo(latestRecordedAt, locale) } })
+    : t("wallet.totals.rates_never");
   return (
     <div className="section fade-in" style={{ animationDelay: "60ms" }}>
       <div className="section-hd">
-        <div className="ttl mono"><b>итого по кошельку</b> <span className="dim">· все счета в ₽</span></div>
-        <div className="meta mono">курсы CBR · обновлены 12:30</div>
+        <div className="ttl mono">
+          <b>{t("wallet.totals.section_title")}</b>{" "}
+          <span className="dim">· {t("wallet.totals.section_sub")}</span>
+        </div>
+        <div className="meta mono">{ratesMeta}</div>
       </div>
       <div className="section-body flush">
         <div className="totals">
-          {totals.map((t, i) => (
+          {totals.map((tot, i) => (
             <div key={i} className="total-cell">
-              <div className="k">{t.k}</div>
-              <div className={`v ${t.tone} money`}><CountUp to={t.value} /> ₽</div>
-              <div className="s">{t.s}</div>
+              <div className="k">{tot.k}</div>
+              <div className={`v ${tot.tone} money`}><CountUp to={tot.value} /> ₽</div>
+              <div className="s">{tot.s}</div>
             </div>
           ))}
         </div>

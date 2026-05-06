@@ -47,7 +47,7 @@ export function FxRates({ rates, currencies, cbrAvailableCodes, latestRecordedAt
           <b>{t("wallet.fx.section_title")}</b>{" "}
           <span className="dim">· {t("wallet.fx.section_sub")}</span>
           {updatedLabel && (
-            <span className="dim"> · {updatedLabel}</span>
+            <span className="dim" title={t("tooltip.abbrev.obn")}> · {updatedLabel}</span>
           )}
           {stale && (
             <span style={{ color: "var(--warn)" }}> · {t("wallet.fx.stale_warning")}</span>

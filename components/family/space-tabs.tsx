@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useT } from "@/lib/i18n";
 
 export type SpaceTab = {
   id: string;
@@ -12,14 +13,15 @@ export type SpaceTab = {
 };
 
 export function SpaceTabs({ spaces }: { spaces: SpaceTab[] }) {
+  const t = useT();
   const [active, setActive] = useState(spaces[0]?.id ?? "");
   return (
     <div className="section fade-in" style={{ animationDelay: "160ms" }}>
       <div className="section-hd">
         <div className="ttl mono">
-          <b>пространства</b> <span className="dim">· личное / общее</span>
+          <b>{t("family.spaces.title")}</b> <span className="dim">· {t("family.spaces.subtitle")}</span>
         </div>
-        <div className="meta mono">переключай при добавлении транзакции</div>
+        <div className="meta mono">{t("family.spaces.hint")}</div>
       </div>
       <div className="space-tabs">
         {spaces.map((s) => (
@@ -43,7 +45,7 @@ export function SpaceTabs({ spaces }: { spaces: SpaceTab[] }) {
         ))}
         {spaces.length === 0 && (
           <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
-            нет пространств
+            {t("family.spaces.empty")}
           </div>
         )}
       </div>

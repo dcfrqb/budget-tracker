@@ -25,9 +25,6 @@ export async function IncomeKpiRow({
       <div className="section-hd">
         <div className="ttl mono">
           <b>{kpi.sectionTitle}</b>
-          <span className="meta" style={{ marginLeft: 8, fontWeight: 400, textTransform: "lowercase" }}>
-            {kpi.periodLabel}
-          </span>
         </div>
         <div className="meta mono">{kpi.sources.value}</div>
       </div>

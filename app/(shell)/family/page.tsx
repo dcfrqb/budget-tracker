@@ -77,18 +77,13 @@ export default async function FamilyPage() {
     };
   }
 
-  // No family case — show setup component
+  // No family case — show setup component only
   if (!family) {
     return (
       <>
         <FamilyStatusStrip />
         <GroupHeader group={undefined} />
         <FamilySetup />
-        <SpaceTabs spaces={spaces} />
-        <FamilyBalances flows={[]} />
-        <SharedLedger rows={[]} />
-        <SharedFunds funds={[]} labels={buildSharedFundsLabels(0)} />
-        <SharedSubs rows={[]} />
       </>
     );
   }

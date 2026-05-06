@@ -57,8 +57,8 @@ export function IncomeStatusStrip() {
         onChange={(v) => push("period", v)}
       />
       <div className="clock-right">
-        <span>
-          {now.getFullYear()} · <b>{t("common.unit.day")}{monthDay}/{monthDays}</b>
+        <span title={t("income.filter.day_of_month_hint")}>
+          {now.getFullYear()} · <b>{monthDay}/{monthDays}</b>
         </span>
       </div>
     </div>

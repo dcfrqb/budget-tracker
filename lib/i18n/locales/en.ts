@@ -403,12 +403,13 @@ export const enDict: RuDictShape = {
     },
     analytics: {
       period_label: "period · {period}",
+      avg_net_label: "monthly average",
       avg_net_unit: "₽/mo",
       avg_net_sub: "avg net",
       weather_label: "weather · status",
       savings_key: "savings",
       status_key: "status",
-      delta_label: "top growth · cat",
+      delta_label: "top growth · categories",
       no_data: "no data",
       flow_label: "flow · {period}",
       flow_meta: "live",
@@ -470,6 +471,7 @@ export const enDict: RuDictShape = {
       taxes: "TAXES · HINTS",
       taxes_sub: "pay manually",
       projects: "LONG PROJECTS",
+      projects_unit: "items",
       projects_sub: "{count_label} · {budget} budget",
       section_title: "obligations overview",
       section_meta: "current month",
@@ -647,6 +649,7 @@ export const enDict: RuDictShape = {
       period_90d: "90d",
       period_1y: "1y",
       period_all: "all",
+      day_of_month_hint: "day of month / days in month",
     },
   },
 
@@ -792,7 +795,7 @@ export const enDict: RuDictShape = {
         yoy:  "year ago",
         none: "none",
       },
-      sync: "synced {sec}s ago",
+      day_hint: "day of month / days in month",
     },
     compare: {
       label_prev: "vs previous period",
@@ -896,6 +899,19 @@ export const enDict: RuDictShape = {
       shared_balance: "shared balance",
     },
     your_share: "your share",
+    spaces: {
+      title: "spaces",
+      subtitle: "personal / shared",
+      hint: "switch when adding a transaction",
+      empty: "no spaces",
+    },
+    balances: {
+      title: "reconciliation",
+      subtitle: "who owes whom",
+      settle_btn: "Settle payment",
+      empty: "no current debts",
+      algo_hint: "algorithm: minimum number of transfers to zero out all differences",
+    },
     shared_funds: {
       title: "shared savings",
       subtitle: "who contributed what",
@@ -1030,6 +1046,10 @@ export const enDict: RuDictShape = {
   wallet: {
     // === wave-2 parser+wallet+breadcrumbs ===
     totals: {
+      section_title:     "wallet total",
+      section_sub:       "all accounts in ₽",
+      rates_updated:     "rates · upd {ago}",
+      rates_never:       "rates · no data",
       net_label:         "net total",
       net_sub:           "across {n} accounts",
       banks_crypto_label: "available in banks & crypto",
@@ -1049,6 +1069,7 @@ export const enDict: RuDictShape = {
       group_arch: "Archive",
       currency_all: "All",
       day_progress: "d{day}/{days}",
+      day_hint: "day of month / days in month",
     },
     cash_meta: "{locations} {locWord} · {currencies} {curWord}",
     add_account: {
@@ -1120,7 +1141,7 @@ export const enDict: RuDictShape = {
     },
     cash: {
       section_title: "cash",
-      section_sub: "· various locations and currencies",
+      section_sub: "· various places and currencies",
       add_location: {
         title: "New cash location",
         placeholder_location: "Location name (e.g. «home safe»)",
@@ -1752,10 +1773,7 @@ export const enDict: RuDictShape = {
         normal: "Normal",
         free:   "Free",
       },
-      sync:       "sync {sec}s",
-      day_prefix: "d",
-      // === wave-3 polish ===
-      sync_tooltip: "Data age: {sec}s ago",
+      day_hint:   "day of month / days in month",
     },
     quick: {
       title: "quick actions",
@@ -2055,6 +2073,13 @@ export const enDict: RuDictShape = {
       no_csv: "Please paste or upload a CSV file",
       no_account: "Please select an account",
       mapping_incomplete: "Please specify date and amount columns",
+    },
+  },
+  tooltip: {
+    abbrev: {
+      obn: "updated",
+      podsk: "hints",
+      kat: "categories",
     },
   },
   debts: {

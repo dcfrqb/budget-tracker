@@ -5,7 +5,6 @@ export type CompareRow = {
   curr: string;
   delta: string;
   deltaTone: string;
-  spark: number[];
 };
 
 export function Compare({
@@ -31,7 +30,6 @@ export function Compare({
     colCategory: string;
     colPreviousDefault: string;
     colCurrentDefault: string;
-    colTrend6m: string;
   };
 }) {
   const rising = rows.filter((r) => r.deltaTone === "neg").length;
@@ -45,8 +43,12 @@ export function Compare({
     <div className="section fade-in" style={{ animationDelay: "300ms" }}>
       <div className="section-hd">
         <div className="ttl mono">
-          <b>{labels.title}</b>{" "}
-          <span className="dim">· {caption}</span>
+          <b>{labels.title}</b>
+          {caption && (
+            <div className="dim" style={{ fontSize: 11, fontWeight: 400, marginTop: 2 }}>
+              {caption}
+            </div>
+          )}
         </div>
         <div className="meta mono">
           {compareMode === "none"
@@ -69,7 +71,6 @@ export function Compare({
               <div style={{ textAlign: "right" }}>{previousPeriodLabel ?? labels.colPreviousDefault}</div>
               <div style={{ textAlign: "right" }}>{currentPeriodLabel ?? labels.colCurrentDefault}</div>
               <div style={{ textAlign: "right" }}>Δ %</div>
-              <div style={{ textAlign: "right" }}>{labels.colTrend6m}</div>
             </div>
             {rows.map((r, i) => (
               <div key={i} className="cmp-row">
@@ -80,11 +81,6 @@ export function Compare({
                 <div className="num money">{r.prev}</div>
                 <div className="num money">{r.curr}</div>
                 <div className={`delta ${r.deltaTone}`}>{r.delta}</div>
-                <div className="spark">
-                  {r.spark.map((h, j) => (
-                    <span key={j} style={{ height: h }} />
-                  ))}
-                </div>
               </div>
             ))}
             {rows.length === 0 && (

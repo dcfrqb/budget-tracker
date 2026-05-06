@@ -218,7 +218,7 @@ export default async function WalletPage({
         monthLabel={monthLabel}
         dayProgress={dayProgress}
       />
-      <WalletTotals totals={totalsView} />
+      <WalletTotals totals={totalsView} latestRecordedAt={fxLatestRecordedAt} />
       <FxRates
         rates={fxView}
         currencies={currencyOptions}
