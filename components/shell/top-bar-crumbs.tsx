@@ -32,7 +32,9 @@ export function TopBarCrumbs() {
 
   // Third crumb: only show on home page (date) or when a deeper sub-path matches
   const subPathCrumb = SECONDARY_BY_PATH[pathname] ?? null;
-  const thirdCrumb = pathname === "/" ? new Date().toISOString().slice(0, 10) : subPathCrumb;
+  const now = new Date();
+  const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const thirdCrumb = pathname === "/" ? localDate : subPathCrumb;
 
   return (
     <span className="path mono">

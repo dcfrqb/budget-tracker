@@ -163,17 +163,30 @@ a { color: inherit; text-decoration: none; }
 .topbar .pill  {
   display: inline-flex; align-items: center; gap: 8px;
   padding: 3px 10px; border: 1px solid var(--border); border-radius: 3px;
-  font-size: 11px; background: rgba(63,185,80,0.06);
+  font-size: 11px;
+  background: color-mix(in srgb, var(--tone-color, var(--pos)) 8%, transparent);
 }
+.topbar .pill[data-tone="ok"]      { --tone-color: var(--pos); }
+.topbar .pill[data-tone="warn"]    { --tone-color: var(--warn); }
+.topbar .pill[data-tone="danger"]  { --tone-color: var(--neg); }
+.topbar .pill[data-tone="unknown"] { --tone-color: var(--muted); }
+.topbar .pill[data-tone="unknown"] .pulse { animation: none; opacity: .5; }
 .topbar .pulse {
   width: 6px; height: 6px; border-radius: 50%;
-  background: var(--pos);
+  background: var(--tone-color, var(--pos));
   will-change: transform;
   animation: heartbeat 2s var(--e-out-cubic) infinite;
+}
+.topbar .pill[data-tone="danger"] .pulse {
+  animation: heartbeat-strong 2s var(--e-out-cubic) infinite;
 }
 @keyframes heartbeat {
   0%,100% { opacity: .85; transform: scale(1); }
   50%     { opacity: 1;   transform: scale(1.15); }
+}
+@keyframes heartbeat-strong {
+  0%,100% { opacity: .85; transform: scale(1); }
+  50%     { opacity: 1;   transform: scale(1.3); }
 }
 .topbar .kbd {
   font-family: var(--mono-font), monospace; font-size: 11px;
@@ -439,7 +452,7 @@ a { color: inherit; text-decoration: none; }
 .qa-btn .k { color: var(--dim); font-size: 11px; }
 
 /* ── OBLIGATIONS ────────────────────────────────────────────────── */
-.ob-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1px; background: var(--border); }
+.ob-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1px; background: var(--border); }
 .ob-card {
   background: var(--panel-2); padding: 15px 17px; cursor: pointer;
   display: flex; flex-direction: column; gap: 10px;
@@ -586,15 +599,19 @@ a { color: inherit; text-decoration: none; }
   margin: 4px 8px; padding: 12px 8px;
   transition: border-color 150ms var(--e-out);
 }
+.safe-block[data-tone="ok"]      { --tone-color: var(--pos); }
+.safe-block[data-tone="warn"]    { --tone-color: var(--warn); }
+.safe-block[data-tone="danger"]  { --tone-color: var(--neg); }
+.safe-block[data-tone="unknown"] { --tone-color: var(--muted); }
 .safe-block.flash { border-color: var(--accent); }
 .safe-block .lbl  { margin-bottom: 6px; }
 .safe-block .row  { display: flex; align-items: baseline; gap: 6px; }
 .safe-block .big  {
   font-family: var(--mono-font), monospace; font-weight: 700; font-size: 34px;
-  color: var(--accent); line-height: 1;
+  color: var(--tone-color, var(--accent)); line-height: 1;
 }
 .safe-block .unit {
-  font-family: var(--mono-font), monospace; font-size: 13px; color: var(--accent); font-weight: 500;
+  font-family: var(--mono-font), monospace; font-size: 13px; color: var(--tone-color, var(--accent)); font-weight: 500;
 }
 .safe-block .sub  {
   font-family: var(--mono-font), monospace; font-size: 11px; color: var(--muted); margin-top: 6px;
@@ -1698,7 +1715,7 @@ a { color: inherit; text-decoration: none; }
 .lg-delta{ font-family: var(--mono-font), monospace; font-size: 11px; font-weight: 700; text-align: right; }
 
 /* Compare */
-.cmp-grid { display: grid; grid-template-columns: 1fr 110px 110px 80px; gap: 0; }
+.cmp-grid { display: grid; grid-template-columns: 1fr 110px 110px 100px; gap: 0; }
 .cmp-hd   { display: contents; }
 .cmp-hd > * {
   padding: 10px 14px;
@@ -1712,7 +1729,7 @@ a { color: inherit; text-decoration: none; }
 .cmp-row .name { font-size: 13px; font-weight: 500; }
 .cmp-row .name .s { font-family: var(--mono-font), monospace; font-size: 10px; color: var(--muted); margin-top: 2px; }
 .cmp-row .num   { font-family: var(--mono-font), monospace; font-weight: 700; font-size: 13px; text-align: right; white-space: nowrap; }
-.cmp-row .delta { font-family: var(--mono-font), monospace; font-size: 12px; font-weight: 700; text-align: right; }
+.cmp-row .delta { font-family: var(--mono-font), monospace; font-size: 12px; font-weight: 700; text-align: right; white-space: nowrap; }
 .cmp-row .spark {
   display: flex; align-items: flex-end; justify-content: flex-end;
   gap: 2px; padding-right: 6px;
@@ -3554,4 +3571,5 @@ input[type="checkbox"]:disabled {
   .qi-input-row,
   .qi-btn-full,
   .qi-btn-clear { transition: none !important; }
+  .topbar .pulse { animation: none; opacity: .9; }
 }

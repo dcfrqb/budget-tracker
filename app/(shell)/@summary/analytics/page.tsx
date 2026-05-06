@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { CountUp } from "@/components/count-up";
 import {
   BalancesBlock,

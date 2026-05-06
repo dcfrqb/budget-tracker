@@ -51,11 +51,19 @@ export async function TopBar() {
 
   const statusLabel = STATUS_LABELS[dashboard.status] ?? t("shell.status.stable");
 
+  const STATUS_TONE: Record<string, "ok" | "warn" | "danger" | "unknown"> = {
+    stable:  "ok",
+    warning: "warn",
+    crisis:  "danger",
+  };
+  const pillTone: "ok" | "warn" | "danger" | "unknown" =
+    STATUS_TONE[dashboard.status] ?? "unknown";
+
   return (
     <div className="topbar">
       <span className="brand mono">{t("shell.brand")}</span>
       <TopBarCrumbs />
-      <span className="pill">
+      <span className="pill" data-tone={pillTone}>
         <span className="pulse" aria-hidden />
         {statusLabel}
       </span>
@@ -68,7 +76,7 @@ export async function TopBar() {
           </span>
         )}
         <LiveClock />
-        <SyncButton credentials={syncCredentials} locale={locale} />
+        <SyncButton credentials={syncCredentials} />
       </div>
     </div>
   );

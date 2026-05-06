@@ -11,17 +11,7 @@ export async function IntegrationsSection() {
         {t("settings.integrations.section_title")}
       </div>
       {isAdmin ? (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 16,
-          }}
-        >
-          <span className="settings-section-summary mono">
-            {t("settings.integrations.manage")}
-          </span>
+        <div style={{ display: "flex", gap: 16 }}>
           <Link href="/wallet/integrations" className="btn primary">
             {t("settings.integrations.manage")}
           </Link>

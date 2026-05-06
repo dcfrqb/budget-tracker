@@ -58,22 +58,58 @@ export async function PlanFact({
       <div className="section-body flush">
         <div className="pf-grid">
           {cells.map((cell, i) => {
-            const pct = cell.plan > 0 && !cell.noPlan
+            const barDelay = 260 + i * 80;
+
+            if (cell.mode === "no_plan_set") {
+              return (
+                <div className="pf-cell" key={cell.code}>
+                  <div className={`code ${cell.kind} mono`}>{cell.code}</div>
+                  <div className="val mono money" style={{ color: "var(--muted)" }}>—</div>
+                  <div className="of mono" style={{ color: "var(--muted)" }}>
+                    {t("home.plan_fact.no_plan_set")}
+                  </div>
+                  <div className="pf-bar" />
+                </div>
+              );
+            }
+
+            if (cell.mode === "actual_without_plan") {
+              return (
+                <div className="pf-cell" key={cell.code}>
+                  <div className={`code ${cell.kind} mono`}>{cell.code}</div>
+                  <div className="val mono money" style={{ color: BAR_COLOR[cell.color] }}>
+                    {cell.sign}<CountUp to={cell.fact} /> ₽
+                  </div>
+                  <div className="of mono" style={{ color: "var(--muted)" }}>
+                    {t("home.plan_fact.actual_without_plan")}
+                  </div>
+                  <div className="pf-bar">
+                    <div
+                      className="fill"
+                      style={{
+                        width: "100%",
+                        background: BAR_COLOR[cell.color],
+                        opacity: 0.4,
+                        ["--bar-delay" as string]: `${barDelay}ms`,
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            }
+
+            const pct = cell.plan > 0
               ? Math.min(100, Math.round((cell.fact / cell.plan) * 100))
               : 0;
             const barWidth = cell.kind === "net" ? 100 : pct;
-            const barDelay = 260 + i * 80;
-            const subText = cell.noPlan
-              ? t("home.plan_fact.no_plan")
-              : cell.sub;
             return (
               <div className="pf-cell" key={cell.code}>
                 <div className={`code ${cell.kind} mono`}>{cell.code}</div>
                 <div className="val mono money" style={{ color: BAR_COLOR[cell.color] }}>
                   {cell.sign}<CountUp to={cell.fact} /> ₽
                 </div>
-                <div className="of mono" style={cell.noPlan ? { color: "var(--muted)" } : undefined}>
-                  {subText}
+                <div className="of mono">
+                  {cell.sub || t("home.plan_fact.no_plan")}
                 </div>
                 <div className="pf-bar">
                   <div

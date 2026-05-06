@@ -130,11 +130,11 @@ export default async function PlanningPage() {
       label2: nextEventLabel,
       sub: nextEvent
         ? t("planning.calendar.in_days", { vars: { n: String(nextEventDiff) } }).trim() || `+${nextEventDiff}${t("common.unit.day")}`
-        : t("planning.kpi.next_event_none"),
+        : "",
     },
     hours: {
       label: t("planning.kpi.hours"),
-      value: totalHoursToGoal,
+      value: hourlyRate && !hourlyRate.isZero() ? totalHoursToGoal : null,
       sub: hourlyRateLabel
         ? t("planning.hours_rate_label", { vars: { rate: hourlyRateLabel } })
         : t("planning.kpi.hours_no_rate"),

@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import {
   AvailableBlock,
   BalancesBlock,
@@ -8,62 +10,32 @@ import {
 } from "@/components/shell/summary/common";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { getCurrentUserId } from "@/lib/api/auth";
+import { getPeriodFlow } from "@/lib/data/_shared/period-aggregates";
 import { db } from "@/lib/db";
-import { getLatestRatesMap, convertToBase } from "@/lib/data/wallet";
-import { Prisma, TransactionKind, TransactionStatus } from "@prisma/client";
+import { TransactionKind, TransactionStatus } from "@prisma/client";
 import { formatMoney } from "@/lib/format/money";
 import { getT } from "@/lib/i18n/server";
 
 export default async function TransactionsSummary() {
   const [userId, t] = await Promise.all([getCurrentUserId(), getT()]);
   const now = new Date();
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-  const [txns30d, rates] = await Promise.all([
-    db.transaction.findMany({
+  const [flow, plannedCount] = await Promise.all([
+    getPeriodFlow(userId, { from, to: now }, DEFAULT_CURRENCY),
+    db.transaction.count({
       where: {
         userId,
         deletedAt: null,
-        occurredAt: { gte: thirtyDaysAgo, lte: now },
-        status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
-        kind: { in: [TransactionKind.INCOME, TransactionKind.EXPENSE] },
-      },
-      select: {
-        kind: true,
-        status: true,
-        amount: true,
-        currencyCode: true,
-        facts: { select: { amount: true } },
-        occurredAt: true,
+        status: TransactionStatus.PLANNED,
+        occurredAt: { gte: now },
+        kind: { not: TransactionKind.TRANSFER },
+        transferId: null,
       },
     }),
-    getLatestRatesMap(),
   ]);
 
-  let inflow = new Prisma.Decimal(0);
-  let outflow = new Prisma.Decimal(0);
-
-  for (const tx of txns30d) {
-    const actual = tx.status === "DONE"
-      ? new Prisma.Decimal(tx.amount)
-      : tx.facts.reduce((s, f) => s.plus(f.amount), new Prisma.Decimal(0));
-    const inBase = convertToBase(actual, tx.currencyCode, DEFAULT_CURRENCY, rates);
-    if (!inBase) continue;
-    if (tx.kind === TransactionKind.INCOME) inflow = inflow.plus(inBase);
-    else outflow = outflow.plus(inBase);
-  }
-
-  const days = 30;
-  const avgPerDay = outflow.div(days);
-
-  const plannedCount = await db.transaction.count({
-    where: {
-      userId,
-      deletedAt: null,
-      status: TransactionStatus.PLANNED,
-      occurredAt: { gte: now },
-    },
-  });
+  const avgPerDay = flow.outflowBase.div(30);
 
   return (
     <SummaryShell>
@@ -74,9 +46,9 @@ export default async function TransactionsSummary() {
           <span className="tiny mono">{t("summary.transactions.filter_meta")}</span>
         </div>
         <div className="filt-summary">
-          <div className="row"><span className="k">{t("summary.transactions.found_key")}</span><span className="v">{txns30d.length}</span></div>
-          <div className="row"><span className="k">{t("summary.transactions.inflow_key")}</span><span className="v pos money">{formatMoney(inflow, "RUB")}</span></div>
-          <div className="row"><span className="k">{t("summary.transactions.outflow_key")}</span><span className="v info money">{formatMoney(outflow, "RUB")}</span></div>
+          <div className="row"><span className="k">{t("summary.transactions.found_key")}</span><span className="v">{flow.txCount}</span></div>
+          <div className="row"><span className="k">{t("summary.transactions.inflow_key")}</span><span className="v pos money">{formatMoney(flow.inflowBase, "RUB")}</span></div>
+          <div className="row"><span className="k">{t("summary.transactions.outflow_key")}</span><span className="v info money">{formatMoney(flow.outflowBase, "RUB")}</span></div>
           <div className="row"><span className="k">{t("summary.transactions.avg_day_key")}</span><span className="v money">{formatMoney(avgPerDay, "RUB")}</span></div>
         </div>
       </div>

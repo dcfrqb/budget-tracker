@@ -25,6 +25,8 @@ export type HomePlanFactCell = {
   sub: string;
   color: "pos" | "neg" | "info" | "acc";
   noPlan?: boolean;
+  /** explicit display mode: "normal" = plan>0; "no_plan_set" = plan=0 and fact=0; "actual_without_plan" = plan=0 and fact>0 */
+  mode: "normal" | "no_plan_set" | "actual_without_plan";
 };
 
 export type HomeObligationView = {
@@ -36,6 +38,7 @@ export type HomeObligationView = {
   date: string;        // "28.04 · 7д"
   amount: string;      // "₽ 57 400"
   meta: string;
+  isDuplicate?: boolean;
 };
 
 export type HomeTopCategoryView = {
@@ -80,11 +83,11 @@ export type HomeView = {
 // Helpers
 // ─────────────────────────────────────────────────────────────
 
-const STATUS_LABEL: Record<HomeDashboard["status"], string> = {
-  stable: "СТАБИЛЬНО",
-  warning: "ВНИМАНИЕ",
-  crisis: "КРИЗИС",
-};
+function getStatusLabel(status: HomeDashboard["status"], t: TFunc): string {
+  if (status === "stable")  return t("shell.status.stable");
+  if (status === "warning") return t("shell.status.warning");
+  return t("shell.status.crisis");
+}
 
 const STATUS_TONE: Record<HomeDashboard["status"], "pos" | "warn" | "neg"> = {
   stable: "pos",
@@ -108,28 +111,31 @@ const OBLIGATION_CLASS: Record<UpcomingObligation["kind"], "loan" | "sub" | "uti
   credit_card: "warn",
 };
 
-function formatDueAt(isoDate: string): string {
+function formatDueAt(isoDate: string, t: TFunc): string {
   const date = new Date(isoDate);
   const now = new Date();
   const diffMs = date.getTime() - now.getTime();
   const diffDays = Math.max(0, Math.ceil(diffMs / (24 * 60 * 60 * 1000)));
   const day = date.getUTCDate().toString().padStart(2, "0");
   const month = (date.getUTCMonth() + 1).toString().padStart(2, "0");
-  return `${day}.${month} · ${diffDays}д`;
+  return `${day}.${month} · ${diffDays}${t("common.unit.day")}`;
 }
 
 function formatBaseAmount(amountBaseStr: string): string {
   return formatMoney(new Prisma.Decimal(amountBaseStr), "RUB");
 }
 
-function toObligationView(ob: UpcomingObligation): HomeObligationView {
+function toObligationView(ob: UpcomingObligation, t: TFunc): HomeObligationView {
   const isBaseCurrency = ob.currencyCode === "RUB";
-  const origFormatted = isBaseCurrency
-    ? null
-    : formatMoney(new Prisma.Decimal(ob.amount), ob.currencyCode);
-  const sub = origFormatted
-    ? `${ob.currencyCode} · ${origFormatted}`
-    : "";
+  let amount: string;
+  let sub: string;
+  if (isBaseCurrency) {
+    amount = formatBaseAmount(ob.amountBase);
+    sub = "";
+  } else {
+    amount = formatMoney(new Prisma.Decimal(ob.amount), ob.currencyCode);
+    sub = `≈ ${formatBaseAmount(ob.amountBase)}`;
+  }
 
   return {
     id: ob.id,
@@ -137,8 +143,8 @@ function toObligationView(ob: UpcomingObligation): HomeObligationView {
     tagClass: OBLIGATION_CLASS[ob.kind],
     name: ob.label,
     sub,
-    date: formatDueAt(ob.dueAt),
-    amount: formatBaseAmount(ob.amountBase),
+    date: formatDueAt(ob.dueAt, t),
+    amount,
     meta: ob.kind,
   };
 }
@@ -195,10 +201,28 @@ export function toHomeView(dashboard: HomeDashboard, t: TFunc): HomeView {
   const hasInflowPlan = dashboard.planFactMonth.hasInflowPlan;
   const hasOutflowPlan = dashboard.planFactMonth.hasOutflowPlan;
 
-  // TODO Фаза 9: сверить с компонентом plan-fact.tsx — он ожидает пары code/kind/fact/plan/currency/sub/color
+  const inflowMode: HomePlanFactCell["mode"] = hasInflowPlan
+    ? "normal"
+    : inflowFact > 0
+      ? "actual_without_plan"
+      : "no_plan_set";
+
+  const outflowMode: HomePlanFactCell["mode"] = hasOutflowPlan
+    ? "normal"
+    : outflowFact > 0
+      ? "actual_without_plan"
+      : "no_plan_set";
+
+  const hasAnyPlan = hasInflowPlan || hasOutflowPlan;
+  const netMode: HomePlanFactCell["mode"] = hasAnyPlan
+    ? "normal"
+    : (netFact !== 0)
+      ? "actual_without_plan"
+      : "no_plan_set";
+
   const planFact: HomePlanFactCell[] = [
     {
-      code: "ДОХОД",
+      code: t("home.plan_fact.code_inc"),
       kind: "inc",
       fact: inflowFact,
       plan: inflowPlan,
@@ -208,9 +232,10 @@ export function toHomeView(dashboard: HomeDashboard, t: TFunc): HomeView {
         : "",
       noPlan: !hasInflowPlan,
       color: "pos",
+      mode: inflowMode,
     },
     {
-      code: "РАСХОД",
+      code: t("home.plan_fact.code_exp"),
       kind: "exp",
       fact: outflowFact,
       plan: outflowPlan,
@@ -220,9 +245,10 @@ export function toHomeView(dashboard: HomeDashboard, t: TFunc): HomeView {
         : "",
       noPlan: !hasOutflowPlan,
       color: "info",
+      mode: outflowMode,
     },
     {
-      code: "НЕТТО",
+      code: t("home.plan_fact.code_net"),
       kind: "net",
       fact: Math.abs(netFact),
       plan: Math.abs(netPlan),
@@ -235,17 +261,20 @@ export function toHomeView(dashboard: HomeDashboard, t: TFunc): HomeView {
         : "",
       noPlan: !hasInflowPlan && !hasOutflowPlan,
       color: netFact > 0 ? "pos" : netFact < 0 ? "neg" : "acc",
+      mode: netMode,
     },
   ];
 
   return {
     status: {
-      label: STATUS_LABEL[dashboard.status],
+      label: getStatusLabel(dashboard.status, t),
       tone: STATUS_TONE[dashboard.status],
     },
     safeUntil: {
       days: dashboard.safeUntilDays,
-      label: dashboard.safeUntilDays !== null ? `${dashboard.safeUntilDays} дн` : "∞",
+      label: dashboard.safeUntilDays !== null
+        ? `${dashboard.safeUntilDays} ${t("shell.summary.safe.days")}`
+        : "∞",
     },
     available: {
       freeBase,
@@ -254,7 +283,23 @@ export function toHomeView(dashboard: HomeDashboard, t: TFunc): HomeView {
       liquidBase,
     },
     planFact,
-    obligations: dashboard.upcomingObligations30d.map(toObligationView),
+    obligations: (() => {
+      const obls = dashboard.upcomingObligations30d;
+      const subSig = new Map<string, number>();
+      for (const ob of obls) {
+        if (ob.kind !== "subscription") continue;
+        const key = `${ob.label}|${ob.currencyCode}|${ob.amount}`;
+        subSig.set(key, (subSig.get(key) ?? 0) + 1);
+      }
+      return obls.map((ob) => {
+        const view = toObligationView(ob, t);
+        if (ob.kind === "subscription") {
+          const key = `${ob.label}|${ob.currencyCode}|${ob.amount}`;
+          if ((subSig.get(key) ?? 0) > 1) view.isDuplicate = true;
+        }
+        return view;
+      });
+    })(),
     topCategories: dashboard.topCategoriesDelta.map((c, i) => toTopCategoryView(c, i + 1)),
     // TODO Фаза 9: компонент summary-rail читает BALANCES из mock — передавай этот массив туда
     balances: dashboard.balances.map((b) => ({

@@ -12,16 +12,11 @@ export function periodShortLabel(period: AnalyticsPeriod, t: (key: TKey) => stri
   return t("common.period.ytd");
 }
 
+const AVG_DAYS_PER_MONTH = 30.4375;
+
 export function periodMonthCount(period: AnalyticsPeriod, range: DateRange): number {
-  if (period === "ytd") {
-    const months = range.to.getUTCMonth() - range.from.getUTCMonth()
-      + (range.to.getUTCFullYear() - range.from.getUTCFullYear()) * 12;
-    return Math.max(1, months + 1);
-  }
-  if (period === "1m") return 1;
-  if (period === "6m") return 6;
-  if (period === "12m") return 12;
-  return 3;
+  const days = (range.to.getTime() - range.from.getTime()) / (24 * 60 * 60 * 1000);
+  return Math.max(1 / 30, days / AVG_DAYS_PER_MONTH);
 }
 
 export const DEFAULT_ANALYTICS_PERIOD: AnalyticsPeriod = "3m";

@@ -5,6 +5,8 @@ export type CompareRow = {
   curr: string;
   delta: string;
   deltaTone: string;
+  /** "new" = appeared this period, "gone" = disappeared, "delta" = normal comparison */
+  kind?: "new" | "gone" | "delta";
 };
 
 export function Compare({
@@ -30,6 +32,8 @@ export function Compare({
     colCategory: string;
     colPreviousDefault: string;
     colCurrentDefault: string;
+    deltaNew: string;
+    deltaGone: string;
   };
 }) {
   const rising = rows.filter((r) => r.deltaTone === "neg").length;
@@ -80,7 +84,9 @@ export function Compare({
                 </div>
                 <div className="num money">{r.prev}</div>
                 <div className="num money">{r.curr}</div>
-                <div className={`delta ${r.deltaTone}`}>{r.delta}</div>
+                <div className={`delta ${r.kind === "new" ? "acc" : r.kind === "gone" ? "mut" : r.deltaTone}`}>
+                  {r.kind === "new" ? labels.deltaNew : r.kind === "gone" ? labels.deltaGone : r.delta}
+                </div>
               </div>
             ))}
             {rows.length === 0 && (

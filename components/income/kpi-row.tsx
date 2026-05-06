@@ -14,9 +14,11 @@ export type IncomeKpiData = {
 export async function IncomeKpiRow({
   kpi,
   hasNoSources = false,
+  hasIncomeTxns = false,
 }: {
   kpi: IncomeKpiData;
   hasNoSources?: boolean;
+  hasIncomeTxns?: boolean;
 }) {
   const t = await getT();
 
@@ -41,7 +43,7 @@ export async function IncomeKpiRow({
               style={{
                 gridColumn: "span 3",
                 background: "var(--panel-2)",
-                border: "1px solid var(--accent)",
+                border: `1px solid ${hasIncomeTxns ? "var(--muted)" : "var(--accent)"}`,
                 borderRadius: 2,
                 display: "flex",
                 flexDirection: "column",
@@ -49,17 +51,35 @@ export async function IncomeKpiRow({
                 padding: "12px 16px",
               }}
             >
-              <div className="c acc">{t("income.kpi.empty_cta_title")}</div>
-              <div className="s" style={{ lineHeight: 1.5 }}>
-                {t("income.kpi.empty_cta_body")}
-              </div>
-              <Link
-                href="/income/work-sources/new"
-                className="btn primary"
-                style={{ fontSize: 11, padding: "4px 12px", alignSelf: "flex-start", marginTop: 4 }}
-              >
-                {t("income.kpi.empty_cta_button")}
-              </Link>
+              {hasIncomeTxns ? (
+                <>
+                  <div className="c mut">{t("income.kpi.sources_hint_title")}</div>
+                  <div className="s" style={{ lineHeight: 1.5 }}>
+                    {t("income.kpi.sources_hint_body")}
+                  </div>
+                  <Link
+                    href="/income/work-sources/new"
+                    className="btn"
+                    style={{ fontSize: 11, padding: "4px 12px", alignSelf: "flex-start", marginTop: 4 }}
+                  >
+                    {t("income.kpi.empty_cta_button")}
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <div className="c acc">{t("income.kpi.empty_cta_title")}</div>
+                  <div className="s" style={{ lineHeight: 1.5 }}>
+                    {t("income.kpi.empty_cta_body")}
+                  </div>
+                  <Link
+                    href="/income/work-sources/new"
+                    className="btn primary"
+                    style={{ fontSize: 11, padding: "4px 12px", alignSelf: "flex-start", marginTop: 4 }}
+                  >
+                    {t("income.kpi.empty_cta_button")}
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         ) : (

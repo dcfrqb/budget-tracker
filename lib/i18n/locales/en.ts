@@ -407,7 +407,7 @@ export const enDict: RuDictShape = {
       avg_net_unit: "₽/mo",
       avg_net_sub: "avg net",
       weather_label: "weather · status",
-      savings_key: "savings",
+      savings_key: "savings rate",
       status_key: "status",
       delta_label: "top growth · categories",
       no_data: "no data",
@@ -424,7 +424,7 @@ export const enDict: RuDictShape = {
       weather_storm: "stormy",
     },
     wallet: {
-      net_label: "net total",
+      net_label: "total balance",
       accounts_sub: "across {n} accounts",
       inst_share_label: "share by institution",
       inst_share_meta: "of total",
@@ -442,7 +442,6 @@ export const enDict: RuDictShape = {
       space_meta: "switch",
       space_shared: "Shared",
       space_personal: "Personal",
-      space_all: "All",
       space_hint: "New transactions are created in shared space by default. Change when adding if needed.",
       no_group_label: "group",
       no_group_meta: "not created",
@@ -600,9 +599,9 @@ export const enDict: RuDictShape = {
       rate_sub_primary: "from primary source",
       rate_sub_empty: "no data",
       inflow_label: {
-        "30d": "Last month",
-        "90d": "Last 3 months",
-        "1y": "Last 12 months",
+        "30d": "Last 30 days",
+        "90d": "Last 90 days",
+        "1y": "Last 365 days",
         all: "All time",
       },
       inflow_sub: "{days} d · avg {avg} / mo",
@@ -613,6 +612,8 @@ export const enDict: RuDictShape = {
       empty_cta_title: "Add a work source",
       empty_cta_body: "To see tax, hourly rate, and the hours-to-purchase calculation.",
       empty_cta_button: "+ Add work source",
+      sources_hint_title: "income exists but sources not configured",
+      sources_hint_body: "Add a work source to see tax hints, hourly rate, and hours-to-purchase calculation.",
       section_title: "income",
     },
     work_sources: {
@@ -656,6 +657,20 @@ export const enDict: RuDictShape = {
   planning: {
     funds: {
       section_title: "Funds",
+    },
+    status_strip: {
+      view_label:    "VIEW",
+      horizon_label: "HORIZON",
+      view_all:      "All",
+      view_calendar: "Calendar",
+      view_funds:    "Savings",
+      view_buys:     "Purchases",
+      view_trips:    "Trips",
+      horizon_30d:   "30d",
+      horizon_90d:   "90d",
+      horizon_1y:    "1y",
+      horizon_all:   "all",
+      day_hint:      "day of month / days in month",
     },
     kpi: {
       saved: "SAVED",
@@ -816,6 +831,8 @@ export const enDict: RuDictShape = {
         current_default: "current",
         trend_6m: "6m trend",
       },
+      delta_new: "new",
+      delta_gone: "gone",
     },
     weather: {
       title: "financial weather",
@@ -897,6 +914,18 @@ export const enDict: RuDictShape = {
       shared_name_default: "shared space",
       shared_sub: "visible to all members",
       shared_balance: "shared balance",
+    },
+    status_strip: {
+      space_label: "SPACE",
+      space_shared: "Shared",
+      space_personal: "My personal",
+      space_all: "All together",
+      period_label: "PERIOD",
+      period_month: "this mo",
+      period_90d: "90d",
+      period_ytd: "YTD",
+      period_all: "all",
+      day_hint: "day of month / days in month",
     },
     your_share: "your share",
     spaces: {
@@ -1748,8 +1777,13 @@ export const enDict: RuDictShape = {
     plan_fact: {
       title: "plan-fact",
       meta:  "current month",
+      code_inc: "INCOME",
+      code_exp: "EXPENSE",
+      code_net: "NET",
       // === wave-3 polish ===
       no_plan: "no plan set",
+      no_plan_set: "no plan set",
+      actual_without_plan: "actual without plan",
       of_amount: "of {amount}",
       net_eom_sub: "end of month ≈ {amount}",
       period_label: {
@@ -1804,6 +1838,7 @@ export const enDict: RuDictShape = {
         text: "no obligations in the next 30 days",
         cta: "+ obligation",
       },
+      duplicate_hint: "possible duplicate · check subscriptions",
     },
   },
 
@@ -1891,7 +1926,7 @@ export const enDict: RuDictShape = {
       wal:  "accounts",
       fam:  "group",
       // === wave-2 parser+wallet+breadcrumbs ===
-      settings: "settings",
+      settings: "profile & budget",
       settings_sub: {
         categories:   "categories",
       },
@@ -1937,10 +1972,10 @@ export const enDict: RuDictShape = {
     summary: {
       aria: "Summary",
       safe: {
-        label:       "safe for",
-        zero_income: "@ zero income",
-        days:        "days",
-        days_zero:   "today",
+        label:        "safe for",
+        label_unsafe: "RUNWAY OUT",
+        zero_income:  "@ zero income",
+        days:         "days",
       },
       avail: {
         label:    "available now",
@@ -2078,8 +2113,6 @@ export const enDict: RuDictShape = {
   tooltip: {
     abbrev: {
       obn: "updated",
-      podsk: "hints",
-      kat: "categories",
     },
   },
   debts: {

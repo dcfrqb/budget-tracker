@@ -29,7 +29,9 @@ export type PeriodCompareRow = {
   categoryName: string;
   currentBase: string;
   previousBase: string;
-  deltaPct: number | null; // null если prev = 0
+  /** "new" = appeared this period (prev ≤ epsilon), "gone" = disappeared (curr ≤ epsilon), "delta" = normal comparison */
+  kind: "new" | "gone" | "delta";
+  deltaPct: number | null; // null when kind !== "delta"
 };
 
 export type TrendPoint = {
@@ -135,6 +137,7 @@ export const getPeriodKpis = cache(async (
         deletedAt: null,
         occurredAt: { gte: range.from, lte: range.to },
         kind: { in: [TransactionKind.INCOME, TransactionKind.EXPENSE] },
+        transferId: null,
         status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
       },
       select: {
@@ -189,6 +192,7 @@ export const getCategoryPie = cache(async (
         deletedAt: null,
         occurredAt: { gte: range.from, lte: range.to },
         kind: TransactionKind.EXPENSE,
+        transferId: null,
         status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
         categoryId: { not: null },
       },
@@ -260,6 +264,7 @@ export const getPeriodCompare = cache(async (
         deletedAt: null,
         occurredAt: { gte: range.from, lte: range.to },
         kind: TransactionKind.EXPENSE,
+        transferId: null,
         status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
         categoryId: { not: null },
       },
@@ -277,6 +282,7 @@ export const getPeriodCompare = cache(async (
         deletedAt: null,
         occurredAt: { gte: prevRange.from, lte: prevRange.to },
         kind: TransactionKind.EXPENSE,
+        transferId: null,
         status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
         categoryId: { not: null },
       },
@@ -312,6 +318,8 @@ export const getPeriodCompare = cache(async (
   const currentByCat = sumByCat(currentRows);
   const prevByCat = sumByCat(prevRows);
 
+  const EPSILON = new Prisma.Decimal("0.01");
+
   // Все категории, у которых есть движения в current или previous
   const allCatIds = new Set([...currentByCat.keys(), ...prevByCat.keys()]);
 
@@ -319,15 +327,27 @@ export const getPeriodCompare = cache(async (
     const cat = catMap.get(catId);
     const current = currentByCat.get(catId) ?? new Prisma.Decimal(0);
     const prev = prevByCat.get(catId) ?? new Prisma.Decimal(0);
-    const deltaPct = prev.isZero()
-      ? null
-      : current.minus(prev).div(prev).times(100).toNumber();
+
+    let kind: PeriodCompareRow["kind"];
+    let deltaPct: number | null;
+
+    if (prev.lte(EPSILON)) {
+      kind = "new";
+      deltaPct = null;
+    } else if (current.lte(EPSILON)) {
+      kind = "gone";
+      deltaPct = null;
+    } else {
+      kind = "delta";
+      deltaPct = current.minus(prev).div(prev).times(100).toNumber();
+    }
 
     return {
       categoryId: catId,
       categoryName: cat?.name ?? "—",
       currentBase: current.toString(),
       previousBase: prev.toString(),
+      kind,
       deltaPct,
     };
   });
@@ -351,6 +371,7 @@ export const getTrendPoints = cache(async (
         deletedAt: null,
         occurredAt: { gte: range.from, lte: range.to },
         kind: { in: [TransactionKind.INCOME, TransactionKind.EXPENSE] },
+        transferId: null,
         status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
       },
       select: {
@@ -430,6 +451,7 @@ export const getWeather = cache(async (
         deletedAt: null,
         occurredAt: { gte: lastMonthStart, lte: lastMonthEnd },
         kind: { in: [TransactionKind.INCOME, TransactionKind.EXPENSE] },
+        transferId: null,
         status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
       },
       select: {
@@ -446,6 +468,7 @@ export const getWeather = cache(async (
         deletedAt: null,
         occurredAt: { gte: threeMonthsAgo, lte: lastMonthEnd },
         kind: { in: [TransactionKind.INCOME, TransactionKind.EXPENSE] },
+        transferId: null,
         status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
       },
       select: {
@@ -543,6 +566,7 @@ export const getForecastMonth = cache(async (
         deletedAt: null,
         occurredAt: { gte: monthStart, lte: monthEnd },
         kind: { in: [TransactionKind.INCOME, TransactionKind.EXPENSE] },
+        transferId: null,
         status: { notIn: [TransactionStatus.CANCELLED] },
       },
       select: {

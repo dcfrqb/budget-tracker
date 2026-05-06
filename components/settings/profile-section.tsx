@@ -1,7 +1,7 @@
 "use client";
 
 import { useT } from "@/lib/i18n";
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef, useCallback } from "react";
 import { updateProfileAction } from "@/app/(shell)/settings/actions";
 import type { Gender } from "@prisma/client";
 
@@ -19,6 +19,7 @@ export function ProfileSection({ name, gender }: Props) {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function genderLabel(g: Gender): string {
     if (g === "MALE") return t("settings.profile.gender_male");
@@ -26,13 +27,12 @@ export function ProfileSection({ name, gender }: Props) {
     return t("settings.profile.gender_unspecified");
   }
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  const persist = useCallback((n: string, g: Gender) => {
     setSaved(false);
     setError(null);
     const fd = new FormData();
-    fd.set("name", nameVal);
-    fd.set("gender", genderVal);
+    fd.set("name", n);
+    fd.set("gender", g);
     startTransition(async () => {
       const result = await updateProfileAction(fd);
       if (result?.error) {
@@ -42,6 +42,20 @@ export function ProfileSection({ name, gender }: Props) {
         setTimeout(() => setSaved(false), 2000);
       }
     });
+  }, [t]);
+
+  function handleNameChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const val = e.target.value;
+    setNameVal(val);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => persist(val, genderVal), 400);
+  }
+
+  function handleGenderChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const val = e.target.value as Gender;
+    setGenderVal(val);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    persist(nameVal, val);
   }
 
   return (
@@ -49,7 +63,7 @@ export function ProfileSection({ name, gender }: Props) {
       <div className="settings-section-title mono">
         {t("settings.profile.section_title")}
       </div>
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div className="settings-field-row">
           <label className="settings-field-label mono" htmlFor="profile-name">
             {t("settings.profile.field_name")}
@@ -59,9 +73,10 @@ export function ProfileSection({ name, gender }: Props) {
             type="text"
             className="settings-input mono"
             value={nameVal}
-            onChange={(e) => setNameVal(e.target.value)}
+            onChange={handleNameChange}
             placeholder={t("settings.profile.placeholder_name")}
             maxLength={120}
+            disabled={isPending}
           />
         </div>
 
@@ -73,7 +88,8 @@ export function ProfileSection({ name, gender }: Props) {
             id="profile-gender"
             className="settings-select mono"
             value={genderVal}
-            onChange={(e) => setGenderVal(e.target.value as Gender)}
+            onChange={handleGenderChange}
+            disabled={isPending}
           >
             {GENDER_VALUES.map((g) => (
               <option key={g} value={g}>
@@ -83,10 +99,7 @@ export function ProfileSection({ name, gender }: Props) {
           </select>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <button type="submit" className="btn primary" disabled={isPending}>
-            {t("settings.profile.save")}
-          </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, minHeight: 20 }}>
           {saved && (
             <span className="mono" style={{ fontSize: 11, color: "var(--pos)" }}>
               {t("settings.profile.saved")}
@@ -98,7 +111,7 @@ export function ProfileSection({ name, gender }: Props) {
             </span>
           )}
         </div>
-      </form>
+      </div>
     </div>
   );
 }

@@ -164,6 +164,7 @@ export const getHomeDashboard = cache(async (
         deletedAt: null,
         occurredAt: { gte: periodStart, lte: periodEnd },
         kind: { in: [TransactionKind.INCOME, TransactionKind.EXPENSE] },
+        transferId: null,
       },
       select: {
         kind: true,
@@ -179,6 +180,7 @@ export const getHomeDashboard = cache(async (
         deletedAt: null,
         occurredAt: { gte: periodStart, lte: periodEnd },
         kind: TransactionKind.EXPENSE,
+        transferId: null,
         status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
       },
       select: {
@@ -273,6 +275,7 @@ export const getHomeDashboard = cache(async (
       occurredAt: { gte: now, lte: window30End },
       status: TransactionStatus.PLANNED,
       kind: { in: [TransactionKind.INCOME, TransactionKind.EXPENSE] },
+      transferId: null,
     },
     select: { kind: true, amount: true, currencyCode: true },
   });
@@ -573,6 +576,7 @@ export const getHomeDashboard = cache(async (
       userId,
       deletedAt: null,
       kind: TransactionKind.EXPENSE,
+      transferId: null,
       status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
       occurredAt: { gte: monthStart, lte: monthEnd },
       categoryId: { not: null },
@@ -592,6 +596,7 @@ export const getHomeDashboard = cache(async (
       userId,
       deletedAt: null,
       kind: TransactionKind.EXPENSE,
+      transferId: null,
       status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
       occurredAt: { gte: prevMonthStart, lte: prevMonthEnd },
       categoryId: { not: null },
@@ -687,6 +692,7 @@ export const getCashflow30dDailyNet = cache(async (
         occurredAt: { gte: start, lte: now },
         status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
         kind: { in: [TransactionKind.INCOME, TransactionKind.EXPENSE] },
+        transferId: null,
       },
       select: {
         kind: true,

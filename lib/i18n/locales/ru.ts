@@ -415,7 +415,7 @@ export const ruDict = {
       avg_net_unit: "₽/мес",
       avg_net_sub: "средний нетто",
       weather_label: "погода · статус",
-      savings_key: "экономия",
+      savings_key: "норма накоплений",
       status_key: "статус",
       delta_label: "топ прирост · категории",
       no_data: "нет данных",
@@ -432,7 +432,7 @@ export const ruDict = {
       weather_storm: "шторм",
     },
     wallet: {
-      net_label: "чистая сумма",
+      net_label: "итоговый баланс",
       accounts_sub: "всего по {n} счетам",
       inst_share_label: "доля по институциям",
       inst_share_meta: "от итого",
@@ -450,7 +450,6 @@ export const ruDict = {
       space_meta: "переключить",
       space_shared: "Общее",
       space_personal: "Личное",
-      space_all: "Всё",
       space_hint: "Новая транзакция по умолчанию создаётся в общем. Меняй при добавлении, если нужно.",
       no_group_label: "группа",
       no_group_meta: "не создана",
@@ -608,9 +607,9 @@ export const ruDict = {
       rate_sub_primary: "из основного источника",
       rate_sub_empty: "нет данных",
       inflow_label: {
-        "30d": "За месяц",
-        "90d": "За 3 месяца",
-        "1y": "За год",
+        "30d": "За 30 дней",
+        "90d": "За 90 дней",
+        "1y": "За 365 дней",
         all: "За всё время",
       },
       inflow_sub: "{days} д · ср {avg} / мес",
@@ -621,6 +620,8 @@ export const ruDict = {
       empty_cta_title: "Добавь источник дохода",
       empty_cta_body: "Чтобы видеть налоги, ставку в час и расчёт «сколько часов до покупки».",
       empty_cta_button: "+ Добавить источник",
+      sources_hint_title: "доход есть, источники не настроены",
+      sources_hint_body: "Добавь источник дохода, чтобы видеть налоги, часовую ставку и расчёт времени до покупки.",
       section_title: "доходы",
     },
     work_sources: {
@@ -664,6 +665,20 @@ export const ruDict = {
   planning: {
     funds: {
       section_title: "Фонды",
+    },
+    status_strip: {
+      view_label:    "ВИД",
+      horizon_label: "ГОРИЗОНТ",
+      view_all:      "Всё",
+      view_calendar: "Календарь",
+      view_funds:    "Накопления",
+      view_buys:     "Покупки",
+      view_trips:    "Трипы",
+      horizon_30d:   "30д",
+      horizon_90d:   "90д",
+      horizon_1y:    "1г",
+      horizon_all:   "всё",
+      day_hint:      "день месяца / дней в месяце",
     },
     kpi: {
       saved: "НАКОПЛЕНО",
@@ -824,6 +839,8 @@ export const ruDict = {
         current_default: "текущий",
         trend_6m: "тренд 6м",
       },
+      delta_new: "новое",
+      delta_gone: "пропало",
     },
     weather: {
       title: "финансовая погода",
@@ -905,6 +922,18 @@ export const ruDict = {
       shared_name_default: "общее пространство",
       shared_sub: "видно всем участникам",
       shared_balance: "общий баланс",
+    },
+    status_strip: {
+      space_label: "ПРОСТРАНСТВО",
+      space_shared: "Общее",
+      space_personal: "Моё личное",
+      space_all: "Всё вместе",
+      period_label: "ПЕРИОД",
+      period_month: "этот мес",
+      period_90d: "90д",
+      period_ytd: "YTD",
+      period_all: "всё",
+      day_hint: "день месяца / дней в месяце",
     },
     your_share: "твоя доля",
     spaces: {
@@ -1757,8 +1786,13 @@ export const ruDict = {
     plan_fact: {
       title: "план-факт",
       meta:  "текущий месяц",
+      code_inc: "ДОХОД",
+      code_exp: "РАСХОД",
+      code_net: "НЕТТО",
       // === wave-3 polish ===
       no_plan: "нет плана",
+      no_plan_set: "план не задан",
+      actual_without_plan: "факт без плана",
       of_amount: "из {amount}",
       net_eom_sub: "кон. мес ≈ {amount}",
       period_label: {
@@ -1813,6 +1847,7 @@ export const ruDict = {
         text: "нет обязательств в ближайшие 30 дней",
         cta: "+ обязательство",
       },
+      duplicate_hint: "возможный дубликат · проверь подписки",
     },
   },
 
@@ -1900,7 +1935,7 @@ export const ruDict = {
       wal:  "счета",
       fam:  "группа",
       // === wave-2 parser+wallet+breadcrumbs ===
-      settings: "настройки",
+      settings: "профиль и бюджет",
       settings_sub: {
         categories:   "категории",
       },
@@ -1946,10 +1981,10 @@ export const ruDict = {
     summary: {
       aria: "Сводка",
       safe: {
-        label:       "безопасно ещё",
-        zero_income: "@ нулевой доход",
-        days:        "дней",
-        days_zero:   "сегодня",
+        label:        "безопасно ещё",
+        label_unsafe: "ЗАПАС ИСЧЕРПАН",
+        zero_income:  "@ нулевой доход",
+        days:         "дней",
       },
       avail: {
         label:    "доступно сейчас",
@@ -2087,8 +2122,6 @@ export const ruDict = {
   tooltip: {
     abbrev: {
       obn: "обновлено",
-      podsk: "подсказки",
-      kat: "категории",
     },
   },
   debts: {

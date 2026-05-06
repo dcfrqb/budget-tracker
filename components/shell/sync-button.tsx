@@ -2,8 +2,6 @@
 
 import { useT } from "@/lib/i18n";
 import { useSyncAll, useSyncRelativeLabel } from "@/lib/hooks/use-sync-all";
-import type { Locale } from "@/lib/i18n/types";
-
 // ─────────────────────────────────────────────────────────────
 // Props — serialized credential info passed from server component
 // ─────────────────────────────────────────────────────────────
@@ -18,7 +16,6 @@ export type SyncCredentialProp = {
 
 type Props = {
   credentials: SyncCredentialProp[];
-  locale: Locale;
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -70,23 +67,20 @@ export function SyncButton({ credentials }: Props) {
 
   const hasCredentials = credentials.length > 0;
 
+  const baseTooltip = hasCredentials ? t("shell.sync.tooltip") : t("shell.sync.empty");
+  const tooltip = hasCredentials && relLabel ? `${baseTooltip} · ${relLabel}` : baseTooltip;
+
   return (
     <button
       className="sync-btn"
       data-state={isSyncing ? "syncing" : isError ? "error" : "idle"}
-      title={hasCredentials ? t("shell.sync.tooltip") : t("shell.sync.empty")}
-      aria-label={hasCredentials ? t("shell.sync.tooltip") : t("shell.sync.empty")}
+      title={tooltip}
+      aria-label={tooltip}
       onClick={hasCredentials ? trigger : undefined}
       disabled={isSyncing || !hasCredentials}
     >
       <RefreshIcon spinning={isSyncing} />
       {isError && <span className="sync-error-dot" aria-hidden />}
-      <span
-        className="mono"
-        style={{ fontSize: 9, color: "var(--dim)", lineHeight: 1 }}
-      >
-        {relLabel}
-      </span>
     </button>
   );
 }

@@ -5,7 +5,7 @@ import { useT } from "@/lib/i18n";
 
 export function SpaceSwitch() {
   const t = useT();
-  const [active, setActive] = useState<"shared" | "personal" | "all">("shared");
+  const [active, setActive] = useState<"shared" | "personal">("shared");
   return (
     <div className="sum-block">
       <div className="lbl">
@@ -15,7 +15,6 @@ export function SpaceSwitch() {
       <div className="space-switch">
         <button type="button" className={active === "shared" ? "on" : undefined} onClick={() => setActive("shared")}>{t("summary.family.space_shared")}</button>
         <button type="button" className={active === "personal" ? "on" : undefined} onClick={() => setActive("personal")}>{t("summary.family.space_personal")}</button>
-        <button type="button" className={active === "all" ? "on" : undefined} onClick={() => setActive("all")}>{t("summary.family.space_all")}</button>
       </div>
       <div className="mono" style={{ fontSize: 11, color: "var(--muted)", lineHeight: 1.6 }}>
         {t("summary.family.space_hint")}

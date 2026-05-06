@@ -8,7 +8,7 @@ export type PlanningKpiData = {
   saved: { label: string; value: number; sub: string };
   monthly: { label: string; value: number; sub: string };
   next: { label: string; label2: string; sub: string };
-  hours: { label: string; value: number; sub: string };
+  hours: { label: string; value: number | null; sub: string };
 };
 
 export function PlanningKpiRow({ kpi }: { kpi: PlanningKpiData }) {
@@ -38,7 +38,11 @@ export function PlanningKpiRow({ kpi }: { kpi: PlanningKpiData }) {
           </div>
           <div className="kpi">
             <div className="c">{k.hours.label}</div>
-            <div className="v"><CountUp to={k.hours.value} format="int" /> {k.hoursUnit}</div>
+            <div className="v">
+              {k.hours.value !== null
+                ? <><CountUp to={k.hours.value} format="int" /> {k.hoursUnit}</>
+                : <span className="dim">—</span>}
+            </div>
             <div className="s">{k.hours.sub}</div>
           </div>
         </div>

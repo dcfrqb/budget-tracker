@@ -32,7 +32,7 @@ export default async function SettingsPage() {
       db.category.count({ where: { userId, archivedAt: null } }),
       db.category.count({ where: { userId, archivedAt: { not: null } } }),
       db.workSource.count({ where: { userId } }),
-      db.account.count({ where: { userId, deletedAt: null } }),
+      db.account.count({ where: { userId, deletedAt: null, isArchived: false } }),
       db.institution.count({ where: { userId } }),
     ]);
 

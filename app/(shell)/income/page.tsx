@@ -321,7 +321,7 @@ export default async function IncomePage({
   return (
     <>
       <IncomeStatusStrip />
-      <IncomeKpiRow kpi={kpi} hasNoSources={hasNoSources} />
+      <IncomeKpiRow kpi={kpi} hasNoSources={hasNoSources} hasIncomeTxns={!inflowTotal.isZero()} />
       {(activeTab === "sources") && <WorkSourcesSection items={workSourceViews} />}
       {(activeTab === "expected") && <ExpectedIncome rows={expectedRows} />}
       {(activeTab === "other") && <OtherIncome rows={otherIncomeRows} />}

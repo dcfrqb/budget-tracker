@@ -1,4 +1,5 @@
 import { AnalyticsKpiRow } from "@/components/analytics/kpi-row";
+import { Suspense } from "react";
 import { AnalyticsStatusStrip } from "@/components/analytics/status-strip";
 import {
   parseAnalyticsPeriod,
@@ -101,7 +102,7 @@ export default async function AnalyticsPage({
       v: Number(inflow.toFixed(0)),
       vFormat: "money",
       delta: kpis.savingsRatePct !== null
-        ? t("analytics.kpi.savings_rate", { vars: { pct: kpis.savingsRatePct.toFixed(1) } })
+        ? t("analytics.kpi.savings_rate", { vars: { pct: String(Math.round(kpis.savingsRatePct)) } })
         : t("analytics.kpi.no_data"),
       deltaTone: (kpis.savingsRatePct ?? 0) >= 20 ? "pos" : "warn",
       s: t("analytics.kpi.income_sub"),
@@ -159,12 +160,14 @@ export default async function AnalyticsPage({
     .slice(0, 10)
     .map((r) => {
       const deltaPct = r.deltaPct;
-      const deltaStr = deltaPct === null
-        ? "—"
-        : deltaPct > 0
-          ? `▲ ${Math.abs(deltaPct).toFixed(1)}%`
-          : `▼ ${Math.abs(deltaPct).toFixed(1)}%`;
-      const deltaTone = deltaPct === null ? "muted" : deltaPct > 0 ? "neg" : "pos";
+      const deltaStr = r.kind !== "delta"
+        ? ""
+        : deltaPct === null
+          ? "—"
+          : deltaPct > 0
+            ? `▲ ${Math.abs(deltaPct).toFixed(1)}%`
+            : `▼ ${Math.abs(deltaPct).toFixed(1)}%`;
+      const deltaTone = r.kind !== "delta" ? "muted" : (deltaPct === null ? "muted" : deltaPct > 0 ? "neg" : "pos");
       return {
         name: r.categoryName,
         sub: "",
@@ -172,6 +175,7 @@ export default async function AnalyticsPage({
         curr: formatMoney(new Prisma.Decimal(r.currentBase), "RUB"),
         delta: deltaStr,
         deltaTone,
+        kind: r.kind,
         spark: [],
       };
     });
@@ -251,7 +255,9 @@ export default async function AnalyticsPage({
 
   return (
     <>
-      <AnalyticsStatusStrip />
+      <Suspense fallback={null}>
+        <AnalyticsStatusStrip />
+      </Suspense>
       <Weather
         kind={weather.kind}
         savingsRatePct={weather.savingsRatePct}
@@ -295,6 +301,8 @@ export default async function AnalyticsPage({
           colCategory: t("analytics.compare.col.category"),
           colPreviousDefault: t("analytics.compare.col.previous_default"),
           colCurrentDefault: t("analytics.compare.col.current_default"),
+          deltaNew: t("analytics.compare.delta_new"),
+          deltaGone: t("analytics.compare.delta_gone"),
         }}
       />
       <Forecast cells={forecastCells} />

@@ -52,36 +52,46 @@ export type StatusData = {
 // SafeUntilBlock — accepts optional props; shows "—" if no data
 // ─────────────────────────────────────────────────────────────
 
+type SafeTone = "ok" | "warn" | "danger" | "unknown";
+
+function computeSafeTone(days: number | null): SafeTone {
+  if (days === null) return "unknown";
+  const d = Math.max(0, days);
+  if (d === 0) return "danger";
+  if (d <= 7) return "warn";
+  return "ok";
+}
+
 export async function SafeUntilBlock({ data }: { data?: SafeUntilData }) {
   const t = await getT();
   const resolved = data ?? (await loadSharedSummary()).safeUntil;
-  const days = resolved?.days ?? null;
+  const rawDays = resolved?.days ?? null;
+  const days = rawDays !== null ? Math.max(0, rawDays) : null;
   const dateIso = data?.dateIso;
   const deltaLabel = data?.deltaLabel;
-  const isDanger = days !== null && days === 0;
+  const tone = computeSafeTone(rawDays);
+  const isDanger = tone === "danger";
 
   return (
     <div className="sum-block" style={{ padding: "12px 8px" }}>
-      <div className="safe-block">
+      <div className="safe-block" data-tone={tone}>
         <div className="lbl">
-          <span>{t("shell.summary.safe.label")}</span>
-          <span className="tiny">{t("shell.summary.safe.zero_income")}</span>
-        </div>
-        <div className="row">
-          {isDanger ? (
-            <span className="big mono" style={{ color: "var(--neg)" }}>
-              {t("shell.summary.safe.days_zero")}
-            </span>
-          ) : (
-            <>
-              <span className="big mono">
-                {days !== null ? <CountUp to={days} format="int" /> : "—"}
-              </span>
-              <span className="unit mono">{t("shell.summary.safe.days")}</span>
-            </>
+          <span>
+            {isDanger
+              ? t("shell.summary.safe.label_unsafe")
+              : t("shell.summary.safe.label")}
+          </span>
+          {!isDanger && (
+            <span className="tiny">{t("shell.summary.safe.zero_income")}</span>
           )}
         </div>
-        {(dateIso || deltaLabel) && (
+        <div className="row">
+          <span className="big mono">
+            {days !== null ? <CountUp to={days} format="int" /> : "—"}
+          </span>
+          <span className="unit mono">{t("shell.summary.safe.days")}</span>
+        </div>
+        {(dateIso || deltaLabel) && !isDanger && (
           <div className="sub mono">
             {dateIso && <>→ {dateIso}</>}
             {deltaLabel && <> · <span className="acc">{deltaLabel}</span></>}

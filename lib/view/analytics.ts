@@ -42,6 +42,8 @@ export type AnalyticsCmpRowView = {
   curr: string;
   delta: string;
   deltaTone: "pos" | "neg" | "mut";
+  /** "new" = appeared this period, "gone" = disappeared, "delta" = normal */
+  kind: "new" | "gone" | "delta";
 };
 
 export type AnalyticsTrendPointView = {
@@ -185,15 +187,16 @@ export function toPieView(
   });
 }
 
-// TODO Фаза 9: сверить с компонентом compare.tsx — ожидает {name, sub, prev, curr, delta, deltaTone}
+// TODO Фаза 9: сверить с компонентом compare.tsx — ожидает {name, sub, prev, curr, delta, deltaTone, kind}
 export function toCompareView(rows: PeriodCompareRow[]): AnalyticsCmpRowView[] {
   return rows.map((r) => ({
     name: r.categoryName,
     sub: "",
     prev: fmtBase(r.previousBase),
     curr: fmtBase(r.currentBase),
-    delta: fmtDelta(r.deltaPct),
-    deltaTone: deltaTone(r.deltaPct, true),
+    delta: r.kind === "delta" ? fmtDelta(r.deltaPct) : "",
+    deltaTone: r.kind === "delta" ? deltaTone(r.deltaPct, true) : "mut",
+    kind: r.kind,
   }));
 }
 
