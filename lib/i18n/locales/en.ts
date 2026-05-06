@@ -1004,6 +1004,27 @@ export const enDict: RuDictShape = {
       received_no_exp: "received {rec}",
       expected: "expected {amount}",
     },
+    selection: {
+      count: "selected: {count}",
+      aria_select_row: "Select transaction",
+      mark_as_transfer: "Mark as transfer",
+      break_transfer: "Break transfer",
+      clear: "Clear",
+      tooltip: {
+        need_two: "Select exactly 2 rows on different accounts",
+        same_account: "Both rows are on the same account",
+        already_transfer: "These rows are already part of a transfer",
+      },
+      error: {
+        same_kind: "Cannot mark two rows of the same direction as a transfer",
+        rate_missing: "FX rate unavailable — transfer created at rate 1, edit manually",
+        transfer_not_found: "Transfer not found or already deleted",
+      },
+      success: {
+        marked: "Marked as transfer",
+        broken: "Transfer broken",
+      },
+    },
   },
 
   wallet: {

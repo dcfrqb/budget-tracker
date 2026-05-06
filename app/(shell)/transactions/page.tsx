@@ -3,6 +3,7 @@ import { PersonalDebts } from "@/components/transactions/personal-debts";
 import { TxnFeed } from "@/components/transactions/txn-feed";
 import { TxnStatusStrip } from "@/components/transactions/status-strip";
 import { TxnToolbar } from "@/components/transactions/toolbar";
+import { TransactionsSelectionProvider } from "@/components/transactions/selection-context";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { getCurrentUserId } from "@/lib/api/auth";
 import { getT, getLocale } from "@/lib/i18n/server";
@@ -154,7 +155,9 @@ export default async function TransactionsPage({
         syncCredentials={syncCredentials}
       />
       <PeriodSummary summary={summaryView} />
-      <TxnFeed days={days} totalCount={summary.totalCount} accounts={accounts} />
+      <TransactionsSelectionProvider>
+        <TxnFeed days={days} totalCount={summary.totalCount} accounts={accounts} />
+      </TransactionsSelectionProvider>
       <PersonalDebts debts={debtViews} metaLine={debtMeta} />
     </>
   );

@@ -1012,6 +1012,27 @@ export const ruDict = {
       received_no_exp: "получ. {rec}",
       expected: "ожид. {amount}",
     },
+    selection: {
+      count: "выбрано: {count}",
+      aria_select_row: "Выбрать транзакцию",
+      mark_as_transfer: "Пометить как перевод",
+      break_transfer: "Разорвать перевод",
+      clear: "Снять выделение",
+      tooltip: {
+        need_two: "Выберите ровно 2 строки на разных счетах",
+        same_account: "Обе строки на одном счёте",
+        already_transfer: "Эти строки уже часть перевода",
+      },
+      error: {
+        same_kind: "Нельзя пометить как перевод две строки одного направления",
+        rate_missing: "Курс недоступен — перевод создан со ставкой 1, отредактируй вручную",
+        transfer_not_found: "Перевод не найден или уже удалён",
+      },
+      success: {
+        marked: "Помечено как перевод",
+        broken: "Перевод разорван",
+      },
+    },
   },
 
   wallet: {

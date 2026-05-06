@@ -26,6 +26,8 @@ export type TxnView = {
   note?: string;
   noteTone?: "acc" | "info" | "warn";
   account: string;
+  accountId: string;
+  transferId: string | null;
   status: TxnShortStatus;
   statusLabel: string;
   amount: string;
@@ -305,6 +307,8 @@ export function toTxnView(
     ...(note ? { note } : {}),
     ...(noteTone ? { noteTone } : {}),
     account: resolveAccountLabel(txn),
+    accountId: txn.accountId,
+    transferId: txn.transferId ?? null,
     status: STATUS_SHORT[txn.status],
     statusLabel: t(`transactions.status.${STATUS_SHORT[txn.status]}` as TKey),
     amount: signedAmount(txn.amount, txn.currency, sign),

@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useT } from "@/lib/i18n";
 import { TxnRowActions } from "./txn-row-actions";
+import { SelectableRow } from "./selectable-row";
 import type { TxnDayView, TxnView } from "@/lib/view/transactions";
 import type { AccountOption } from "@/components/forms/account-select";
 
@@ -115,13 +116,14 @@ function DayGroup({ day, accounts, expandedId, onToggle }: DayGroupProps) {
         </span>
       </div>
       {day.txns.map((t) => (
-        <TxnRow
-          key={t.id}
-          t={t}
-          accounts={accounts}
-          expanded={expandedId === t.id}
-          onToggle={() => onToggle(t.id)}
-        />
+        <SelectableRow key={t.id} id={t.id} row={t}>
+          <TxnRow
+            t={t}
+            accounts={accounts}
+            expanded={expandedId === t.id}
+            onToggle={() => onToggle(t.id)}
+          />
+        </SelectableRow>
       ))}
     </div>
   );
