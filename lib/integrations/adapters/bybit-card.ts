@@ -2,6 +2,9 @@ import { Prisma } from "@prisma/client";
 import type { BankAdapter, AdapterContext } from "@/lib/integrations/types";
 import type { ImportRow } from "@/lib/import/types";
 import { listCardTransactions } from "@/lib/integrations/bybit/card-records";
+import { listDeposits } from "@/lib/integrations/bybit/deposits";
+import { listWithdrawals } from "@/lib/integrations/bybit/withdrawals";
+import { listInternalTransfers } from "@/lib/integrations/bybit/internal-transfers";
 import { fetchCardSpendingPower } from "@/lib/integrations/bybit/balance";
 import { BybitApiError } from "@/lib/integrations/bybit/types";
 import { listAccountLinks } from "@/lib/data/_queries/integrations";
@@ -257,6 +260,131 @@ export const bybitCardAdapter: BankAdapter = {
 
       rows.push(row);
     }
+
+    // ── Deposits ──────────────────────────────────────────────────────────────
+    // Use the first account link as the target for wallet deposits (no pan4).
+    const firstLinkedAccountId = accountLinks.length > 0 ? accountLinks[0]!.accountId : undefined;
+
+    let depositResult: Awaited<ReturnType<typeof listDeposits>> = { rows: [], rawCount: 0, truncated: false };
+    try {
+      depositResult = await listDeposits({
+        apiKey,
+        apiSecret,
+        startTime: from.getTime(),
+        endTime: to.getTime(),
+      });
+    } catch (err) {
+      log(`runSync: deposit fetch failed class=${classifyBybitError(err)}`);
+    }
+
+    if (depositResult.truncated) {
+      log(`runSync: WARNING — deposit response truncated`);
+    }
+
+    for (const dep of depositResult.rows) {
+      if (!dep.txID && !dep.txIndex) {
+        log(`runSync: WARNING — deposit row has no txID or txIndex, skipping (successAt=${dep.successAt} coin=${dep.coin})`);
+        continue;
+      }
+      const occurredAt = new Date(Number(dep.successAt || dep.createTime || Date.now())).toISOString();
+      const noteObj: Record<string, string> = {};
+      if (dep.chain) noteObj.chain = dep.chain;
+      if (dep.txID) noteObj.txID = dep.txID;
+      if (dep.fromAddress) noteObj.fromAddress = dep.fromAddress;
+      if (dep.toAddress) noteObj.toAddress = dep.toAddress;
+      const note = Object.keys(noteObj).length > 0 ? JSON.stringify(noteObj) : undefined;
+
+      const depRow: ImportRow = {
+        externalId: `dep:${dep.txID || dep.txIndex}`,
+        occurredAt,
+        amount: dep.amount,
+        currencyCode: dep.coin || "USDT",
+        kind: "INCOME",
+        direction: "in",
+        description: "Bybit deposit",
+        source: "bybit-wallet",
+        note,
+        accountId: firstLinkedAccountId,
+        raw: {
+          txID: dep.txID,
+          chain: dep.chain,
+          fromAddress: dep.fromAddress,
+          toAddress: dep.toAddress,
+          depositFee: dep.depositFee,
+        },
+      };
+      rows.push(depRow);
+    }
+
+    // ── Withdrawals ───────────────────────────────────────────────────────────
+    let withdrawResult: Awaited<ReturnType<typeof listWithdrawals>> = { rows: [], rawCount: 0, truncated: false };
+    try {
+      withdrawResult = await listWithdrawals({
+        apiKey,
+        apiSecret,
+        startTime: from.getTime(),
+        endTime: to.getTime(),
+      });
+    } catch (err) {
+      log(`runSync: withdrawal fetch failed class=${classifyBybitError(err)}`);
+    }
+
+    if (withdrawResult.truncated) {
+      log(`runSync: WARNING — withdrawal response truncated`);
+    }
+
+    for (const wdr of withdrawResult.rows) {
+      if (!wdr.withdrawId) {
+        log(`runSync: WARNING — withdrawal row has no withdrawId, skipping (updateTime=${wdr.updateTime} coin=${wdr.coin})`);
+        continue;
+      }
+      const occurredAt = new Date(Number(wdr.updateTime || wdr.createTime || Date.now())).toISOString();
+      const noteObj: Record<string, string> = {};
+      if (wdr.chain) noteObj.chain = wdr.chain;
+      if (wdr.txID) noteObj.txID = wdr.txID;
+      if (wdr.toAddress) noteObj.toAddress = wdr.toAddress;
+      if (wdr.withdrawFee) noteObj.withdrawFee = wdr.withdrawFee;
+      const note = Object.keys(noteObj).length > 0 ? JSON.stringify(noteObj) : undefined;
+
+      const wdrRow: ImportRow = {
+        externalId: `wdr:${wdr.withdrawId}`,
+        occurredAt,
+        amount: wdr.amount,
+        currencyCode: wdr.coin || "USDT",
+        kind: "EXPENSE",
+        direction: "out",
+        description: "Bybit withdrawal",
+        source: "bybit-wallet",
+        note,
+        accountId: firstLinkedAccountId,
+        raw: {
+          withdrawId: wdr.withdrawId,
+          txID: wdr.txID,
+          chain: wdr.chain,
+          toAddress: wdr.toAddress,
+          withdrawFee: wdr.withdrawFee,
+        },
+      };
+      rows.push(wdrRow);
+    }
+
+    // ── Internal transfers (log only, not persisted) ───────────────────────────
+    let internalTransferCount = 0;
+    try {
+      const itResult = await listInternalTransfers({
+        apiKey,
+        apiSecret,
+        startTime: from.getTime(),
+        endTime: to.getTime(),
+      });
+      internalTransferCount = itResult.rawCount;
+    } catch (err) {
+      log(`runSync: internal-transfer fetch failed class=${classifyBybitError(err)}`);
+    }
+
+    log(
+      `runSync: cardSpends=${result.rows.length} deposits=${depositResult.rows.length} withdrawals=${withdrawResult.rows.length} internalTransfers=${internalTransferCount}`,
+    );
 
     const unlinkedCount = rows.filter((r) => !r.accountId).length;
     if (unlinkedCount > 0) {

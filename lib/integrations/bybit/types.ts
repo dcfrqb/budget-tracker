@@ -93,6 +93,71 @@ export type SpendingPowerResult = {
   partial: boolean;
 };
 
+// ── Deposit / Withdrawal / Internal Transfer types ───────────────────────────
+//
+// All Bybit fields are strings on the wire. amount stays as string; callers
+// parse to Decimal only inside the adapter.
+
+export type BybitDepositRecord = {
+  /** Coin code (e.g. "USDT"). */
+  coin: string;
+  /** Chain name (e.g. "TRX"). */
+  chain: string;
+  /** Amount as string-encoded decimal. */
+  amount: string;
+  /** On-chain transaction hash. */
+  txID: string;
+  /** Deposit status integer: 3 = success. */
+  status: number;
+  /** Destination address on Bybit. */
+  toAddress: string;
+  /** Address tag (for coins that require it). */
+  tag: string;
+  /** Deposit fee (usually empty string). */
+  depositFee: string;
+  /** Timestamp when deposit was confirmed on-chain, ms epoch string. */
+  successAt: string;
+  /** Number of block confirmations (string). */
+  confirmations: string;
+  /** Transaction sequence number in block. */
+  txIndex: string;
+  /** Block hash. */
+  blockHash: string;
+  /** Source address the funds came from. */
+  fromAddress: string;
+  /** Deposit type identifier ("0" = on-chain). */
+  depositType: string;
+  [key: string]: unknown;
+};
+
+export type BybitWithdrawRecord = {
+  /** Coin code (e.g. "USDT"). */
+  coin: string;
+  /** Chain name (e.g. "ETH"). */
+  chain: string;
+  /** Amount as string-encoded decimal. */
+  amount: string;
+  /** On-chain transaction hash. */
+  txID: string;
+  /** Withdrawal status string: "success" = terminal success. */
+  status: string;
+  /** Destination address. */
+  toAddress: string;
+  /** Address tag. */
+  tag: string;
+  /** Network fee charged. */
+  withdrawFee: string;
+  /** Creation timestamp, ms epoch string. */
+  createTime: string;
+  /** Last update timestamp, ms epoch string. */
+  updateTime: string;
+  /** Bybit withdrawal ID. */
+  withdrawId: string;
+  /** Withdrawal type: 0 = on-chain. */
+  withdrawType: number;
+  [key: string]: unknown;
+};
+
 /** Narrowed variant: guaranteed to represent a real card spend (non-empty transactionId, merchName, transactionAmount, transactionDate). */
 export type BybitPointRecordFiltered = BybitPointRecord & {
   transactionId: string;

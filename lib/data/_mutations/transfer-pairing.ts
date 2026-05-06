@@ -6,7 +6,7 @@ const MATCH_WINDOW_MS = 5 * 60 * 1000; // 5 minutes (same-ccy)
 const DEFAULT_LOOKBACK_DAYS = 90;
 
 const CROSS_CCY_MATCH_WINDOW_MS = 60 * 60 * 1000; // 60 minutes (cross-ccy P2P bridges are slow)
-const CROSS_CCY_FX_TOLERANCE = 0.01; // 1%
+const CROSS_CCY_FX_TOLERANCE = 0.10; // 10% — P2P sellers quote ±5–10% off mid-market
 
 const TRANSFER_NAME_RE = /между своими|перевод/i;
 

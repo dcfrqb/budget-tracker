@@ -179,6 +179,102 @@ export const bybitEarnPositionSchema = makeEnvelopeSchema(
   bybitEarnPositionResultSchema,
 );
 
+// ── Deposit record schema ────────────────────────────────────────────────────
+//
+// Schema for /v5/asset/deposit/query-record rows.
+// status is an integer; 3 = success (terminal). Other fields are strings.
+
+export const bybitDepositRecordSchema = z
+  .object({
+    coin: z.string().optional().default(""),
+    chain: z.string().optional().default(""),
+    amount: z.string().optional().default(""),
+    txID: z.string().optional().default(""),
+    status: z.coerce.number().optional().default(0),
+    toAddress: z.string().optional().default(""),
+    tag: z.string().optional().default(""),
+    depositFee: z.string().optional().default(""),
+    successAt: z.union([z.string(), z.number()]).transform(String).optional().default(""),
+    confirmations: z.string().optional().default(""),
+    txIndex: z.string().optional().default(""),
+    blockHash: z.string().optional().default(""),
+    fromAddress: z.string().optional().default(""),
+    depositType: z.string().optional().default(""),
+  })
+  .passthrough();
+
+const bybitDepositRecordsResultSchema = z
+  .object({
+    rows: z.array(bybitDepositRecordSchema).optional().default([]),
+    nextPageCursor: z.string().nullable().optional(),
+  })
+  .passthrough();
+
+export const bybitDepositRecordsEnvelopeSchema = makeEnvelopeSchema(
+  bybitDepositRecordsResultSchema,
+);
+
+// ── Withdrawal record schema ──────────────────────────────────────────────────
+//
+// Schema for /v5/asset/withdraw/query-record rows.
+// status is a string; "success" = terminal success.
+
+export const bybitWithdrawRecordSchema = z
+  .object({
+    coin: z.string().optional().default(""),
+    chain: z.string().optional().default(""),
+    amount: z.string().optional().default(""),
+    txID: z.string().optional().default(""),
+    status: z.string().optional().default(""),
+    toAddress: z.string().optional().default(""),
+    tag: z.string().optional().default(""),
+    withdrawFee: z.string().optional().default(""),
+    createTime: z.union([z.string(), z.number()]).transform(String).optional().default(""),
+    updateTime: z.union([z.string(), z.number()]).transform(String).optional().default(""),
+    withdrawId: z.string().optional().default(""),
+    withdrawType: z.coerce.number().optional().default(0),
+  })
+  .passthrough();
+
+const bybitWithdrawRecordsResultSchema = z
+  .object({
+    rows: z.array(bybitWithdrawRecordSchema).optional().default([]),
+    nextPageCursor: z.string().nullable().optional(),
+  })
+  .passthrough();
+
+export const bybitWithdrawRecordsEnvelopeSchema = makeEnvelopeSchema(
+  bybitWithdrawRecordsResultSchema,
+);
+
+// ── Internal transfer list schema ─────────────────────────────────────────────
+//
+// Schema for /v5/asset/transfer/query-inter-transfer-list rows.
+// Uses "list" not "rows". status is a string; "SUCCESS" = success.
+
+export const bybitInternalTransferRecordSchema = z
+  .object({
+    transferId: z.string().optional().default(""),
+    coin: z.string().optional().default(""),
+    amount: z.string().optional().default(""),
+    fromAccountType: z.string().optional().default(""),
+    toAccountType: z.string().optional().default(""),
+    timestamp: z.union([z.string(), z.number()]).transform(String).optional().default(""),
+    status: z.string().optional().default(""),
+  })
+  .passthrough();
+
+const bybitInternalTransferListResultSchema = z
+  .object({
+    list: z.array(bybitInternalTransferRecordSchema).optional().default([]),
+    nextPageCursor: z.string().nullable().optional(),
+  })
+  .passthrough();
+
+export const bybitInternalTransferListEnvelopeSchema = makeEnvelopeSchema(
+  bybitInternalTransferListResultSchema,
+);
+
 export const bybitServerTimeSchema = z
   .object({
     retCode: z.number(),
