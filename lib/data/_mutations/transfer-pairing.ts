@@ -126,21 +126,6 @@ export async function autoPairTransfers(opts: {
 
   // Pair orphan TRANSFER rows (both legs already kind=TRANSFER)
   const orphanPairs: Array<[CandidateTxn, CandidateTxn]> = [];
-  const orphanMatchCounts = new Map<string, number>();
-
-  for (const a of orphanTransfers) {
-    for (const b of orphanTransfers) {
-      if (a.id >= b.id) continue; // avoid duplicates, deterministic order
-      if (a.accountId === b.accountId) continue;
-      if (a.currencyCode !== b.currencyCode) continue;
-      if (!new Prisma.Decimal(a.amount).equals(new Prisma.Decimal(b.amount))) continue;
-      const deltaMs = Math.abs(a.occurredAt.getTime() - b.occurredAt.getTime());
-      if (deltaMs > MATCH_WINDOW_MS) continue;
-
-      orphanMatchCounts.set(a.id, (orphanMatchCounts.get(a.id) ?? 0) + 1);
-      orphanMatchCounts.set(b.id, (orphanMatchCounts.get(b.id) ?? 0) + 1);
-    }
-  }
 
   // Sort orphan candidates by delta
   type OrphanCandidate = { a: CandidateTxn; b: CandidateTxn; deltaMs: number };

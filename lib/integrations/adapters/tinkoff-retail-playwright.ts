@@ -116,6 +116,9 @@ const log = (msg: string) => console.log(`[playwright-tbank] ${msg}`);
 
 const TBANK_API_DEBUG = process.env.DEBUG_PLAYWRIGHT !== "false";
 
+const TBANK_INNER_TRANSFER_DESCRIPTION = "Между своими счетами";
+const TBANK_INNER_TRANSFER_SOURCE_TAG = "transfer-inner";
+
 /**
  * Performs a T-Bank API GET via the page's own fetch context. Critical because
  * page.request.get() bypasses the SPA's auth/CSRF/Origin/Referer setup; T-Bank
@@ -459,8 +462,8 @@ export const tinkoffRetailAdapter: BankAdapter = {
                 : undefined;
 
             const isInnerTransfer =
-              op.payment?.providerId === "transfer-inner" ||
-              op.description === "Между своими счетами";
+              op.payment?.providerId === TBANK_INNER_TRANSFER_SOURCE_TAG ||
+              op.description === TBANK_INNER_TRANSFER_DESCRIPTION;
 
             const row: ImportRow = {
               externalId: op.id,
@@ -755,8 +758,8 @@ export const tinkoffRetailAdapter: BankAdapter = {
             const merchantName = op.merchant?.name ?? "";
 
             const isInnerTransfer =
-              op.payment?.providerId === "transfer-inner" ||
-              op.description === "Между своими счетами";
+              op.payment?.providerId === TBANK_INNER_TRANSFER_SOURCE_TAG ||
+              op.description === TBANK_INNER_TRANSFER_DESCRIPTION;
 
             rows.push({
               externalId: op.id,
