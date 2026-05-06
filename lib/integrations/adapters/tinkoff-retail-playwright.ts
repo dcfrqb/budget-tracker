@@ -116,6 +116,79 @@ const log = (msg: string) => console.log(`[playwright-tbank] ${msg}`);
 
 const TBANK_API_DEBUG = process.env.DEBUG_PLAYWRIGHT !== "false";
 
+// Diagnostic helper — emits only when TINKOFF_DEBUG_AUTH=1.
+// NEVER log raw cookie/session values; use lengths and redacted URLs only.
+const debugRunSync = (msg: string, data?: unknown) => {
+  if (process.env.TINKOFF_DEBUG_AUTH !== "1") return;
+  if (data !== undefined) {
+    console.log(`[tbank-debug:run-sync] ${msg}`, JSON.stringify(data));
+  } else {
+    console.log(`[tbank-debug:run-sync] ${msg}`);
+  }
+};
+
+/**
+ * Attach a temporary response listener that captures full header details for
+ * any accounts_light_ib response (or authorize redirect). Returns a cleanup fn.
+ * Only active when TINKOFF_DEBUG_AUTH=1.
+ */
+function attachAccountsLightDebugListener(
+  page: import("playwright").Page,
+  label: string,
+): () => void {
+  if (process.env.TINKOFF_DEBUG_AUTH !== "1") return () => {};
+  const handler = async (response: import("playwright").Response) => {
+    const url = response.url();
+    const isAccountsLight = /accounts_light_ib/i.test(url);
+    const isAuthorize = /\/session\/authorize/i.test(url) || /\/auth\/authorize/i.test(url);
+    if (!isAccountsLight && !isAuthorize) return;
+    const redactedUrl = url
+      .replace(/sessionid=[^&]+/i, "sessionid=[REDACTED]")
+      .replace(/wuid=[^&]+/i, "wuid=[REDACTED]");
+    const headers = response.headers();
+    // Collect set-cookie names only — never log values.
+    const setCookieRaw = headers["set-cookie"] ?? "";
+    const setCookieNames = setCookieRaw
+      .split(/\r?\n/)
+      .map((line) => line.split("=")[0].trim())
+      .filter(Boolean);
+    const traceId =
+      headers["x-trace-id"] ??
+      headers["x-request-id"] ??
+      headers["x-b3-traceid"] ??
+      null;
+    let requiredAccessLevel: number | null = null;
+    if (isAccountsLight) {
+      try {
+        const body = await response.text();
+        const parsed = JSON.parse(body) as Record<string, unknown>;
+        if (typeof parsed.requiredAccessLevel === "number") {
+          requiredAccessLevel = parsed.requiredAccessLevel;
+        } else if (
+          parsed.payload !== null &&
+          typeof parsed.payload === "object" &&
+          "requiredAccessLevel" in (parsed.payload as object)
+        ) {
+          requiredAccessLevel = (parsed.payload as Record<string, unknown>).requiredAccessLevel as number;
+        }
+      } catch {
+        // ignore parse errors — body already logged elsewhere
+      }
+    }
+    debugRunSync(`${label}: response intercepted`, {
+      type: isAccountsLight ? "accounts_light_ib" : "authorize_redirect",
+      status: response.status(),
+      url: redactedUrl,
+      location: headers["location"] ?? null,
+      setCookieNames,
+      traceId,
+      ...(requiredAccessLevel !== null ? { requiredAccessLevel } : {}),
+    });
+  };
+  page.on("response", handler);
+  return () => page.off("response", handler);
+}
+
 const TBANK_INNER_TRANSFER_DESCRIPTION = "Между своими счетами";
 const TBANK_INNER_TRANSFER_SOURCE_TAG = "transfer-inner";
 
@@ -536,7 +609,9 @@ export const tinkoffRetailAdapter: BankAdapter = {
         }
 
         log(`listExternalAccounts: starting api call sessionAuth=${sessionAuth.sessionid.slice(0, 6)}…(len=${sessionAuth.sessionid.length})`);
+        debugRunSync("listExternalAccounts: starting — sessionid len", { len: sessionAuth.sessionid.length, wuidLen: sessionAuth.wuid.length });
         const detachLogger = attachApiResponseLogger(page, "listExternalAccounts");
+        const detachDebugListenerLea = attachAccountsLightDebugListener(page, "listExternalAccounts");
         let response: { status: number; body: string };
         try {
           const harvestPromise = harvestSpaApiResponse(
@@ -553,16 +628,34 @@ export const tinkoffRetailAdapter: BankAdapter = {
             const harvested = await harvestPromise;
             response = { status: harvested.status, body: harvested.body };
             log(`listExternalAccounts: harvested SPA response — using it`);
+            debugRunSync("listExternalAccounts: harvest path status + body prefix", {
+              status: harvested.status,
+              bodyLen: harvested.body.length,
+              ...(harvested.status >= 300 ? { bodyPrefix: harvested.body.slice(0, 300) } : {}),
+            });
           } catch (err) {
             log(`listExternalAccounts: harvest failed (${err instanceof Error ? err.message : String(err)}) — falling back to direct fetch`);
+            debugRunSync("listExternalAccounts: harvest failed — entering direct-fetch fallback", {
+              error: err instanceof Error ? err.message : String(err),
+            });
             const url = buildApiUrl("accounts_light_ib", sessionAuth);
             response = await tbankApiGetViaPage(page, url, sessionAuth, "listExternalAccounts");
+            debugRunSync("listExternalAccounts: direct-fetch fallback result", {
+              status: response.status,
+              bodyLen: response.body.length,
+              ...(response.status >= 300 ? { bodyPrefix: response.body.slice(0, 300) } : {}),
+            });
           }
         } finally {
           detachLogger();
+          detachDebugListenerLea();
         }
         if (response.status !== 200) {
           log(`listExternalAccounts: non-200 — body (first 1000): ${response.body.slice(0, 1000)}`);
+          debugRunSync("listExternalAccounts: FAIL — non-200 response", {
+            status: response.status,
+            bodyPrefix: response.body.slice(0, 500),
+          });
           throw new Error(`accounts_light_ib HTTP ${response.status}`);
         }
         let json: unknown;
@@ -665,6 +758,8 @@ export const tinkoffRetailAdapter: BankAdapter = {
 
         // Stage 1: harvest accounts_light_ib (SPA fires it on /mybank/).
         const detachLogger1 = attachApiResponseLogger(page, "runSync.accounts");
+        const detachDebugListener1 = attachAccountsLightDebugListener(page, "runSync.accounts");
+        debugRunSync("runSync.accounts: starting — sessionid len", { len: sessionAuth.sessionid.length, wuidLen: sessionAuth.wuid.length });
         let accountsResponse: { status: number; body: string };
         try {
           const harvestPromise = harvestSpaApiResponse(
@@ -678,17 +773,35 @@ export const tinkoffRetailAdapter: BankAdapter = {
             const harvested = await harvestPromise;
             accountsResponse = { status: harvested.status, body: harvested.body };
             log(`runSync.accounts: harvested SPA response — using it`);
+            debugRunSync("runSync.accounts: harvest path status + body prefix", {
+              status: harvested.status,
+              bodyLen: harvested.body.length,
+              ...(harvested.status >= 300 ? { bodyPrefix: harvested.body.slice(0, 300) } : {}),
+            });
           } catch (err) {
             log(`runSync.accounts: harvest failed (${err instanceof Error ? err.message : String(err)}) — falling back to direct fetch`);
+            debugRunSync("runSync.accounts: harvest failed — entering direct-fetch fallback", {
+              error: err instanceof Error ? err.message : String(err),
+            });
             const url = buildApiUrl("accounts_light_ib", sessionAuth);
             accountsResponse = await tbankApiGetViaPage(page, url, sessionAuth, "runSync.accounts");
+            debugRunSync("runSync.accounts: direct-fetch fallback result", {
+              status: accountsResponse.status,
+              bodyLen: accountsResponse.body.length,
+              ...(accountsResponse.status >= 300 ? { bodyPrefix: accountsResponse.body.slice(0, 300) } : {}),
+            });
           }
         } finally {
           detachLogger1();
+          detachDebugListener1();
         }
 
         if (accountsResponse.status !== 200) {
           log(`runSync.accounts: non-200 — body (first 1000): ${accountsResponse.body.slice(0, 1000)}`);
+          debugRunSync("runSync.accounts: FAIL — non-200 response", {
+            status: accountsResponse.status,
+            bodyPrefix: accountsResponse.body.slice(0, 500),
+          });
           throw new Error(`accounts_light_ib HTTP ${accountsResponse.status}`);
         }
 

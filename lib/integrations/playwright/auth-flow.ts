@@ -51,6 +51,21 @@ export async function extractSessionAuth(page: Page): Promise<TinkoffSessionAuth
   const names = tbankCookies.map((c) => c.name).sort();
   log(`extractSessionAuth: cookies after auth: ${JSON.stringify(names)}`);
 
+  // Structured diagnostic: names + lengths + expiry (no raw values).
+  debugAuth("extractSessionAuth: final page url", { url: page.url() });
+  debugAuth("extractSessionAuth: all tbank.ru cookie details", {
+    cookies: tbankCookies.map((c) => ({
+      name: c.name,
+      domain: c.domain,
+      path: c.path,
+      valueLen: c.value.length,
+      expires: c.expires !== -1 ? new Date(c.expires * 1000).toISOString() : "session",
+      httpOnly: c.httpOnly,
+      secure: c.secure,
+      sameSite: c.sameSite,
+    })),
+  });
+
   const findOne = (candidates: string[]) =>
     candidates
       .map((n) => tbankCookies.find((c) => c.name === n))
@@ -64,12 +79,25 @@ export async function extractSessionAuth(page: Page): Promise<TinkoffSessionAuth
     log(
       `extractSessionAuth: cookie path won — sessionid<-${sessionCookie.name}=${preview(sessionCookie.value)} wuid<-${wuidCookie.name}=${preview(wuidCookie.value)}`,
     );
+    debugAuth("extractSessionAuth: selected cookies", {
+      sessionCookieName: sessionCookie.name,
+      sessionCookieLen: sessionCookie.value.length,
+      sessionCookieExpires: sessionCookie.expires !== -1 ? new Date(sessionCookie.expires * 1000).toISOString() : "session",
+      wuidCookieName: wuidCookie.name,
+      wuidCookieLen: wuidCookie.value.length,
+      wuidCookieExpires: wuidCookie.expires !== -1 ? new Date(wuidCookie.expires * 1000).toISOString() : "session",
+    });
     return { sessionid: sessionCookie.value, wuid: wuidCookie.value };
   }
 
   log(
     `extractSessionAuth: cookie path FAILED sid_found=${Boolean(sessionCookie)} wuid_found=${Boolean(wuidCookie)} — falling back to traffic listener`,
   );
+  debugAuth("extractSessionAuth: cookie path FAILED — candidates checked", {
+    sessionidCandidates: COOKIE_NAME_SESSIONID_CANDIDATES,
+    wuidCandidates: COOKIE_NAME_WUID_CANDIDATES,
+    presentNames: names,
+  });
   return harvestSessionAuthFromTraffic(page);
 }
 
@@ -106,6 +134,17 @@ const CLASSIFIER_PROBE_TIMEOUT_MS = 1_500;
 const DEBUG = process.env.DEBUG_PLAYWRIGHT !== "false";
 const LOG_PREFIX = "[playwright-tbank]";
 const log = (msg: string) => console.log(`${LOG_PREFIX} ${msg}`);
+
+// Diagnostic helper — emits only when TINKOFF_DEBUG_AUTH=1.
+// NEVER log raw cookie/session values here; use lengths and names only.
+const debugAuth = (msg: string, data?: unknown) => {
+  if (process.env.TINKOFF_DEBUG_AUTH !== "1") return;
+  if (data !== undefined) {
+    console.log(`[tbank-debug:auth-flow] ${msg}`, JSON.stringify(data));
+  } else {
+    console.log(`[tbank-debug:auth-flow] ${msg}`);
+  }
+};
 
 // ─── Password-redacting helpers ────────────────────────────────
 
@@ -622,55 +661,84 @@ export async function runFastLogin(opts: {
 }): Promise<{ sessionAuth: TinkoffSessionAuth }> {
   const { page, pin } = opts;
 
-  await page.goto("https://www.tbank.ru/mybank/", { waitUntil: "domcontentloaded" });
-  await detectCaptcha(page);
-
-  const deadline = Date.now() + 8_000;
-
-  while (Date.now() < deadline) {
-    const currentUrl = page.url();
-
-    if (currentUrl.includes("tbank.ru/mybank")) {
-      // Post-mybank networkidle wait removed: extractSessionAuth's cookie path reads
-      // already-set cookies (no network dependency); the harvest-listener fallback
-      // arms BEFORE navigation, so it doesn't need post-arrival quiescence either.
-      // Saves ~8s × 2 launches = up to 16s wall-time.
-      const sessionAuth = await extractSessionAuth(page);
-      return { sessionAuth };
+  // Intercept any OAuth/SSO redirects that contain the interaction_required error
+  // so we can record them even if Playwright follows the redirect transparently.
+  const interactionRequiredUrls: string[] = [];
+  const authErrorHandler = (response: import("playwright").Response) => {
+    const url = response.url();
+    if (/prompt=none/i.test(url) || /interaction_required/i.test(url) || /error=interaction_required/i.test(url)) {
+      const redacted = url.replace(/[?&](sessionid|wuid|code|state|nonce)=[^&]+/gi, (m, k) => `&${k}=[REDACTED]`);
+      debugAuth("runFastLogin: redirect with prompt=none / interaction_required captured", {
+        status: response.status(),
+        url: redacted,
+        location: response.headers()["location"] ?? null,
+      });
+      interactionRequiredUrls.push(redacted);
     }
-
-    const numericCount = await page
-      .locator('input[inputmode="numeric"], input[autocomplete="one-time-code"]')
-      .count()
-      .catch(() => 0);
-
-    if (numericCount >= 4) {
-      await fillPinInputs(page, pin);
-      await humanDelay();
-      await page.waitForURL(/^https:\/\/www\.tbank\.ru\/mybank/, { timeout: 30_000 });
-      // Post-mybank networkidle wait removed: extractSessionAuth's cookie path reads
-      // already-set cookies (no network dependency); the harvest-listener fallback
-      // arms BEFORE navigation, so it doesn't need post-arrival quiescence either.
-      // Saves ~8s × 2 launches = up to 16s wall-time.
-      const sessionAuth = await extractSessionAuth(page);
-      return { sessionAuth };
-    }
-
-    // Check for SMS-only screen (single one-time-code input without being a 4+ PIN array)
-    try {
-      const smsInputVisible = await page
-        .locator('input[autocomplete="one-time-code"]')
-        .first()
-        .isVisible({ timeout: 300 });
-      if (smsInputVisible && numericCount < 4) {
-        throw new Error("session_expired");
-      }
-    } catch (err) {
-      if (err instanceof Error && err.message === "session_expired") throw err;
-    }
-
-    await new Promise((r) => setTimeout(r, 300));
+  };
+  if (process.env.TINKOFF_DEBUG_AUTH === "1") {
+    page.on("response", authErrorHandler);
   }
 
-  throw new Error("unknown_step");
+  try {
+    await page.goto("https://www.tbank.ru/mybank/", { waitUntil: "domcontentloaded" });
+    await detectCaptcha(page);
+
+    const deadline = Date.now() + 8_000;
+
+    while (Date.now() < deadline) {
+      const currentUrl = page.url();
+
+      if (currentUrl.includes("tbank.ru/mybank")) {
+        // Post-mybank networkidle wait removed: extractSessionAuth's cookie path reads
+        // already-set cookies (no network dependency); the harvest-listener fallback
+        // arms BEFORE navigation, so it doesn't need post-arrival quiescence either.
+        // Saves ~8s × 2 launches = up to 16s wall-time.
+        const sessionAuth = await extractSessionAuth(page);
+        return { sessionAuth };
+      }
+
+      const numericCount = await page
+        .locator('input[inputmode="numeric"], input[autocomplete="one-time-code"]')
+        .count()
+        .catch(() => 0);
+
+      if (numericCount >= 4) {
+        await fillPinInputs(page, pin);
+        await humanDelay();
+        await page.waitForURL(/^https:\/\/www\.tbank\.ru\/mybank/, { timeout: 30_000 });
+        // Post-mybank networkidle wait removed: extractSessionAuth's cookie path reads
+        // already-set cookies (no network dependency); the harvest-listener fallback
+        // arms BEFORE navigation, so it doesn't need post-arrival quiescence either.
+        // Saves ~8s × 2 launches = up to 16s wall-time.
+        const sessionAuth = await extractSessionAuth(page);
+        return { sessionAuth };
+      }
+
+      // Check for SMS-only screen (single one-time-code input without being a 4+ PIN array)
+      try {
+        const smsInputVisible = await page
+          .locator('input[autocomplete="one-time-code"]')
+          .first()
+          .isVisible({ timeout: 300 });
+        if (smsInputVisible && numericCount < 4) {
+          throw new Error("session_expired");
+        }
+      } catch (err) {
+        if (err instanceof Error && err.message === "session_expired") throw err;
+      }
+
+      await new Promise((r) => setTimeout(r, 300));
+    }
+
+    throw new Error("unknown_step");
+  } finally {
+    if (process.env.TINKOFF_DEBUG_AUTH === "1") {
+      page.off("response", authErrorHandler);
+      debugAuth("runFastLogin: interaction_required redirect summary", {
+        count: interactionRequiredUrls.length,
+        urls: interactionRequiredUrls,
+      });
+    }
+  }
 }
