@@ -43,6 +43,7 @@ services:
       BYBIT_API_KEY: ${BYBIT_API_KEY}
       BYBIT_API_SECRET: ${BYBIT_API_SECRET}
       FX_SYNC_TOKEN: ${FX_SYNC_TOKEN}
+      TINKOFF_DEBUG_AUTH: ${TINKOFF_DEBUG_AUTH:-}
       PLAYWRIGHT_PROFILES_DIR: /var/lib/budget-tracker/playwright-profiles
       TZ: Europe/Moscow
       DISPLAY: ":99"
