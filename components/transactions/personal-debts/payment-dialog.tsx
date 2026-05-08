@@ -3,6 +3,8 @@
 import React, { useState, useTransition } from "react";
 import { Dialog } from "@/components/ui/dialog";
 import { useT } from "@/lib/i18n";
+import { DEFAULT_TZ } from "@/lib/constants";
+import { todayKeyInTz } from "@/lib/format/date";
 import { createDebtPaymentAction } from "@/app/(shell)/transactions/personal-debts/actions";
 import type { AccountOption } from "@/components/forms/account-select";
 
@@ -12,10 +14,11 @@ interface DebtPaymentDialogProps {
   debtId: string;
   accounts: AccountOption[];
   onDone?: () => void;
+  tz?: string;
 }
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+function todayIso(tz?: string): string {
+  return todayKeyInTz(tz ?? DEFAULT_TZ);
 }
 
 export function DebtPaymentDialog({
@@ -24,12 +27,13 @@ export function DebtPaymentDialog({
   debtId,
   accounts,
   onDone,
+  tz,
 }: DebtPaymentDialogProps) {
   const t = useT();
   const [isPending, startTransition] = useTransition();
   const [amount, setAmount] = useState("");
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? "");
-  const [occurredAt, setOccurredAt] = useState(todayIso());
+  const [occurredAt, setOccurredAt] = useState(todayIso(tz));
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -50,7 +54,7 @@ export function DebtPaymentDialog({
       }
       setAmount("");
       setNote("");
-      setOccurredAt(todayIso());
+      setOccurredAt(todayIso(tz));
       onOpenChange(false);
       onDone?.();
     });

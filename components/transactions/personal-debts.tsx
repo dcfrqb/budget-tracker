@@ -17,9 +17,10 @@ type Props = {
   metaLine: string;
   accounts?: AccountOption[];
   showClosed?: boolean;
+  tz?: string;
 };
 
-export function PersonalDebts({ debts, metaLine, accounts = [], showClosed = false }: Props) {
+export function PersonalDebts({ debts, metaLine, accounts = [], showClosed = false, tz }: Props) {
   const t = useT();
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [paymentDebtId, setPaymentDebtId] = useState<string | null>(null);
@@ -179,6 +180,7 @@ export function PersonalDebts({ debts, metaLine, accounts = [], showClosed = fal
           debtId={paymentDebtId}
           accounts={accounts}
           onDone={() => setPaymentDebtId(null)}
+          tz={tz}
         />
       )}
     </div>

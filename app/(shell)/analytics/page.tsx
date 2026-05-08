@@ -17,6 +17,7 @@ import { TrendCharts } from "@/components/analytics/trend";
 import { Weather } from "@/components/analytics/weather";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { getCurrentUserId } from "@/lib/api/auth";
+import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
 import {
   resolveRange,
   getPeriodKpis,
@@ -62,7 +63,7 @@ export default async function AnalyticsPage({
 }: {
   searchParams?: SearchParams;
 }) {
-  const [userId, t, locale] = await Promise.all([getCurrentUserId(), getT(), getLocale()]);
+  const [userId, t, locale, tz] = await Promise.all([getCurrentUserId(), getT(), getLocale(), getCurrentUserTz()]);
 
   const sp = searchParams ? await searchParams : {};
   const trendPeriod = parseAnalyticsPeriod(sp.p);
@@ -81,10 +82,10 @@ export default async function AnalyticsPage({
     getCategoryPie(userId, currentRange, DEFAULT_CURRENCY),
     getPeriodCompare(userId, currentRange, DEFAULT_CURRENCY, compareRange),
     getForecastMonth(userId, DEFAULT_CURRENCY),
-    getWeather(userId, DEFAULT_CURRENCY),
+    getWeather(userId, DEFAULT_CURRENCY, tz),
     db.budgetSettings.findUnique({ where: { userId } }),
-    getRunwayByMode(userId, DEFAULT_CURRENCY),
-    getTrendPoints(userId, currentRange, DEFAULT_CURRENCY, granularity),
+    getRunwayByMode(userId, DEFAULT_CURRENCY, tz),
+    getTrendPoints(userId, currentRange, DEFAULT_CURRENCY, granularity, tz),
     getHomeDashboard(userId, DEFAULT_CURRENCY),
   ]);
 

@@ -7,7 +7,7 @@ import { getCurrentUserId } from "@/lib/api/auth";
 import { updateUserProfile } from "@/lib/data/_mutations/users";
 import { updateBudgetSettings } from "@/lib/data/_mutations/budget-settings";
 import { wipeAllUserData } from "@/lib/data/_mutations/wipe";
-import { userUpdateSchema } from "@/lib/validation/profile";
+import { userUpdateSchema, timezoneUpdateSchema } from "@/lib/validation/profile";
 import { budgetSettingsUpdateSchema } from "@/lib/validation/budget-settings";
 import { autosyncCadenceInput } from "@/lib/validation/integrations";
 import { db } from "@/lib/db";
@@ -108,6 +108,27 @@ export async function setAutosyncCadenceAction(formData: FormData): Promise<{ er
 
     revalidatePath("/settings");
     revalidatePath("/wallet/integrations");
+  } catch {
+    return { error: true };
+  }
+}
+
+/** Server action: sets the user's timezone. */
+export async function setTimezoneAction(
+  formData: FormData,
+): Promise<{ error: true } | undefined> {
+  try {
+    const userId = await getCurrentUserId();
+    const raw = { timezone: formData.get("timezone") };
+    const parsed = timezoneUpdateSchema.safeParse(raw);
+    if (!parsed.success) return { error: true };
+
+    await db.user.update({
+      where: { id: userId },
+      data: { timezone: parsed.data.timezone },
+    });
+
+    revalidatePath("/", "layout");
   } catch {
     return { error: true };
   }

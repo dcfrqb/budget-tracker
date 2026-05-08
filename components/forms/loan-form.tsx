@@ -12,7 +12,8 @@ import {
   updateLoanAction,
 } from "@/app/(shell)/expenses/loans/actions";
 import { useT } from "@/lib/i18n";
-import { DEFAULT_CURRENCY } from "@/lib/constants";
+import { DEFAULT_CURRENCY, DEFAULT_TZ } from "@/lib/constants";
+import { todayKeyInTz } from "@/lib/format/date";
 import { CurrencySelect, type CurrencyOption } from "./currency-select";
 import { AccountSelect, type AccountOption } from "./account-select";
 import { TextField } from "./primitives/text-field";
@@ -32,8 +33,8 @@ function errMsg(e: any): string | undefined {
   return undefined;
 }
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+function todayIso(tz?: string): string {
+  return todayKeyInTz(tz ?? DEFAULT_TZ);
 }
 
 export interface LoanFormProps {
@@ -45,6 +46,7 @@ export interface LoanFormProps {
   initialValues?: Record<string, any>;
   loanId?: string;
   onSuccess?: () => void;
+  tz?: string;
 }
 
 export function LoanForm({
@@ -55,6 +57,7 @@ export function LoanForm({
   initialValues,
   loanId,
   onSuccess,
+  tz,
 }: LoanFormProps) {
   const t = useT();
   const router = useRouter();
@@ -81,7 +84,7 @@ export function LoanForm({
     action as any,
     {
       defaultValues: {
-        startDate: todayIso(),
+        startDate: todayIso(tz),
         termMonths: 12,
         annualRatePct: 0,
         currencyCode: DEFAULT_CURRENCY,

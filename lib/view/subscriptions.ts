@@ -8,7 +8,8 @@ import type { SharingType } from "@prisma/client";
 import type { SubscriptionWithDetails, SubscriptionTotals } from "@/lib/data/subscriptions";
 import { computeMyCost } from "@/lib/subscription-share";
 import { formatMoney } from "@/lib/format/money";
-import { formatShortDate } from "@/lib/format/date";
+import { formatShortDate, dayKeyInTz } from "@/lib/format/date";
+import { DEFAULT_TZ } from "@/lib/constants";
 import type { TKey } from "@/lib/i18n/t";
 import type { Locale } from "@/lib/i18n/types";
 
@@ -61,6 +62,7 @@ export function toSubscriptionCardView(
   t: TFn,
   _rates: Map<string, Prisma.Decimal>,
   locale: Locale,
+  tz: string = DEFAULT_TZ,
 ): SubscriptionCardView {
   const sharesInput = sub.shares.map((s) => ({
     amount: s.amount ? new Prisma.Decimal(s.amount) : null,
@@ -111,7 +113,7 @@ export function toSubscriptionCardView(
     nextToneOk,
     sharesCount: sub.shares.length,
     sharingType: sub.sharingType,
-    nextPaymentDateIso: sub.nextPaymentDate.toISOString().slice(0, 10),
+    nextPaymentDateIso: dayKeyInTz(sub.nextPaymentDate, tz),
     billingIntervalMonths: sub.billingIntervalMonths,
   };
 }
@@ -159,8 +161,9 @@ export function toSubscriptionGroupView(
   t: TFn,
   rates: Map<string, Prisma.Decimal>,
   locale: Locale,
+  tz: string = DEFAULT_TZ,
 ): SubscriptionGroupView {
-  const cards = items.map((s) => toSubscriptionCardView(s, t, rates, locale));
+  const cards = items.map((s) => toSubscriptionCardView(s, t, rates, locale, tz));
   const keys = GROUP_KEYS[key];
 
   return {

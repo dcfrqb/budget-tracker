@@ -10,6 +10,8 @@ import {
   updateTransferAction,
 } from "@/app/(shell)/transactions/transfer-actions";
 import { useT } from "@/lib/i18n";
+import { DEFAULT_TZ } from "@/lib/constants";
+import { todayKeyInTz } from "@/lib/format/date";
 import { AccountSelect, type AccountOption } from "./account-select";
 import { MoneyInput } from "./primitives/money-input";
 import { DateField } from "./primitives/date-field";
@@ -35,10 +37,11 @@ export interface TransferFormProps {
   defaultValues?: Partial<TransferCreateInput>;
   initialValues?: Partial<TransferCreateInput>;
   onSuccess?: () => void;
+  tz?: string;
 }
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+function todayIso(tz?: string): string {
+  return todayKeyInTz(tz ?? DEFAULT_TZ);
 }
 
 export function TransferForm({
@@ -49,6 +52,7 @@ export function TransferForm({
   defaultValues: initialDefaults,
   initialValues,
   onSuccess,
+  tz,
 }: TransferFormProps) {
   const t = useT();
   const router = useRouter();
@@ -74,7 +78,7 @@ export function TransferForm({
     {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       defaultValues: {
-        occurredAt: todayIso(),
+        occurredAt: todayIso(tz),
         ...initialDefaults,
         ...initialValues,
       } as any,

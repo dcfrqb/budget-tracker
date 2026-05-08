@@ -11,6 +11,7 @@ import { IntegrationsSection } from "@/components/settings/integrations-section"
 import { ExportSection } from "@/components/settings/export-section";
 import { DangerZone } from "@/components/settings/danger-zone";
 import { LocaleSwitcher } from "@/components/settings/locale-switcher";
+import { TimezoneSwitcher } from "@/components/settings/timezone-switcher";
 import { AutosyncCadence } from "@/components/settings/autosync-cadence";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +27,7 @@ export default async function SettingsPage() {
     await Promise.all([
       db.user.findUnique({
         where: { id: userId },
-        select: { id: true, name: true, gender: true, email: true },
+        select: { id: true, name: true, gender: true, email: true, timezone: true },
       }),
       db.budgetSettings.findFirst({ where: { userId } }),
       db.category.count({ where: { userId, archivedAt: null } }),
@@ -100,6 +101,9 @@ export default async function SettingsPage() {
               {t("settings.locale.sectionTitle")}
             </div>
             <LocaleSwitcher />
+            <div style={{ marginTop: 12 }}>
+              <TimezoneSwitcher current={user?.timezone ?? "Europe/Moscow"} />
+            </div>
           </div>
 
           <div className="settings-divider" />

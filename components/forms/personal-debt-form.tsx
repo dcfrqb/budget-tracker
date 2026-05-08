@@ -12,7 +12,8 @@ import {
   updatePersonalDebtAction,
 } from "@/app/(shell)/transactions/personal-debts/actions";
 import { useT } from "@/lib/i18n";
-import { DEFAULT_CURRENCY } from "@/lib/constants";
+import { DEFAULT_CURRENCY, DEFAULT_TZ } from "@/lib/constants";
+import { todayKeyInTz } from "@/lib/format/date";
 import { CurrencySelect, type CurrencyOption } from "./currency-select";
 import { AccountSelect, type AccountOption } from "./account-select";
 import { TextField } from "./primitives/text-field";
@@ -32,8 +33,8 @@ function errMsg(e: any): string | undefined {
   return undefined;
 }
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+function todayIso(tz?: string): string {
+  return todayKeyInTz(tz ?? DEFAULT_TZ);
 }
 
 export interface PersonalDebtFormProps {
@@ -45,6 +46,7 @@ export interface PersonalDebtFormProps {
   initialValues?: Record<string, any>;
   debtId?: string;
   onSuccess?: () => void;
+  tz?: string;
 }
 
 export function PersonalDebtForm({
@@ -55,6 +57,7 @@ export function PersonalDebtForm({
   initialValues,
   debtId,
   onSuccess,
+  tz,
 }: PersonalDebtFormProps) {
   const t = useT();
   const router = useRouter();
@@ -82,7 +85,7 @@ export function PersonalDebtForm({
     {
       defaultValues: {
         direction: "OUT",
-        openedAt: todayIso(),
+        openedAt: todayIso(tz),
         currencyCode: DEFAULT_CURRENCY,
         ...initialValues,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

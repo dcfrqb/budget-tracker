@@ -13,7 +13,8 @@ import {
   updatePlannedEventAction,
 } from "@/app/(shell)/planning/events/actions";
 import { useT } from "@/lib/i18n";
-import { DEFAULT_CURRENCY } from "@/lib/constants";
+import { DEFAULT_CURRENCY, DEFAULT_TZ } from "@/lib/constants";
+import { todayKeyInTz } from "@/lib/format/date";
 import { CurrencySelect, type CurrencyOption } from "./currency-select";
 import { TextField } from "./primitives/text-field";
 import { TextareaField } from "./primitives/textarea-field";
@@ -32,8 +33,8 @@ function errMsg(e: any): string | undefined {
   return undefined;
 }
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+function todayIso(tz?: string): string {
+  return todayKeyInTz(tz ?? DEFAULT_TZ);
 }
 
 export interface FundOption {
@@ -50,6 +51,7 @@ export interface PlannedEventFormProps {
   initialValues?: Record<string, any>;
   eventId?: string;
   onSuccess?: () => void;
+  tz?: string;
 }
 
 export function PlannedEventForm({
@@ -60,6 +62,7 @@ export function PlannedEventForm({
   initialValues,
   eventId,
   onSuccess,
+  tz,
 }: PlannedEventFormProps) {
   const t = useT();
   const router = useRouter();
@@ -87,7 +90,7 @@ export function PlannedEventForm({
     {
       defaultValues: {
         kind: PlannedEventKind.OTHER,
-        eventDate: todayIso(),
+        eventDate: todayIso(tz),
         repeatsYearly: false,
         currencyCode: DEFAULT_CURRENCY,
         ...initialValues,

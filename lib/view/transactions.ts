@@ -2,6 +2,7 @@ import { Prisma, TransactionKind, TransactionStatus } from "@prisma/client";
 import { formatMoney } from "@/lib/format/money";
 import { convertToBase } from "@/lib/data/wallet";
 import { DEFAULT_TZ } from "@/lib/constants";
+import { weekdayIndexInTz, sameDayInTz } from "@/lib/format/date";
 import type {
   PeriodSummary,
   TxnDayRaw,
@@ -113,12 +114,11 @@ function pad2(n: number): string {
   return n < 10 ? "0" + n : String(n);
 }
 
-// "21.04" — day label in user's timezone (DEFAULT_TZ).
+// "21.04" — day label in user's timezone.
 // en-CA gives YYYY-MM-DD; we extract DD and MM for the "DD.MM" format.
-// TODO: replace DEFAULT_TZ with User.timezone when user-level timezone is added.
-export function formatDateRu(d: Date): string {
+export function formatDateRu(d: Date, tz: string = DEFAULT_TZ): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: DEFAULT_TZ,
+    timeZone: tz,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -128,36 +128,11 @@ export function formatDateRu(d: Date): string {
   return `${day}.${month}`;
 }
 
-// Weekday key resolved in user's timezone (DEFAULT_TZ).
-// TODO: replace DEFAULT_TZ with User.timezone when user-level timezone is added.
-function getWeekdayInTz(d: Date): number {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: DEFAULT_TZ,
-    weekday: "short",
-  }).formatToParts(d);
-  const short = parts.find((p) => p.type === "weekday")?.value ?? "Sun";
-  const map: Record<string, number> = {
-    Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
-  };
-  return map[short] ?? 0;
-}
-
-// Day-equality check in user's timezone (DEFAULT_TZ).
-function sameDayInTz(a: Date, b: Date): boolean {
-  const fmt = new Intl.DateTimeFormat("en-CA", {
-    timeZone: DEFAULT_TZ,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  return fmt.format(a) === fmt.format(b);
-}
-
 // "Mon · today" / "Sun" / "Tue" — locale-aware via t().
-export function formatWeekdayRu(d: Date, today: Date, t: TFn): string {
-  const weekdayKey = WEEKDAY_KEYS[getWeekdayInTz(d)];
+export function formatWeekdayRu(d: Date, today: Date, t: TFn, tz: string = DEFAULT_TZ): string {
+  const weekdayKey = WEEKDAY_KEYS[weekdayIndexInTz(d, tz)];
   const weekday = t(weekdayKey);
-  return sameDayInTz(d, today) ? `${weekday} ${t("transactions.day.today")}` : weekday;
+  return sameDayInTz(d, today, tz) ? `${weekday} ${t("transactions.day.today")}` : weekday;
 }
 
 export function formatTime(d: Date): string {
@@ -426,12 +401,13 @@ export function toTxnDayView(
   rates: Map<string, Prisma.Decimal>,
   baseCcy: string,
   t: TFn,
+  tz: string = DEFAULT_TZ,
 ): TxnDayView {
   const d = new Date(raw.date + "T00:00:00Z");
   const { totals, hasConvertedAmounts } = dayTotalsFromTxns(raw.txns, rates, baseCcy, t);
   return {
-    date: formatDateRu(d),
-    weekday: formatWeekdayRu(d, today, t),
+    date: formatDateRu(d, tz),
+    weekday: formatWeekdayRu(d, today, t, tz),
     totals,
     hasConvertedAmounts,
     txns: raw.txns.map((txn) => toTxnView(txn, t, rates, baseCcy)),

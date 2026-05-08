@@ -1,5 +1,6 @@
 import { CountUp } from "@/components/count-up";
 import { getT, getLocale } from "@/lib/i18n/server";
+import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
 import { formatPlainNumber } from "@/lib/format/money";
 import { formatRelative } from "@/lib/format/relative-time";
 import { getCurrentUserId } from "@/lib/api/auth";
@@ -15,9 +16,9 @@ import { DEFAULT_CURRENCY } from "@/lib/constants";
 // ─────────────────────────────────────────────────────────────
 
 async function loadSharedSummary() {
-  const [userId, t] = await Promise.all([getCurrentUserId(), getT()]);
+  const [userId, t, tz] = await Promise.all([getCurrentUserId(), getT(), getCurrentUserTz()]);
   const dashboard = await getHomeDashboard(userId, DEFAULT_CURRENCY);
-  return toHomeView(dashboard, t);
+  return toHomeView(dashboard, t, tz);
 }
 
 // ─────────────────────────────────────────────────────────────

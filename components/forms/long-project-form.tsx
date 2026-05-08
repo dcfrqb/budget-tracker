@@ -12,7 +12,8 @@ import {
   updateLongProjectAction,
 } from "@/app/(shell)/expenses/long-projects/actions";
 import { useT } from "@/lib/i18n";
-import { DEFAULT_CURRENCY } from "@/lib/constants";
+import { DEFAULT_CURRENCY, DEFAULT_TZ } from "@/lib/constants";
+import { todayKeyInTz } from "@/lib/format/date";
 import { CurrencySelect, type CurrencyOption } from "./currency-select";
 import { CategorySelect, type CategoryOption } from "./category-select";
 import { TextField } from "./primitives/text-field";
@@ -31,8 +32,8 @@ function errMsg(e: any): string | undefined {
   return undefined;
 }
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+function todayIso(tz?: string): string {
+  return todayKeyInTz(tz ?? DEFAULT_TZ);
 }
 
 export interface LongProjectFormProps {
@@ -44,6 +45,7 @@ export interface LongProjectFormProps {
   initialValues?: Record<string, any>;
   projectId?: string;
   onSuccess?: () => void;
+  tz?: string;
 }
 
 export function LongProjectForm({
@@ -54,6 +56,7 @@ export function LongProjectForm({
   initialValues,
   projectId,
   onSuccess,
+  tz,
 }: LongProjectFormProps) {
   const t = useT();
   const router = useRouter();
@@ -80,7 +83,7 @@ export function LongProjectForm({
     action as any,
     {
       defaultValues: {
-        startDate: todayIso(),
+        startDate: todayIso(tz),
         currencyCode: DEFAULT_CURRENCY,
         ...initialValues,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

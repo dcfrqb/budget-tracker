@@ -81,6 +81,14 @@ export const enDict: RuDictShape = {
         en: "English",
       },
     },
+    timezone: {
+      label: "Time zone",
+      help: "Used to group transactions and analytics by day.",
+      option: {
+        other: "Other…",
+      },
+      invalid: "Invalid time zone",
+    },
     autosync: {
       section_title: "Autosync",
       hint: "Applies to all integrations. For immediate sync, use the Sync button on Transactions.",

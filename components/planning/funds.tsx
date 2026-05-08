@@ -31,9 +31,10 @@ export type FundCardView = {
 type FundCardProps = {
   fund: FundCardView;
   accounts: AccountOption[];
+  tz?: string;
 };
 
-function FundCard({ fund, accounts }: FundCardProps) {
+function FundCard({ fund, accounts, tz }: FundCardProps) {
   const t = useT();
   const router = useRouter();
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -86,6 +87,7 @@ function FundCard({ fund, accounts }: FundCardProps) {
           currentAmount={fund.currentAmount}
           accounts={accounts}
           onContributed={() => router.refresh()}
+          tz={tz}
         />
         <Link href={`/planning/funds/${fund.id}/edit`} className="btn">
           {t("buttons.edit")}
@@ -123,10 +125,12 @@ export function FundsSection({
   funds,
   accounts,
   addLabel,
+  tz,
 }: {
   funds: FundCardView[];
   accounts?: AccountOption[];
   addLabel?: string;
+  tz?: string;
 }) {
   const t = useT();
   const accs = accounts ?? [];
@@ -150,7 +154,7 @@ export function FundsSection({
       <div className="section-body flush">
         <div className="fund-grid">
           {funds.map((f) => (
-            <FundCard key={f.id} fund={f} accounts={accs} />
+            <FundCard key={f.id} fund={f} accounts={accs} tz={tz} />
           ))}
           <article className="fund-card add" tabIndex={0}>
             <div>

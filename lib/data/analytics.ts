@@ -2,6 +2,8 @@ import { cache } from "react";
 import { Prisma, TransactionKind, TransactionStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getLatestRatesMap, convertToBase } from "@/lib/data/wallet";
+import { startOfWeekInTzKey, monthKeyInTz } from "@/lib/format/date";
+import { DEFAULT_TZ } from "@/lib/constants";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -67,15 +69,6 @@ function endOfMonth(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0, 23, 59, 59, 999));
 }
 
-function startOfWeek(d: Date): Date {
-  // Понедельник как начало недели
-  const day = d.getUTCDay(); // 0=Sun, 1=Mon ...
-  const diff = (day === 0 ? -6 : 1 - day);
-  const result = new Date(d);
-  result.setUTCDate(d.getUTCDate() + diff);
-  result.setUTCHours(0, 0, 0, 0);
-  return result;
-}
 
 function confirmedAmt(t: {
   status: TransactionStatus;
@@ -363,6 +356,7 @@ export const getTrendPoints = cache(async (
   range: DateRange,
   baseCcy: string,
   granularity: "weekly" | "monthly" = "monthly",
+  tz: string = DEFAULT_TZ,
 ): Promise<TrendPoint[]> => {
   const [rows, rates] = await Promise.all([
     db.transaction.findMany({
@@ -392,10 +386,9 @@ export const getTrendPoints = cache(async (
 
   const getBucketKey = (d: Date): string => {
     if (granularity === "weekly") {
-      const start = startOfWeek(d);
-      return start.toISOString().slice(0, 10);
+      return startOfWeekInTzKey(d, tz);
     } else {
-      return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-01`;
+      return monthKeyInTz(d, tz);
     }
   };
 
@@ -434,6 +427,7 @@ export const getTrendPoints = cache(async (
 export const getWeather = cache(async (
   userId: string,
   baseCcy: string,
+  tz: string = DEFAULT_TZ,
 ): Promise<WeatherResult> => {
   const now = new Date();
 
@@ -504,7 +498,7 @@ export const getWeather = cache(async (
   const monthlyBuckets = new Map<string, MonthlyBucket>();
 
   for (const t of last3MonthsRows) {
-    const key = `${t.occurredAt.getUTCFullYear()}-${String(t.occurredAt.getUTCMonth() + 1).padStart(2, "0")}`;
+    const key = monthKeyInTz(t.occurredAt, tz);
     if (!monthlyBuckets.has(key)) {
       monthlyBuckets.set(key, { inflow: new Prisma.Decimal(0), outflow: new Prisma.Decimal(0) });
     }

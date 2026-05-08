@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 import { getCurrentUserId } from "@/lib/api/auth";
+import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
+import { dayKeyInTz } from "@/lib/format/date";
 import { getTransactionById } from "@/lib/data/transactions";
 import { getCategories } from "@/lib/data/categories";
 import { getActiveWorkSources } from "@/lib/data/work-sources";
@@ -16,6 +18,7 @@ interface Props {
 export default async function EditTransactionPage({ params }: Props) {
   const userId = await getCurrentUserId();
   const { id } = await params;
+  const tz = await getCurrentUserTz();
 
   const [tx, accounts, categories, currencies, workSources] = await Promise.all([
     getTransactionById(userId, id),
@@ -40,8 +43,8 @@ export default async function EditTransactionPage({ params }: Props) {
     status: tx.status,
     amount: tx.amount.toString(),
     currencyCode: tx.currencyCode,
-    occurredAt: tx.occurredAt.toISOString().slice(0, 10),
-    plannedAt: tx.plannedAt?.toISOString().slice(0, 10),
+    occurredAt: dayKeyInTz(tx.occurredAt, tz),
+    plannedAt: tx.plannedAt ? dayKeyInTz(tx.plannedAt, tz) : undefined,
     name: tx.name,
     note: tx.note ?? undefined,
     scope: tx.scope,
@@ -69,6 +72,7 @@ export default async function EditTransactionPage({ params }: Props) {
         workSources={workSources.map((w) => ({ id: w.id, name: w.name }))}
         initialValues={initialValues}
         defaultKind={tx.kind}
+        tz={tz}
       />
     </div>
   );

@@ -11,6 +11,7 @@ import { getCurrentUserId } from "@/lib/api/auth";
 import { getCategories } from "@/lib/data/categories";
 import { db } from "@/lib/db";
 import { getT } from "@/lib/i18n/server";
+import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,7 @@ export default async function HomePage({ searchParams }: PageProps) {
   const { period: rawPeriod } = await searchParams;
   const period = parseHomePeriod(rawPeriod);
 
-  const [dashboard, categories, activeAccounts, t] = await Promise.all([
+  const [dashboard, categories, activeAccounts, t, tz] = await Promise.all([
     getHomeDashboard(userId, DEFAULT_CURRENCY, period),
     getCategories(userId),
     db.account.findMany({
@@ -30,9 +31,10 @@ export default async function HomePage({ searchParams }: PageProps) {
       select: { id: true, name: true, currencyCode: true },
     }),
     getT(),
+    getCurrentUserTz(),
   ]);
 
-  const view = toHomeView(dashboard, t);
+  const view = toHomeView(dashboard, t, tz);
 
   // Сигналы из живых данных пока не реализованы — возвращаем пустой список.
   // TODO: добавить логику генерации сигналов когда появятся правила

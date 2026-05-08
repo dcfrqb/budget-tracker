@@ -12,13 +12,14 @@ import { toHomeView } from "@/lib/view/home";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { getCurrentUserId } from "@/lib/api/auth";
 import { getT } from "@/lib/i18n/server";
+import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomeSummary() {
-  const [userId, t] = await Promise.all([getCurrentUserId(), getT()]);
+  const [userId, t, tz] = await Promise.all([getCurrentUserId(), getT(), getCurrentUserTz()]);
   const dashboard = await getHomeDashboard(userId, DEFAULT_CURRENCY);
-  const view = toHomeView(dashboard, t);
+  const view = toHomeView(dashboard, t, tz);
 
   const modeLabels: Record<string, string> = {
     ECONOMY: t("summary.home.mode_economy"),

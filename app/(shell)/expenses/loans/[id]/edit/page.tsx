@@ -2,6 +2,8 @@ export const dynamic = "force-dynamic";
 
 import { notFound } from "next/navigation";
 import { getCurrentUserId } from "@/lib/api/auth";
+import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
+import { dayKeyInTz } from "@/lib/format/date";
 import { db } from "@/lib/db";
 import { LoanForm } from "@/components/forms/loan-form";
 
@@ -12,6 +14,7 @@ interface Props {
 export default async function EditLoanPage({ params }: Props) {
   const { id } = await params;
   const userId = await getCurrentUserId();
+  const tz = await getCurrentUserTz();
 
   const [loan, currencies, accounts] = await Promise.all([
     db.loan.findFirst({ where: { id, userId } }),
@@ -42,11 +45,12 @@ export default async function EditLoanPage({ params }: Props) {
           principal: String(loan.principal),
           annualRatePct: Number(loan.annualRatePct),
           termMonths: loan.termMonths,
-          startDate: loan.startDate.toISOString().slice(0, 10),
+          startDate: dayKeyInTz(loan.startDate, tz),
           currencyCode: loan.currencyCode,
           accountId: loan.accountId ?? undefined,
           note: loan.note ?? undefined,
         }}
+        tz={tz}
       />
     </div>
   );

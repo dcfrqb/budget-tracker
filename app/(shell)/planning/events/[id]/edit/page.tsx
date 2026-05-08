@@ -2,6 +2,8 @@ export const dynamic = "force-dynamic";
 
 import { notFound } from "next/navigation";
 import { getCurrentUserId } from "@/lib/api/auth";
+import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
+import { dayKeyInTz } from "@/lib/format/date";
 import { db } from "@/lib/db";
 import { PlannedEventForm } from "@/components/forms/planned-event-form";
 
@@ -12,6 +14,7 @@ interface Props {
 export default async function EditPlannedEventPage({ params }: Props) {
   const { id } = await params;
   const userId = await getCurrentUserId();
+  const tz = await getCurrentUserTz();
 
   const [event, currencies, funds] = await Promise.all([
     db.plannedEvent.findFirst({ where: { id, userId } }),
@@ -33,11 +36,12 @@ export default async function EditPlannedEventPage({ params }: Props) {
         eventId={id}
         currencies={currencies.map((c) => ({ code: c.code, symbol: c.symbol }))}
         funds={funds}
+        tz={tz}
         initialValues={{
           kind: event.kind,
           name: event.name,
           note: event.note ?? undefined,
-          eventDate: event.eventDate.toISOString().slice(0, 10),
+          eventDate: dayKeyInTz(event.eventDate, tz),
           repeatsYearly: event.repeatsYearly,
           fundId: event.fundId ?? undefined,
           expectedAmount: event.expectedAmount != null ? String(event.expectedAmount) : undefined,

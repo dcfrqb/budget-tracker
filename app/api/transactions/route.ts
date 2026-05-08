@@ -1,6 +1,8 @@
 import { Prisma, TransactionKind } from "@prisma/client";
 import { db } from "@/lib/db";
 import { DEFAULT_USER_ID } from "@/lib/constants";
+import { dayKeyInTz } from "@/lib/format/date";
+import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
 import { conflict, err, ok, serverError } from "@/lib/api/response";
 import { parseBody, parseWith } from "@/lib/api/validate";
 import {
@@ -45,16 +47,19 @@ export async function GET(req: Request) {
     const where = buildWhere(q);
 
     if (q.groupBy === "day") {
-      // Группируем все подходящие по дню occurredAt. Пагинация не применяется —
-      // UI рендерит все дни одним списком.
-      const rows = await db.transaction.findMany({
-        where,
-        orderBy: [{ occurredAt: "desc" }, { id: "desc" }],
-        include: { account: true, category: true, reimbursements: true },
-      });
+      // Группируем все подходящие по дню occurredAt в таймзоне пользователя.
+      // Пагинация не применяется — UI рендерит все дни одним списком.
+      const [rows, tz] = await Promise.all([
+        db.transaction.findMany({
+          where,
+          orderBy: [{ occurredAt: "desc" }, { id: "desc" }],
+          include: { account: true, category: true, reimbursements: true },
+        }),
+        getCurrentUserTz(),
+      ]);
       const byDay = new Map<string, typeof rows>();
       for (const t of rows) {
-        const key = t.occurredAt.toISOString().slice(0, 10); // YYYY-MM-DD
+        const key = dayKeyInTz(t.occurredAt, tz);
         const list = byDay.get(key);
         if (list) list.push(t);
         else byDay.set(key, [t]);

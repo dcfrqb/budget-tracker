@@ -21,6 +21,7 @@ import {
 import { Prisma } from "@prisma/client";
 import { formatMoney } from "@/lib/format/money";
 import { getT } from "@/lib/i18n/server";
+import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
 
 type SearchParams = Promise<{ p?: string; cmp?: string }>;
 
@@ -33,7 +34,7 @@ export default async function AnalyticsSummary({
   const period = parseAnalyticsPeriod(sp.p);
   const compareMode = parseAnalyticsCompare(sp.cmp);
 
-  const [userId, t] = await Promise.all([getCurrentUserId(), getT()]);
+  const [userId, t, tz] = await Promise.all([getCurrentUserId(), getT(), getCurrentUserTz()]);
 
   const currentRange = resolveRange(period);
   const compareRange = resolveCompareRange(currentRange, compareMode);
@@ -44,7 +45,7 @@ export default async function AnalyticsSummary({
   const [kpis, compareRows, weather] = await Promise.all([
     getPeriodKpis(userId, currentRange, DEFAULT_CURRENCY),
     getPeriodCompare(userId, currentRange, DEFAULT_CURRENCY, compareRange),
-    getWeather(userId, DEFAULT_CURRENCY),
+    getWeather(userId, DEFAULT_CURRENCY, tz),
   ]);
 
   const net = new Prisma.Decimal(kpis.netBase);

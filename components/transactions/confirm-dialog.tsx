@@ -3,6 +3,8 @@
 import React, { useState, useTransition } from "react";
 import { Dialog } from "@/components/ui/dialog";
 import { useT } from "@/lib/i18n";
+import { DEFAULT_TZ } from "@/lib/constants";
+import { todayKeyInTz } from "@/lib/format/date";
 import { confirmTransactionAction } from "@/app/(shell)/transactions/actions";
 
 interface ConfirmDialogProps {
@@ -14,10 +16,11 @@ interface ConfirmDialogProps {
   /** Remaining amount as numeric string for default value */
   remainingAmountRaw?: string;
   onDone?: () => void;
+  tz?: string;
 }
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+function todayIso(tz?: string): string {
+  return todayKeyInTz(tz ?? DEFAULT_TZ);
 }
 
 export function ConfirmDialog({
@@ -27,11 +30,12 @@ export function ConfirmDialog({
   remainingAmount,
   remainingAmountRaw,
   onDone,
+  tz,
 }: ConfirmDialogProps) {
   const t = useT();
   const [isPending, startTransition] = useTransition();
   const [amount, setAmount] = useState(remainingAmountRaw ?? "");
-  const [occurredAt, setOccurredAt] = useState(todayIso());
+  const [occurredAt, setOccurredAt] = useState(todayIso(tz));
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
 

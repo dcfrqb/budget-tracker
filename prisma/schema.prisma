@@ -26,6 +26,7 @@ model User {
   email       String    @unique
   name        String?
   gender      Gender    @default(UNSPECIFIED)
+  timezone    String    @default("Europe/Moscow")
   // NULL = онбординг не пройден. Ставится при завершении wizard'а.
   onboardedAt DateTime?
   createdAt   DateTime  @default(now())

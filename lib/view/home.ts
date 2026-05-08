@@ -1,5 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { formatMoney } from "@/lib/format/money";
+import { dayKeyInTz } from "@/lib/format/date";
+import { DEFAULT_TZ } from "@/lib/constants";
 import type { HomeDashboard, UpcomingObligation, TopCategoryDelta } from "@/lib/data/dashboard";
 import type { TKey } from "@/lib/i18n/t";
 import type { TOptions } from "@/lib/i18n/types";
@@ -111,21 +113,20 @@ const OBLIGATION_CLASS: Record<UpcomingObligation["kind"], "loan" | "sub" | "uti
   credit_card: "warn",
 };
 
-function formatDueAt(isoDate: string, t: TFunc): string {
+function formatDueAt(isoDate: string, t: TFunc, tz: string = DEFAULT_TZ): string {
   const date = new Date(isoDate);
   const now = new Date();
   const diffMs = date.getTime() - now.getTime();
   const diffDays = Math.max(0, Math.ceil(diffMs / (24 * 60 * 60 * 1000)));
-  const day = date.getUTCDate().toString().padStart(2, "0");
-  const month = (date.getUTCMonth() + 1).toString().padStart(2, "0");
-  return `${day}.${month} · ${diffDays}${t("common.unit.day")}`;
+  const [, mm, dd] = dayKeyInTz(date, tz).split("-");
+  return `${dd}.${mm} · ${diffDays}${t("common.unit.day")}`;
 }
 
 function formatBaseAmount(amountBaseStr: string): string {
   return formatMoney(new Prisma.Decimal(amountBaseStr), "RUB");
 }
 
-function toObligationView(ob: UpcomingObligation, t: TFunc): HomeObligationView {
+function toObligationView(ob: UpcomingObligation, t: TFunc, tz: string = DEFAULT_TZ): HomeObligationView {
   const isBaseCurrency = ob.currencyCode === "RUB";
   let amount: string;
   let sub: string;
@@ -143,7 +144,7 @@ function toObligationView(ob: UpcomingObligation, t: TFunc): HomeObligationView 
     tagClass: OBLIGATION_CLASS[ob.kind],
     name: ob.label,
     sub,
-    date: formatDueAt(ob.dueAt, t),
+    date: formatDueAt(ob.dueAt, t, tz),
     amount,
     meta: ob.kind,
   };
@@ -185,7 +186,7 @@ function toTopCategoryView(cat: TopCategoryDelta, rank: number): HomeTopCategory
 // Main mapper
 // ─────────────────────────────────────────────────────────────
 
-export function toHomeView(dashboard: HomeDashboard, t: TFunc): HomeView {
+export function toHomeView(dashboard: HomeDashboard, t: TFunc, tz: string = DEFAULT_TZ): HomeView {
   const totalBase = Number(new Prisma.Decimal(dashboard.totalBalanceBase).toFixed(0));
   const reservedBase = Number(new Prisma.Decimal(dashboard.reservedBase).toFixed(0));
   const freeBase = Number(new Prisma.Decimal(dashboard.freeBase).toFixed(0));
@@ -292,7 +293,7 @@ export function toHomeView(dashboard: HomeDashboard, t: TFunc): HomeView {
         subSig.set(key, (subSig.get(key) ?? 0) + 1);
       }
       return obls.map((ob) => {
-        const view = toObligationView(ob, t);
+        const view = toObligationView(ob, t, tz);
         if (ob.kind === "subscription") {
           const key = `${ob.label}|${ob.currencyCode}|${ob.amount}`;
           if ((subSig.get(key) ?? 0) > 1) view.isDuplicate = true;

@@ -9,7 +9,8 @@ import type { TransactionCreateInput } from "@/lib/validation/transaction";
 import { createTransactionAction } from "@/app/(shell)/transactions/actions";
 import { createTransferAction } from "@/app/(shell)/transactions/transfer-actions";
 import { useT } from "@/lib/i18n";
-import { DEFAULT_CURRENCY } from "@/lib/constants";
+import { DEFAULT_CURRENCY, DEFAULT_TZ } from "@/lib/constants";
+import { todayKeyInTz } from "@/lib/format/date";
 import { AccountSelect, type AccountOption } from "./account-select";
 import { CategorySelect, type CategoryOption } from "./category-select";
 import { CurrencySelect, type CurrencyOption } from "./currency-select";
@@ -47,6 +48,7 @@ export interface TransactionFormProps {
   accounts: AccountOption[];
   categories: CategoryOption[];
   currencies: CurrencyOption[];
+  tz?: string;
   loans?: SimpleOption[];
   subscriptions?: SimpleOption[];
   funds?: SimpleOption[];
@@ -64,8 +66,8 @@ export interface TransactionFormProps {
   transactionId?: string;
 }
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+function todayIso(tz?: string): string {
+  return todayKeyInTz(tz ?? DEFAULT_TZ);
 }
 
 export function TransactionForm({
@@ -85,6 +87,7 @@ export function TransactionForm({
   defaultName,
   initialValues,
   onSuccess,
+  tz,
 }: TransactionFormProps) {
   const t = useT();
   const router = useRouter();
@@ -95,7 +98,7 @@ export function TransactionForm({
   const defaultValues: Record<string, any> = {
     kind: effectiveKind,
     status: defaultStatus ?? TransactionStatus.DONE,
-    occurredAt: todayIso(),
+    occurredAt: todayIso(tz),
     scope: Scope.PERSONAL,
     currencyCode: DEFAULT_CURRENCY,
     ...(defaultName ? { name: defaultName } : {}),
@@ -144,7 +147,7 @@ export function TransactionForm({
     const data = new FormData(e.currentTarget);
     const fromAccountId = watchedAccountId ?? "";
     const amount = (data.get("amount") as string) ?? "";
-    const occurredAt = (data.get("occurredAt") as string) ?? todayIso();
+    const occurredAt = (data.get("occurredAt") as string) ?? todayIso(tz);
     const note = (data.get("note") as string) || undefined;
 
     if (!fromAccountId || !toAccountId || !amount) return;

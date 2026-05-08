@@ -13,7 +13,8 @@ import {
   updateSubscriptionAction,
 } from "@/app/(shell)/expenses/subscriptions/actions";
 import { useT } from "@/lib/i18n";
-import { DEFAULT_CURRENCY } from "@/lib/constants";
+import { DEFAULT_CURRENCY, DEFAULT_TZ } from "@/lib/constants";
+import { todayKeyInTz } from "@/lib/format/date";
 import { CurrencySelect, type CurrencyOption } from "./currency-select";
 import { TextField } from "./primitives/text-field";
 import { TextareaField } from "./primitives/textarea-field";
@@ -33,8 +34,8 @@ function errMsg(e: any): string | undefined {
   return undefined;
 }
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+function todayIso(tz?: string): string {
+  return todayKeyInTz(tz ?? DEFAULT_TZ);
 }
 
 export interface SubscriptionFormProps {
@@ -45,6 +46,7 @@ export interface SubscriptionFormProps {
   initialValues?: Record<string, any>;
   subscriptionId?: string;
   onSuccess?: () => void;
+  tz?: string;
 }
 
 export function SubscriptionForm({
@@ -54,6 +56,7 @@ export function SubscriptionForm({
   initialValues,
   subscriptionId,
   onSuccess,
+  tz,
 }: SubscriptionFormProps) {
   const t = useT();
   const router = useRouter();
@@ -82,7 +85,7 @@ export function SubscriptionForm({
       defaultValues: {
         sharingType: SharingType.PERSONAL,
         billingIntervalMonths: 1,
-        nextPaymentDate: todayIso(),
+        nextPaymentDate: todayIso(tz),
         isActive: true,
         currencyCode: DEFAULT_CURRENCY,
         ...initialValues,

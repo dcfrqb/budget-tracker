@@ -11,6 +11,7 @@ type Props = {
   days: TxnDayView[];
   totalCount: number;
   accounts?: AccountOption[];
+  tz?: string;
 };
 
 const KIND_LETTER: Record<TxnView["kind"], string> = {
@@ -44,9 +45,10 @@ interface TxnRowProps {
   accounts: AccountOption[];
   expanded: boolean;
   onToggle: () => void;
+  tz?: string;
 }
 
-function TxnRow({ t, accounts, expanded, onToggle }: TxnRowProps) {
+function TxnRow({ t, accounts, expanded, onToggle, tz }: TxnRowProps) {
   const amtClass = `txn-amt${t.amountStrike ? " strike" : ""} ${t.amountTone ?? ""}`.trim();
   return (
     <div className="txn-row-wrap">
@@ -84,7 +86,7 @@ function TxnRow({ t, accounts, expanded, onToggle }: TxnRowProps) {
       </div>
       {expanded && (
         <div className="txn-row-actions-wrap">
-          <TxnRowActions txn={t} accounts={accounts} />
+          <TxnRowActions txn={t} accounts={accounts} tz={tz} />
         </div>
       )}
     </div>
@@ -96,9 +98,10 @@ interface DayGroupProps {
   accounts: AccountOption[];
   expandedId: string | null;
   onToggle: (id: string) => void;
+  tz?: string;
 }
 
-function DayGroup({ day, accounts, expandedId, onToggle }: DayGroupProps) {
+function DayGroup({ day, accounts, expandedId, onToggle, tz }: DayGroupProps) {
   return (
     <div className="txn-day">
       <div className="txn-day-hd">
@@ -122,6 +125,7 @@ function DayGroup({ day, accounts, expandedId, onToggle }: DayGroupProps) {
             accounts={accounts}
             expanded={expandedId === t.id}
             onToggle={() => onToggle(t.id)}
+            tz={tz}
           />
         </SelectableRow>
       ))}
@@ -129,7 +133,7 @@ function DayGroup({ day, accounts, expandedId, onToggle }: DayGroupProps) {
   );
 }
 
-export function TxnFeed({ days, totalCount, accounts = [] }: Props) {
+export function TxnFeed({ days, totalCount, accounts = [], tz }: Props) {
   const t = useT();
   const shown = days.reduce((n, d) => n + d.txns.length, 0);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -158,6 +162,7 @@ export function TxnFeed({ days, totalCount, accounts = [] }: Props) {
           accounts={accounts}
           expandedId={expandedId}
           onToggle={handleToggle}
+          tz={tz}
         />
       ))}
       {shown < totalCount && (

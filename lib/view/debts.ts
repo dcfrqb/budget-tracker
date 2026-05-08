@@ -30,6 +30,7 @@ function returnsSuffix(n: number, t: TFn): string {
 export function toDebtView(
   debt: DebtWithTxns & DebtProgress,
   t: TFn,
+  tz?: string,
 ): DebtView {
   const dir = debt.direction === "LENT" ? "out" : "in";
   const dirLabel = dir === "out" ? t("debts.dir.out") : t("debts.dir.in");
@@ -45,7 +46,7 @@ export function toDebtView(
       ? t("debts.next_payment", {
           vars: {
             amount: formatMoney(debt.nextExpected.amount, debt.currency.code),
-            date: formatDateRu(debt.nextExpected.plannedAt),
+            date: formatDateRu(debt.nextExpected.plannedAt, tz),
           },
         })
       : t("debts.next_payment_no_date", {
@@ -62,8 +63,8 @@ export function toDebtView(
         })
       : t("debts.no_returns");
 
-  const since = formatDateRu(debt.openedAt);
-  const until = debt.dueAt ? formatDateRu(debt.dueAt) : t("common.no_deadline");
+  const since = formatDateRu(debt.openedAt, tz);
+  const until = debt.dueAt ? formatDateRu(debt.dueAt, tz) : t("common.no_deadline");
 
   const amtSign = dir === "out" ? "−" : "+";
   const amountFormatted = formatMoney(principal, debt.currency.code);

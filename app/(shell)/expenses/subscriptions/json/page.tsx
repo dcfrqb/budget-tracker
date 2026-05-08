@@ -3,10 +3,12 @@ export const dynamic = "force-dynamic";
 import { getCurrentUserId } from "@/lib/api/auth";
 import { getSubscriptions } from "@/lib/data/subscriptions";
 import { getT } from "@/lib/i18n/server";
+import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
+import { dayKeyInTz } from "@/lib/format/date";
 import { SubscriptionsJsonEditor } from "@/components/expenses/subscriptions/json-editor";
 
 export default async function SubscriptionsJsonPage() {
-  const [userId, t] = await Promise.all([getCurrentUserId(), getT()]);
+  const [userId, t, tz] = await Promise.all([getCurrentUserId(), getT(), getCurrentUserTz()]);
   const allSubs = await getSubscriptions(userId);
 
   const existingIds = allSubs.map((s) => s.id);
@@ -21,7 +23,7 @@ export default async function SubscriptionsJsonPage() {
           price: s.price.toString(),
           currencyCode: s.currencyCode,
           billingIntervalMonths: s.billingIntervalMonths,
-          nextPaymentDate: s.nextPaymentDate.toISOString().slice(0, 10),
+          nextPaymentDate: dayKeyInTz(s.nextPaymentDate, tz),
           sharingType: s.sharingType,
           totalUsers: s.totalUsers,
           familyId: s.familyId,

@@ -3,6 +3,8 @@
 import React, { useState, useTransition } from "react";
 import { Dialog } from "@/components/ui/dialog";
 import { useT } from "@/lib/i18n";
+import { DEFAULT_TZ } from "@/lib/constants";
+import { todayKeyInTz } from "@/lib/format/date";
 import { createLoanPaymentAction } from "@/app/(shell)/expenses/loans/actions";
 import type { AccountOption } from "@/components/forms/account-select";
 
@@ -19,10 +21,11 @@ export type LoanPaymentDialogProps = {
   accounts: AccountOption[];
   defaultAccountId?: string;
   onPaid?: () => void;
+  tz?: string;
 };
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+function todayIso(tz?: string): string {
+  return todayKeyInTz(tz ?? DEFAULT_TZ);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -40,12 +43,13 @@ export function LoanPaymentDialog({
   accounts,
   defaultAccountId,
   onPaid,
+  tz,
 }: LoanPaymentDialogProps) {
   const t = useT();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
-  const [paidAt, setPaidAt] = useState(todayIso());
+  const [paidAt, setPaidAt] = useState(todayIso(tz));
   const [totalAmount, setTotalAmount] = useState(defaultSplit?.payment ?? "");
   const [principalPart, setPrincipalPart] = useState(defaultSplit?.principalPart ?? "");
   const [interestPart, setInterestPart] = useState(defaultSplit?.interestPart ?? "");

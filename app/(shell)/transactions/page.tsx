@@ -7,6 +7,7 @@ import { TransactionsSelectionProvider } from "@/components/transactions/selecti
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { getCurrentUserId } from "@/lib/api/auth";
 import { getT, getLocale } from "@/lib/i18n/server";
+import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
 import {
   getTransactionsGroupedByDay,
   getTransactionsPeriodSummary,
@@ -78,7 +79,7 @@ export default async function TransactionsPage({
 }) {
   const sp = await searchParams;
   const locale = await getLocale();
-  const [userId, t] = await Promise.all([getCurrentUserId(), getT(locale)]);
+  const [userId, t, tz] = await Promise.all([getCurrentUserId(), getT(locale), getCurrentUserTz()]);
 
   const { from, to } = parsePeriod(sp.period);
   const kindFilter = parseKindFilter(sp.type);
@@ -94,7 +95,7 @@ export default async function TransactionsPage({
 
   const [rawDays, summary, rates, debts, accounts, categories, rawCredentials] =
     await Promise.all([
-      getTransactionsGroupedByDay(userId, filters),
+      getTransactionsGroupedByDay(userId, filters, tz),
       getTransactionsPeriodSummary(userId, {
         from,
         to,
@@ -121,10 +122,10 @@ export default async function TransactionsPage({
 
   const today = new Date();
   const days = rawDays.map((r) =>
-    toTxnDayView(r, today, rates, DEFAULT_CURRENCY, t),
+    toTxnDayView(r, today, rates, DEFAULT_CURRENCY, t, tz),
   );
   const summaryView = toPeriodSummaryView(summary);
-  const debtViews = debts.map((d) => toDebtView(d, t));
+  const debtViews = debts.map((d) => toDebtView(d, t, tz));
 
   // net по долгам: Σ(remaining) для OUT минус Σ(remaining) для IN (в base).
   let netDebt = new Prisma.Decimal(0);
@@ -156,9 +157,9 @@ export default async function TransactionsPage({
       />
       <PeriodSummary summary={summaryView} />
       <TransactionsSelectionProvider>
-        <TxnFeed days={days} totalCount={summary.totalCount} accounts={accounts} />
+        <TxnFeed days={days} totalCount={summary.totalCount} accounts={accounts} tz={tz} />
       </TransactionsSelectionProvider>
-      <PersonalDebts debts={debtViews} metaLine={debtMeta} />
+      <PersonalDebts debts={debtViews} metaLine={debtMeta} tz={tz} />
     </>
   );
 }

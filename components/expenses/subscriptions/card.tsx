@@ -11,9 +11,10 @@ import { useT } from "@/lib/i18n";
 
 type Props = {
   card: SubscriptionCardView;
+  tz?: string;
 };
 
-export function SubscriptionCard({ card }: Props) {
+export function SubscriptionCard({ card, tz }: Props) {
   const t = useT();
   const router = useRouter();
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -76,6 +77,7 @@ export function SubscriptionCard({ card }: Props) {
           billingIntervalMonths={card.billingIntervalMonths}
           currentNextPaymentDate={card.nextPaymentDateIso}
           onPaid={() => router.refresh()}
+          tz={tz}
         />
         <Link href={`/expenses/subscriptions/${card.id}/edit`} className="btn">
           {t("buttons.edit")}

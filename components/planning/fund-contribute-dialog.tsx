@@ -3,6 +3,8 @@
 import React, { useState, useTransition, useOptimistic } from "react";
 import { Dialog } from "@/components/ui/dialog";
 import { useT } from "@/lib/i18n";
+import { DEFAULT_TZ } from "@/lib/constants";
+import { todayKeyInTz } from "@/lib/format/date";
 import { contributeFundAction } from "@/app/(shell)/planning/funds/actions";
 import type { AccountOption } from "@/components/forms/account-select";
 
@@ -14,10 +16,11 @@ export type FundContributeDialogProps = {
   accounts: AccountOption[];
   defaultAccountId?: string;
   onContributed?: (newCurrentAmount: string) => void;
+  tz?: string;
 };
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+function todayIso(tz?: string): string {
+  return todayKeyInTz(tz ?? DEFAULT_TZ);
 }
 
 export function FundContributeDialog({
@@ -28,6 +31,7 @@ export function FundContributeDialog({
   accounts,
   defaultAccountId,
   onContributed,
+  tz,
 }: FundContributeDialogProps) {
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -35,7 +39,7 @@ export function FundContributeDialog({
 
   const [amount, setAmount] = useState("");
   const [accountId, setAccountId] = useState(defaultAccountId ?? "");
-  const [occurredAt, setOccurredAt] = useState(todayIso());
+  const [occurredAt, setOccurredAt] = useState(todayIso(tz));
   const [note, setNote] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});

@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 import { getCurrentUserId } from "@/lib/api/auth";
+import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
+import { dayKeyInTz } from "@/lib/format/date";
 import { db } from "@/lib/db";
 import { TransferForm } from "@/components/forms/transfer-form";
 
@@ -12,6 +14,7 @@ interface Props {
 export default async function EditTransferPage({ params }: Props) {
   const userId = await getCurrentUserId();
   const { id } = await params;
+  const tz = await getCurrentUserTz();
 
   const [transfer, accounts, currencies] = await Promise.all([
     db.transfer.findFirst({
@@ -48,7 +51,7 @@ export default async function EditTransferPage({ params }: Props) {
     toAmount: transfer.toAmount.toString(),
     rate: transfer.rate?.toString(),
     fee: transfer.fee?.toString(),
-    occurredAt: transfer.occurredAt.toISOString().slice(0, 10),
+    occurredAt: dayKeyInTz(transfer.occurredAt, tz),
     note: transfer.note ?? undefined,
   };
 
@@ -58,6 +61,7 @@ export default async function EditTransferPage({ params }: Props) {
         variant="page"
         mode="edit"
         transferId={id}
+        tz={tz}
         accounts={accounts.map((a) => ({
           id: a.id,
           name: a.name,

@@ -10,6 +10,8 @@ import type {
 } from "@prisma/client";
 import { db } from "@/lib/db";
 import { convertToBase, getLatestRatesMap } from "./wallet";
+import { dayKeyInTz } from "@/lib/format/date";
+import { DEFAULT_TZ } from "@/lib/constants";
 
 import type { ReimbursementFact } from "@prisma/client";
 
@@ -81,11 +83,12 @@ function buildWhere(userId: string, f: ListFilters): Prisma.TransactionWhereInpu
   return where;
 }
 
-// Группировка по дню occurredAt (UTC). Order: дни DESC, внутри дня — occurredAt DESC.
+// Группировка по дню occurredAt в таймзоне пользователя. Order: дни DESC, внутри дня — occurredAt DESC.
 // When no accountId filter is set, Transfer pairs are folded to one row (from-leg only).
 export async function getTransactionsGroupedByDay(
   userId: string,
   filters: ListFilters,
+  tz: string = DEFAULT_TZ,
 ): Promise<TxnDayRaw[]> {
   const rows = await db.transaction.findMany({
     where: buildWhere(userId, filters),
@@ -107,7 +110,7 @@ export async function getTransactionsGroupedByDay(
 
   const byDay = new Map<string, TxnWithJoins[]>();
   for (const t of filtered) {
-    const key = t.occurredAt.toISOString().slice(0, 10);
+    const key = dayKeyInTz(t.occurredAt, tz);
     const list = byDay.get(key);
     if (list) list.push(t);
     else byDay.set(key, [t]);

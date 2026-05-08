@@ -1,4 +1,5 @@
 import { getCurrentUserId } from "@/lib/api/auth";
+import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
 import { ok, serverError } from "@/lib/api/response";
 import { parseWith } from "@/lib/api/validate";
 import { analyticsQuerySchema } from "@/lib/validation/analytics";
@@ -20,7 +21,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   try {
-    const userId = await getCurrentUserId();
+    const [userId, tz] = await Promise.all([getCurrentUserId(), getCurrentUserTz()]);
     const { searchParams } = new URL(req.url);
 
     const queryResult = parseWith(analyticsQuerySchema, {
@@ -52,7 +53,7 @@ export async function GET(req: Request) {
       getCategoryPie(userId, range, baseCcy),
       getPeriodCompare(userId, range, baseCcy),
       getTrendPoints(userId, range, baseCcy, granularity),
-      getWeather(userId, baseCcy),
+      getWeather(userId, baseCcy, tz),
       getForecastMonth(userId, baseCcy),
       // Нужен safeUntilDays для KPI-виджета
       getHomeDashboard(userId, baseCcy),

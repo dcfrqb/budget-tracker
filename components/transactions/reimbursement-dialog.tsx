@@ -3,6 +3,8 @@
 import React, { useState, useTransition } from "react";
 import { Dialog } from "@/components/ui/dialog";
 import { useT } from "@/lib/i18n";
+import { DEFAULT_TZ } from "@/lib/constants";
+import { todayKeyInTz } from "@/lib/format/date";
 import { createReimbursementAction } from "@/app/(shell)/transactions/actions";
 import type { AccountOption } from "@/components/forms/account-select";
 
@@ -12,10 +14,11 @@ interface ReimbursementDialogProps {
   transactionId: string;
   accounts: AccountOption[];
   onDone?: () => void;
+  tz?: string;
 }
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+function todayIso(tz?: string): string {
+  return todayKeyInTz(tz ?? DEFAULT_TZ);
 }
 
 export function ReimbursementDialog({
@@ -24,11 +27,12 @@ export function ReimbursementDialog({
   transactionId,
   accounts,
   onDone,
+  tz,
 }: ReimbursementDialogProps) {
   const t = useT();
   const [isPending, startTransition] = useTransition();
   const [amount, setAmount] = useState("");
-  const [receivedAt, setReceivedAt] = useState(todayIso());
+  const [receivedAt, setReceivedAt] = useState(todayIso(tz));
   const [accountId, setAccountId] = useState("");
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);

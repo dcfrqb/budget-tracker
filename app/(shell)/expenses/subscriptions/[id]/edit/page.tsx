@@ -3,6 +3,8 @@ export const dynamic = "force-dynamic";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { getCurrentUserId } from "@/lib/api/auth";
+import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
+import { dayKeyInTz } from "@/lib/format/date";
 import { SubscriptionForm } from "@/components/forms/subscription-form";
 import { SharesEditor } from "@/components/subscriptions/shares-editor";
 import type { ShareItem } from "@/components/subscriptions/shares-editor";
@@ -15,7 +17,7 @@ interface Props {
 export default async function EditSubscriptionPage({ params }: Props) {
   const { id } = await params;
   const userId = await getCurrentUserId();
-  const t = await getT();
+  const [t, tz] = await Promise.all([getT(), getCurrentUserTz()]);
 
   const [sub, currencies] = await Promise.all([
     db.subscription.findFirst({
@@ -42,6 +44,7 @@ export default async function EditSubscriptionPage({ params }: Props) {
         mode="edit"
         subscriptionId={id}
         currencies={currencies.map((c) => ({ code: c.code, symbol: c.symbol }))}
+        tz={tz}
         initialValues={{
           name: sub.name,
           icon: sub.icon ?? undefined,
@@ -50,7 +53,7 @@ export default async function EditSubscriptionPage({ params }: Props) {
           price: String(sub.price),
           currencyCode: sub.currencyCode,
           billingIntervalMonths: sub.billingIntervalMonths,
-          nextPaymentDate: sub.nextPaymentDate.toISOString().slice(0, 10),
+          nextPaymentDate: dayKeyInTz(sub.nextPaymentDate, tz),
           sharingType: sub.sharingType,
           totalUsers: sub.totalUsers ?? undefined,
           isActive: sub.isActive,

@@ -1,6 +1,8 @@
 import { cache } from "react";
 import { Prisma, BudgetMode } from "@prisma/client";
 import { db } from "@/lib/db";
+import { dayKeyInTz } from "@/lib/format/date";
+import { DEFAULT_TZ } from "@/lib/constants";
 import {
   getInstitutionsWithAccounts,
   getCashStash,
@@ -53,9 +55,9 @@ function addDays(d: Date, n: number): Date {
   return new Date(d.getTime() + n * 24 * 60 * 60 * 1000);
 }
 
-/** Format a Date as YYYY-MM-DD in UTC */
-function toISODate(d: Date): string {
-  return d.toISOString().slice(0, 10);
+/** Format a Date as YYYY-MM-DD in the given timezone (default DEFAULT_TZ) */
+function toISODate(d: Date, tz: string = DEFAULT_TZ): string {
+  return dayKeyInTz(d, tz);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -180,6 +182,7 @@ function buildRunwayForMode(
   categories: CategoryLimitRow[],
   availableNowBase: Prisma.Decimal,
   asOf: Date,
+  tz: string = DEFAULT_TZ,
 ): RunwayByMode {
   const limitField =
     mode === BudgetMode.ECONOMY
@@ -224,7 +227,7 @@ function buildRunwayForMode(
     days = availableNowBase.div(avgDailyBurnBase).floor().toNumber();
   }
 
-  const untilDate = toISODate(addDays(asOf, days));
+  const untilDate = toISODate(addDays(asOf, days), tz);
 
   // Top 3 by limit desc
   const topCategoriesInMode = [...withLimit]
@@ -254,6 +257,7 @@ function buildRunwayForMode(
 export const getRunwayByMode = cache(async (
   userId: string,
   baseCcy: string,
+  tz: string = DEFAULT_TZ,
 ): Promise<RunwayDashboard> => {
   const asOf = new Date();
 
@@ -277,23 +281,26 @@ export const getRunwayByMode = cache(async (
       categories,
       availableNowBase,
       asOf,
+      tz,
     ),
     [BudgetMode.NORMAL]: buildRunwayForMode(
       BudgetMode.NORMAL,
       categories,
       availableNowBase,
       asOf,
+      tz,
     ),
     [BudgetMode.FREE]: buildRunwayForMode(
       BudgetMode.FREE,
       categories,
       availableNowBase,
       asOf,
+      tz,
     ),
   };
 
   return {
-    asOf: toISODate(asOf),
+    asOf: toISODate(asOf, tz),
     baseCurrencyCode: baseCcy,
     byMode,
   };

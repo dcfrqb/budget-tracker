@@ -17,6 +17,7 @@ import type { AccountOption } from "@/components/forms/account-select";
 interface TxnRowActionsProps {
   txn: TxnView;
   accounts: AccountOption[];
+  tz?: string;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -82,7 +83,7 @@ function DangerDialog({
 // Main TxnRowActions
 // ─────────────────────────────────────────────────────────────
 
-export function TxnRowActions({ txn, accounts }: TxnRowActionsProps) {
+export function TxnRowActions({ txn, accounts, tz }: TxnRowActionsProps) {
   const t = useT();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -212,6 +213,7 @@ export function TxnRowActions({ txn, accounts }: TxnRowActionsProps) {
         }}
         transactionId={txn.id}
         onDone={() => setOptimisticStatus("done")}
+        tz={tz}
       />
 
       {/* Reimbursement dialog */}
@@ -220,6 +222,7 @@ export function TxnRowActions({ txn, accounts }: TxnRowActionsProps) {
         onOpenChange={setReimbOpen}
         transactionId={txn.id}
         accounts={accounts}
+        tz={tz}
       />
 
       {/* Miss confirm */}

@@ -3,6 +3,8 @@
 import React, { useState, useTransition, useOptimistic } from "react";
 import { Dialog } from "@/components/ui/dialog";
 import { useT } from "@/lib/i18n";
+import { DEFAULT_TZ } from "@/lib/constants";
+import { todayKeyInTz } from "@/lib/format/date";
 import { paySubscriptionAction } from "@/app/(shell)/expenses/subscriptions/actions";
 
 export type PayDialogProps = {
@@ -13,11 +15,14 @@ export type PayDialogProps = {
   currentNextPaymentDate: string; // ISO date string
   accountId?: string;
   onPaid?: (newNextPaymentDate: string) => void;
+  tz?: string;
 };
 
 function shiftDateByMonths(isoDate: string, months: number): string {
   const d = new Date(isoDate);
   d.setMonth(d.getMonth() + months);
+  // This is just shifting the date forward by billing interval, not a day-display issue.
+  // We keep the shifted date in YYYY-MM-DD; locale accuracy here is minor.
   return d.toISOString().slice(0, 10);
 }
 
@@ -29,6 +34,7 @@ export function PayDialog({
   currentNextPaymentDate,
   accountId,
   onPaid,
+  tz,
 }: PayDialogProps) {
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -50,7 +56,7 @@ export function PayDialog({
       addOptimistic(newDate);
       const result = await paySubscriptionAction(subscriptionId, {
         accountId: accountId ?? null,
-        paidAt: new Date().toISOString().slice(0, 10),
+        paidAt: todayKeyInTz(tz ?? DEFAULT_TZ),
       });
       if (!result.ok) {
         setError(result.formError ?? t("forms.common.form_error.internal"));

@@ -49,9 +49,10 @@ export type LoanCardView = {
 type LoanCardProps = {
   loan: LoanCardView;
   accounts: AccountOption[];
+  tz?: string;
 };
 
-function LoanCard({ loan, accounts }: LoanCardProps) {
+function LoanCard({ loan, accounts, tz }: LoanCardProps) {
   const t = useT();
   const router = useRouter();
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -123,6 +124,7 @@ function LoanCard({ loan, accounts }: LoanCardProps) {
           accounts={accounts}
           defaultAccountId={loan.defaultAccountId}
           onPaid={() => router.refresh()}
+          tz={tz}
         />
         <Link href={`/expenses/loans/${loan.id}/edit`} className="btn">
           {t("buttons.edit")}
@@ -160,10 +162,12 @@ export function LoansSection({
   loans,
   accounts,
   addLabel,
+  tz,
 }: {
   loans: LoanCardView[];
   accounts: AccountOption[];
   addLabel: string;
+  tz?: string;
 }) {
   const t = useT();
   return (
@@ -181,7 +185,7 @@ export function LoansSection({
         </div>
       </div>
       {loans.map((loan) => (
-        <LoanCard key={loan.id} loan={loan} accounts={accounts} />
+        <LoanCard key={loan.id} loan={loan} accounts={accounts} tz={tz} />
       ))}
       {loans.length === 0 && (
         <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>

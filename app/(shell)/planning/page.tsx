@@ -7,6 +7,7 @@ import { PlanningStatusStrip } from "@/components/planning/status-strip";
 import { UpcomingDates } from "@/components/planning/upcoming-dates";
 import { HOURS_PER_MONTH_DEFAULT } from "@/lib/constants";
 import { getCurrentUserId } from "@/lib/api/auth";
+import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
 import { getFundsWithProgress } from "@/lib/data/funds";
 import { getPlannedEvents } from "@/lib/data/planned-events";
 import { getPrimaryWorkSource } from "@/lib/data/work-sources";
@@ -32,7 +33,7 @@ type FundKind = "TRIP" | "BUY" | "VAULT" | "GIFT" | "OTHER";
 type EventKind = "BIRTHDAY" | "HOLIDAY" | "TRIP" | "PURCHASE" | "OTHER";
 
 export default async function PlanningPage() {
-  const [userId, t, locale] = await Promise.all([getCurrentUserId(), getT(), getLocale()]);
+  const [userId, t, locale, tz] = await Promise.all([getCurrentUserId(), getT(), getLocale(), getCurrentUserTz()]);
 
   const monthShort = MONTH_KEYS.map(k => t(`common.month.short.${k}` as Parameters<typeof t>[0]));
   const weekdayShort = WEEKDAY_KEYS.map(k => t(`common.weekday.short.${k}` as Parameters<typeof t>[0]));
@@ -286,7 +287,7 @@ export default async function PlanningPage() {
         taxLabel={primaryWorkSource?.taxRatePct ? `${primaryWorkSource.taxRatePct}%` : null}
       />
       <PlanningCalendar months={calendarMonths} />
-      <FundsSection funds={fundViews} accounts={accounts} />
+      <FundsSection funds={fundViews} accounts={accounts} tz={tz} />
       <BigPurchases purchases={bigPurchaseViews} hourlyRate={hourlyRateLabel || undefined} />
       <UpcomingDates items={upcomingItems} labels={upcomingDatesLabels} />
     </>
