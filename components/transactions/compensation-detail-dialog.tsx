@@ -58,17 +58,17 @@ export function CompensationDetailDialog({ open, onOpenChange, groupId }: Props)
       title={t("transactions.compensation.dialog.title")}
       size="lg"
       footer={
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-2)", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flexWrap: "wrap" }}>
           {msgKey && (
             <span
               role={msgKey.kind === "error" ? "alert" : "status"}
               className={msgKey.kind === "error" ? "neg" : "acc"}
-              style={{ fontSize: "12px", fontFamily: "var(--mono-font, monospace)" }}
+              style={{ fontSize: "var(--text-xs)", fontFamily: "var(--mono-font, monospace)" }}
             >
               {t(msgKey.key as TKey)}
             </span>
           )}
-          <div style={{ marginLeft: "auto", display: "flex", gap: "var(--sp-2)" }}>
+          <div style={{ marginLeft: "auto", display: "flex", gap: "var(--space-2)" }}>
             <button
               type="button"
               className="btn"
@@ -91,7 +91,7 @@ export function CompensationDetailDialog({ open, onOpenChange, groupId }: Props)
     >
       <div style={{ fontFamily: "var(--mono-font, monospace)", fontSize: "13px" }}>
         {loading && (
-          <div style={{ color: "var(--dim)", padding: "var(--sp-3) 0" }}>…</div>
+          <div style={{ color: "var(--dim)", padding: "var(--space-3) 0" }}>…</div>
         )}
         {detail && (
           <>
@@ -100,9 +100,9 @@ export function CompensationDetailDialog({ open, onOpenChange, groupId }: Props)
               style={{
                 display: "flex",
                 alignItems: "baseline",
-                gap: "var(--sp-2)",
-                marginBottom: "var(--sp-3)",
-                paddingBottom: "var(--sp-2)",
+                gap: "var(--space-3)",
+                marginBottom: "var(--space-4)",
+                paddingBottom: "var(--space-3)",
                 borderBottom: "1px solid var(--border)",
               }}
             >
@@ -115,7 +115,7 @@ export function CompensationDetailDialog({ open, onOpenChange, groupId }: Props)
             </div>
 
             {/* Members table */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-1)" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
               {detail.members.map((m) => (
                 <div
                   key={m.id}
@@ -123,8 +123,8 @@ export function CompensationDetailDialog({ open, onOpenChange, groupId }: Props)
                     display: "grid",
                     gridTemplateColumns: "20px 92px 1fr auto",
                     alignItems: "center",
-                    gap: "var(--sp-2)",
-                    padding: "var(--sp-1) 0",
+                    columnGap: "var(--space-4)",
+                    padding: "var(--space-2) 0",
                   }}
                 >
                   <span
