@@ -25,6 +25,7 @@ export type UserDataBundle = {
   accounts: unknown[];
   categories: unknown[];
   workSources: unknown[];
+  freelanceOrders: unknown[];
   transactions: unknown[];
   transfers: unknown[];
   loans: unknown[];
@@ -49,6 +50,7 @@ export async function getUserDataBundle(userId: string): Promise<UserDataBundle>
     accounts,
     categories,
     workSources,
+    freelanceOrders,
     transactions,
     transfers,
     loans,
@@ -72,6 +74,7 @@ export async function getUserDataBundle(userId: string): Promise<UserDataBundle>
     db.account.findMany({ where: { userId } }),
     db.category.findMany({ where: { userId } }),
     db.workSource.findMany({ where: { userId } }),
+    db.freelanceOrder.findMany({ where: { userId } }),
     db.transaction.findMany({ where: { userId }, include: { facts: true, reimbursements: true } }),
     db.transfer.findMany({ where: { userId } }),
     db.loan.findMany({ where: { userId } }),
@@ -109,6 +112,7 @@ export async function getUserDataBundle(userId: string): Promise<UserDataBundle>
     accounts,
     categories,
     workSources,
+    freelanceOrders,
     transactions,
     transfers,
     loans,

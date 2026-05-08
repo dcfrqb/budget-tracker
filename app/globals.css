@@ -3571,6 +3571,48 @@ input[type="checkbox"]:disabled {
   line-height: 1.4;
 }
 
+/* ── FREELANCE ORDERS ───────────────────────────────────────────── */
+.fo-list { display: flex; flex-direction: column; }
+
+.fo-row { border-bottom: 1px solid var(--grid); }
+.fo-row:last-child { border-bottom: 0; }
+
+.fo-row-inner {
+  display: flex; flex-direction: column; gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+}
+
+.fo-row-main {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: var(--space-2);
+}
+.fo-row-client {
+  font-size: var(--text-md); color: var(--text); font-weight: 500;
+}
+.fo-row-amount {
+  font-size: var(--text-md); color: var(--pos); font-weight: 600;
+}
+
+.fo-row-meta {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
+  font-family: var(--mono-font), monospace; font-size: var(--text-xs);
+}
+
+.fo-badge {
+  font-family: var(--mono-font), monospace; font-size: var(--text-xs);
+  font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  padding: 1px 5px; border-radius: 2px;
+}
+.fo-badge--active    { color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.fo-badge--awaiting  { color: var(--warn);   background: color-mix(in srgb, var(--warn)   10%, transparent); }
+.fo-badge--completed { color: var(--pos);    background: color-mix(in srgb, var(--pos)    8%,  transparent); }
+.fo-badge--cancelled { color: var(--muted);  background: color-mix(in srgb, var(--muted)  8%,  transparent); }
+
+.fo-form-wrap {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--grid);
+}
+
 /* ── REDUCED MOTION ─────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

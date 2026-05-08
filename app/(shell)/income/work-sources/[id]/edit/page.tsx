@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation";
 import { getCurrentUserId } from "@/lib/api/auth";
 import { getWorkSourceById } from "@/lib/data/work-sources";
+import { getFreelanceOrdersByWorkSource } from "@/lib/data/freelance-orders";
 import { db } from "@/lib/db";
 import { WorkSourceForm } from "@/components/forms/work-source-form";
+import { FreelanceOrdersSection } from "@/components/income/freelance-orders-section";
 
 export const dynamic = "force-dynamic";
 
@@ -21,13 +23,20 @@ export default async function EditWorkSourcePage({ params }: Props) {
 
   if (!ws) notFound();
 
+  const currencyOptions = currencies.map((c) => ({ code: c.code, symbol: c.symbol }));
+
+  const orders =
+    ws.kind === "FREELANCE"
+      ? await getFreelanceOrdersByWorkSource(userId, id)
+      : [];
+
   return (
     <div className="page-content">
       <WorkSourceForm
         variant="page"
         mode="edit"
         workSourceId={id}
-        currencies={currencies.map((c) => ({ code: c.code, symbol: c.symbol }))}
+        currencies={currencyOptions}
         initialValues={{
           name: ws.name,
           kind: ws.kind,
@@ -38,9 +47,17 @@ export default async function EditWorkSourcePage({ params }: Props) {
           taxRatePct: ws.taxRatePct ? Number(ws.taxRatePct.toString()) : undefined,
           hoursPerMonth: ws.hoursPerMonth ?? undefined,
           isActive: ws.isActive,
-          notes: ws.note ?? undefined,
+          note: ws.note ?? undefined,
         }}
       />
+      {ws.kind === "FREELANCE" && (
+        <FreelanceOrdersSection
+          workSourceId={id}
+          workSourceCurrency={ws.currencyCode}
+          currencies={currencyOptions}
+          initialOrders={orders}
+        />
+      )}
     </div>
   );
 }

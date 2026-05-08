@@ -38,6 +38,7 @@ model User {
   transactions           Transaction[]
   transfers              Transfer[]
   workSources            WorkSource[]
+  freelanceOrders        FreelanceOrder[]
   loans                  Loan[]
   subscriptions          Subscription[]
   longProjects           LongProject[]
@@ -61,19 +62,20 @@ model Currency {
   symbol   String
   decimals Int    @default(2)
 
-  accounts      Account[]
-  transactions  Transaction[]
-  funds         Fund[]
-  loans         Loan[]
-  workSources   WorkSource[]
-  subscriptions Subscription[]
-  longProjects  LongProject[]
-  plannedEvents PlannedEvent[]
-  personalDebts PersonalDebt[]
-  ratesFrom     ExchangeRate[] @relation("RateFromCcy")
-  ratesTo       ExchangeRate[] @relation("RateToCcy")
-  transfersFrom Transfer[]     @relation("TransferFromCcy")
-  transfersTo   Transfer[]     @relation("TransferToCcy")
+  accounts        Account[]
+  transactions    Transaction[]
+  funds           Fund[]
+  loans           Loan[]
+  workSources     WorkSource[]
+  freelanceOrders FreelanceOrder[]
+  subscriptions   Subscription[]
+  longProjects    LongProject[]
+  plannedEvents   PlannedEvent[]
+  personalDebts   PersonalDebt[]
+  ratesFrom       ExchangeRate[]   @relation("RateFromCcy")
+  ratesTo         ExchangeRate[]   @relation("RateToCcy")
+  transfersFrom   Transfer[]       @relation("TransferFromCcy")
+  transfersTo     Transfer[]       @relation("TransferToCcy")
 }
 
 model ExchangeRate {
@@ -504,11 +506,49 @@ model WorkSource {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  currency     Currency      @relation(fields: [currencyCode], references: [code])
-  transactions Transaction[]
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currency        Currency         @relation(fields: [currencyCode], references: [code])
+  transactions    Transaction[]
+  freelanceOrders FreelanceOrder[]
 
   @@index([userId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// FREELANCE ORDERS
+// ─────────────────────────────────────────────────────────────
+
+enum FreelanceOrderStatus {
+  ACTIVE // в работе
+  AWAITING_PAYMENT // сделано, ждём оплату
+  COMPLETED // оплачено
+  CANCELLED // отменён
+}
+
+model FreelanceOrder {
+  id           String               @id @default(cuid())
+  userId       String
+  workSourceId String
+  client       String? // имя клиента — опционально
+  /// Итоговая сумма заказа. Для почасовых — посчитанный итог (hours × rate), хранится явно.
+  amount       Decimal              @db.Decimal(28, 10)
+  currencyCode String // обычно совпадает с WorkSource, но можно переопределить
+  hours        Decimal?             @db.Decimal(10, 2) // если почасовая — сколько часов
+  hourlyRate   Decimal?             @db.Decimal(28, 10) // зафиксированная ставка на момент заказа
+  tipsAmount   Decimal?             @db.Decimal(28, 10) // чаевые, опционально
+  status       FreelanceOrderStatus @default(ACTIVE)
+  performedAt  DateTime? // дата выполнения работы
+  paidAt       DateTime? // дата фактической оплаты
+  note         String?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workSource WorkSource @relation(fields: [workSourceId], references: [id], onDelete: Cascade)
+  currency   Currency   @relation(fields: [currencyCode], references: [code])
+
+  @@index([userId])
+  @@index([workSourceId])
 }
 
 // ─────────────────────────────────────────────────────────────

@@ -13,7 +13,7 @@ export const workSourceCreateSchema = z.object({
   taxRatePct: z.number().min(0).max(100).nullish(),
   hoursPerMonth: z.number().int().min(1).max(744).nullish(),
   isActive: z.boolean().optional(),
-  notes: z.string().max(500).nullish(),
+  note: z.string().max(500).nullish(),
 });
 
 export const workSourceUpdateSchema = workSourceCreateSchema.partial();

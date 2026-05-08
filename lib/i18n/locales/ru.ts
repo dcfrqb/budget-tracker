@@ -654,6 +654,11 @@ export const ruDict = {
       events_count: "{count} {word} ближайших 90 дней",
       add: "+ Запланировать поступление",
     },
+    freelance_orders: {
+      section_title: "Заказы",
+      empty: "Заказов пока нет",
+      add: "+ Заказ",
+    },
     today: "сегодня",
     in_days: "+{n}д",
     filter: {
@@ -1478,6 +1483,42 @@ export const ruDict = {
         parent: "— без родителя —",
         icon: "emoji или код",
         color: "hex или имя",
+      },
+    },
+    freelance_order: {
+      title_create: "Новый заказ",
+      title_edit: "Редактировать заказ",
+      delete: "Удалить заказ",
+      delete_confirm: "Удалить этот заказ?",
+      delete_failed: "Не удалось удалить",
+      field: {
+        client: "Клиент",
+        amount: "Сумма",
+        hours: "Часы",
+        hourly_rate: "Часовая ставка",
+        tips: "Чаевые",
+        status: "Статус",
+        performed_at: "Выполнено",
+        paid_at: "Оплачено",
+        note: "Заметка",
+        rate_mode: "Тип ставки",
+      },
+      rate_mode: {
+        hourly: "Почасовая",
+        fixed: "Фикс за проект",
+      },
+      placeholder: {
+        client: "Имя клиента",
+        note: "Заметка (опционально)",
+      },
+      status: {
+        active: "В работе",
+        awaiting_payment: "Ждёт оплату",
+        completed: "Оплачен",
+        cancelled: "Отменён",
+      },
+      error: {
+        hours_rate_required: "Заполни часы и ставку",
       },
     },
     work: {

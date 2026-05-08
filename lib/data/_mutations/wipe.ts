@@ -44,7 +44,10 @@ export async function wipeAllUserData(userId: string): Promise<void> {
     await tx.plannedEvent.deleteMany({ where: { userId } });
     await tx.fund.deleteMany({ where: { userId } });
 
-    // 8. WorkSources
+    // 8. FreelanceOrders (child of WorkSource — delete before parent)
+    await tx.freelanceOrder.deleteMany({ where: { userId } });
+
+    // 8b. WorkSources
     await tx.workSource.deleteMany({ where: { userId } });
 
     // 9. Family (FamilyMember rows cascade from Family)

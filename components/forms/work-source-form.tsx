@@ -140,7 +140,6 @@ export function WorkSourceForm({
         label={t("forms.work.field.kind")}
         options={kindOptions}
         error={errMsg(errors.kind)}
-        required
       />
 
       {/* Name / Employer */}
@@ -158,16 +157,14 @@ export function WorkSourceForm({
         currencies={currencies}
         label={t("forms.work.field.currency")}
         error={errMsg(errors.currencyCode)}
-        required
       />
 
       {/* Base amount — employment / one-time */}
       {(isEmployment || watchedKind === WorkKind.ONE_TIME) && (
         <MoneyInput
-          register={register("baseAmount")}
+          register={register("baseAmount", { setValueAs: (v) => (v === "" || v == null ? null : v) })}
           label={t("forms.work.field.base_amount")}
           error={errMsg(errors.baseAmount)}
-          required={isEmployment}
           placeholder={t("forms.work.placeholder.base_amount")}
           hint={isEmployment ? t("forms.work.hint.base_amount_employment") : undefined}
         />
@@ -177,12 +174,12 @@ export function WorkSourceForm({
       {isFreelance && (
         <div className="field">
           <div className="form-label">{t("forms.work.field.freelance_mode")}</div>
-          <div className="seg" role="radiogroup">
+          <div role="radiogroup" style={{ display: "flex", gap: "var(--sp-2)" }}>
             <button
               type="button"
               role="radio"
               aria-checked={freelanceMode === "hourly"}
-              className={freelanceMode === "hourly" ? "on" : ""}
+              className={`seg-btn${freelanceMode === "hourly" ? " active" : ""}`}
               onClick={() => {
                 setFreelanceMode("hourly");
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -195,7 +192,7 @@ export function WorkSourceForm({
               type="button"
               role="radio"
               aria-checked={freelanceMode === "fixed"}
-              className={freelanceMode === "fixed" ? "on" : ""}
+              className={`seg-btn${freelanceMode === "fixed" ? " active" : ""}`}
               onClick={() => {
                 setFreelanceMode("fixed");
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -210,7 +207,7 @@ export function WorkSourceForm({
 
       {isFreelance && freelanceMode === "hourly" && (
         <MoneyInput
-          register={register("hourlyRate")}
+          register={register("hourlyRate", { setValueAs: (v) => (v === "" || v == null ? null : v) })}
           label={t("forms.work.field.hourly_rate")}
           error={errMsg(errors.hourlyRate)}
           placeholder={t("forms.work.placeholder.hourly_rate")}
@@ -220,7 +217,7 @@ export function WorkSourceForm({
 
       {isFreelance && freelanceMode === "fixed" && (
         <MoneyInput
-          register={register("baseAmount")}
+          register={register("baseAmount", { setValueAs: (v) => (v === "" || v == null ? null : v) })}
           label={t("forms.work.field.fixed_amount")}
           error={errMsg(errors.baseAmount)}
           placeholder={t("forms.work.placeholder.fixed_amount")}
@@ -231,10 +228,9 @@ export function WorkSourceForm({
       {/* Pay day — employment only */}
       {isEmployment && (
         <NumberField
-          register={register("payDay", { valueAsNumber: true })}
+          register={register("payDay", { setValueAs: (v) => (v === "" || v == null ? null : Number(v)) })}
           label={t("forms.work.field.pay_day")}
           error={errMsg(errors.payDay)}
-          required={isEmployment}
           placeholder={t("forms.work.placeholder.pay_day")}
           min={1}
           max={31}
@@ -244,7 +240,7 @@ export function WorkSourceForm({
 
       {/* Tax rate */}
       <NumberField
-        register={register("taxRatePct", { valueAsNumber: true })}
+        register={register("taxRatePct", { setValueAs: (v) => (v === "" || v == null ? null : Number(v)) })}
         label={t("forms.work.field.tax_rate")}
         error={errMsg(errors.taxRatePct)}
         placeholder={t("forms.work.placeholder.tax_rate")}
@@ -254,17 +250,19 @@ export function WorkSourceForm({
         step={0.01}
       />
 
-      {/* Hours per month override */}
-      <NumberField
-        register={register("hoursPerMonth", { valueAsNumber: true })}
-        label={t("forms.work.field.hours_per_month")}
-        error={errMsg(errors.hoursPerMonth)}
-        placeholder={String(HOURS_PER_MONTH_DEFAULT)}
-        hint={t("forms.work.hint.hours_per_month")}
-        min={1}
-        max={744}
-        step={1}
-      />
+      {/* Hours per month override — employment only */}
+      {isEmployment && (
+        <NumberField
+          register={register("hoursPerMonth", { setValueAs: (v) => (v === "" || v == null ? null : Number(v)) })}
+          label={t("forms.work.field.hours_per_month")}
+          error={errMsg(errors.hoursPerMonth)}
+          placeholder={String(HOURS_PER_MONTH_DEFAULT)}
+          hint={t("forms.work.hint.hours_per_month")}
+          min={1}
+          max={744}
+          step={1}
+        />
+      )}
 
       {/* Active toggle */}
       <div className="field">
@@ -276,9 +274,9 @@ export function WorkSourceForm({
 
       {/* Notes */}
       <TextareaField
-        register={register("notes")}
+        register={register("note")}
         label={t("forms.work.field.notes")}
-        error={errMsg(errors.notes)}
+        error={errMsg(errors.note)}
         placeholder={t("forms.work.placeholder.notes")}
       />
 

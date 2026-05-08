@@ -646,6 +646,11 @@ export const enDict: RuDictShape = {
       events_count: "{count} events in the next 90 days",
       add: "+ Plan inflow",
     },
+    freelance_orders: {
+      section_title: "Orders",
+      empty: "No orders yet",
+      add: "+ Order",
+    },
     today: "today",
     in_days: "+{n}d",
     filter: {
@@ -1470,6 +1475,42 @@ export const enDict: RuDictShape = {
         parent: "— no parent —",
         icon: "emoji or code",
         color: "hex or name",
+      },
+    },
+    freelance_order: {
+      title_create: "New order",
+      title_edit: "Edit order",
+      delete: "Delete order",
+      delete_confirm: "Delete this order?",
+      delete_failed: "Failed to delete",
+      field: {
+        client: "Client",
+        amount: "Amount",
+        hours: "Hours",
+        hourly_rate: "Hourly rate",
+        tips: "Tips",
+        status: "Status",
+        performed_at: "Performed",
+        paid_at: "Paid",
+        note: "Note",
+        rate_mode: "Rate type",
+      },
+      rate_mode: {
+        hourly: "Hourly",
+        fixed: "Fixed",
+      },
+      placeholder: {
+        client: "Client name",
+        note: "Note (optional)",
+      },
+      status: {
+        active: "Active",
+        awaiting_payment: "Awaiting payment",
+        completed: "Completed",
+        cancelled: "Cancelled",
+      },
+      error: {
+        hours_rate_required: "Fill in hours and rate",
       },
     },
     work: {
