@@ -21,6 +21,7 @@ export type CompensationGroupDetail = {
     amount: string;
     account: string;
     cat: string;
+    name: string;
     note?: string;
     counterAccount: string | null;
   }>;
@@ -81,6 +82,7 @@ export async function getCompensationGroupDetail(
           currencyCode: true,
           occurredAt: true,
           note: true,
+          name: true,
           accountId: true,
           account: { select: { name: true, institution: { select: { name: true } } } },
           category: { select: { name: true } },
@@ -153,6 +155,7 @@ export async function getCompensationGroupDetail(
       amount: formattedAmount,
       account: accountName,
       cat: t.category?.name ?? "—",
+      name: t.name,
       note: t.note && !t.note.startsWith("import:") ? t.note : undefined,
       counterAccount,
     };

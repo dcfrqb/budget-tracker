@@ -135,29 +135,33 @@ export function CompensationDetailDialog({ open, onOpenChange, groupId }: Props)
                   </span>
                   <span style={{ color: "var(--dim)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.date} {m.time}</span>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {m.kind === "xfr" && m.counterAccount ? (
-                        <>{m.account} {"→"} {m.counterAccount}</>
-                      ) : (
+                    {m.kind === "xfr" && m.counterAccount ? (
+                      <>
+                        <div style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {m.account} {"→"} {m.counterAccount}
+                        </div>
+                        <div style={{ color: "var(--dim)", fontSize: "var(--text-xs)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {m.note ?? m.name ?? t("transactions.compensation.dialog.transfer_label")}
+                        </div>
+                      </>
+                    ) : (() => {
+                      const topText = m.name && m.name.trim() ? m.name : m.account;
+                      const catPart = m.cat && m.cat !== "—" ? ` · ${m.cat}` : "";
+                      const bottomText = `${m.account}${catPart}`;
+                      const showBottom = bottomText !== topText;
+                      return (
                         <>
-                          {m.account}
-                          {m.cat && m.cat !== "—" && (
-                            <span style={{ color: "var(--dim)" }}> · {m.cat}</span>
+                          <div style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {topText}
+                          </div>
+                          {showBottom && (
+                            <div style={{ color: "var(--dim)", fontSize: "var(--text-xs)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              {bottomText}
+                            </div>
                           )}
                         </>
-                      )}
-                    </div>
-                    {m.kind === "xfr" ? (
-                      <div style={{ color: "var(--dim)", fontSize: "var(--text-xs)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {m.note || t("transactions.compensation.dialog.transfer_label")}
-                      </div>
-                    ) : (
-                      m.note && (
-                        <div style={{ color: "var(--dim)", fontSize: "var(--text-xs)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                          {m.note}
-                        </div>
-                      )
-                    )}
+                      );
+                    })()}
                   </div>
                   <span style={{ whiteSpace: "nowrap" }}>{m.amount}</span>
                 </div>
