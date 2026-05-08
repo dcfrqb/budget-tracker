@@ -27,6 +27,32 @@ function getChromium() {
   return chromiumExtra;
 }
 
+// Routes Chromium egress through an upstream HTTP proxy when TINKOFF_PROXY_URL
+// is set. The prod app server lives outside RU and tbank.ru drops non-RU IPs;
+// the proxy forwards via a RU-side host so retail web auth can complete.
+function getProxyConfig():
+  | { server: string; username?: string; password?: string }
+  | undefined {
+  const raw = process.env.TINKOFF_PROXY_URL;
+  if (!raw) return undefined;
+  try {
+    const u = new URL(raw);
+    const server = `${u.protocol}//${u.host}`;
+    return {
+      server,
+      ...(u.username
+        ? { username: decodeURIComponent(u.username) }
+        : {}),
+      ...(u.password
+        ? { password: decodeURIComponent(u.password) }
+        : {}),
+    };
+  } catch {
+    console.error("[playwright-browser] invalid TINKOFF_PROXY_URL — ignored");
+    return undefined;
+  }
+}
+
 export type TbankBrowserCtx = {
   context: BrowserContext;
   page: Page;
@@ -91,6 +117,11 @@ export async function withTbankBrowser<T>(
       "--no-sandbox",
     ];
 
+    const proxy = getProxyConfig();
+    if (proxy) {
+      console.log("[playwright-browser] using upstream proxy:", proxy.server);
+    }
+
     let context: BrowserContext;
     try {
       context = await getChromium().launchPersistentContext(profileDir, {
@@ -100,6 +131,7 @@ export async function withTbankBrowser<T>(
         timezoneId: "Europe/Moscow",
         args: stealthArgs,
         ignoreDefaultArgs: ["--enable-automation"],
+        ...(proxy ? { proxy } : {}),
       });
     } catch (err) {
       console.error("[playwright-browser] launch failed:", err);
