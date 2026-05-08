@@ -22,6 +22,7 @@ export type CompensationGroupDetail = {
     account: string;
     cat: string;
     note?: string;
+    counterAccount: string | null;
   }>;
 };
 
@@ -80,9 +81,18 @@ export async function getCompensationGroupDetail(
           currencyCode: true,
           occurredAt: true,
           note: true,
+          accountId: true,
           account: { select: { name: true, institution: { select: { name: true } } } },
           category: { select: { name: true } },
           currency: { select: { symbol: true, decimals: true, code: true } },
+          transferId: true,
+          transfer: {
+            select: {
+              fromAccountId: true,
+              fromAccount: { select: { name: true, institution: { select: { name: true } } } },
+              toAccount: { select: { name: true, institution: { select: { name: true } } } },
+            },
+          },
         },
       },
     },
@@ -127,6 +137,14 @@ export async function getCompensationGroupDetail(
     const accountName = t.account.institution?.name ?? t.account.name;
     const sign = t.kind === "INCOME" ? "+" : "−";
     const formattedAmount = `${sign}${formatMoney(t.amount, t.currencyCode)}`;
+
+    let counterAccount: string | null = null;
+    if (t.kind === "TRANSFER" && t.transfer) {
+      const isOutgoing = t.accountId === t.transfer.fromAccountId;
+      const counter = isOutgoing ? t.transfer.toAccount : t.transfer.fromAccount;
+      counterAccount = counter?.institution?.name ?? counter?.name ?? null;
+    }
+
     return {
       id: t.id,
       time: formatTime(t.occurredAt),
@@ -136,6 +154,7 @@ export async function getCompensationGroupDetail(
       account: accountName,
       cat: t.category?.name ?? "—",
       note: t.note && !t.note.startsWith("import:") ? t.note : undefined,
+      counterAccount,
     };
   });
 

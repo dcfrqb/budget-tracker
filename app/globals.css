@@ -2675,6 +2675,7 @@ input[type="checkbox"]:disabled {
 }
 .dialog.sm { --dialog-w: 320px; }
 .dialog.md { --dialog-w: 480px; }
+.dialog.lg { --dialog-w: 640px; }
 
 .dialog-header {
   display: flex; justify-content: space-between; align-items: center;

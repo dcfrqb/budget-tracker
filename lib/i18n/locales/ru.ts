@@ -1115,6 +1115,7 @@ export const ruDict = {
         netto_label: "нетто",
         members_count: "участников: {n}",
         break_button: "Разорвать компенсацию",
+        transfer_label: "Перевод",
       },
     },
   },

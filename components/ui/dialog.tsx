@@ -10,7 +10,7 @@ export interface DialogProps {
   title: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
-  size?: "sm" | "md";
+  size?: "sm" | "md" | "lg";
 }
 
 export function Dialog({

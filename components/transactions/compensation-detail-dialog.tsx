@@ -56,7 +56,7 @@ export function CompensationDetailDialog({ open, onOpenChange, groupId }: Props)
       open={open}
       onOpenChange={onOpenChange}
       title={t("transactions.compensation.dialog.title")}
-      size="md"
+      size="lg"
       footer={
         <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-2)", flexWrap: "wrap" }}>
           {msgKey && (
@@ -121,7 +121,7 @@ export function CompensationDetailDialog({ open, onOpenChange, groupId }: Props)
                   key={m.id}
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "20px 70px 1fr auto",
+                    gridTemplateColumns: "20px 92px 1fr auto",
                     alignItems: "center",
                     gap: "var(--sp-2)",
                     padding: "var(--sp-1) 0",
@@ -129,22 +129,34 @@ export function CompensationDetailDialog({ open, onOpenChange, groupId }: Props)
                 >
                   <span
                     className={`txn-ico ${m.kind}`}
-                    style={{ fontSize: "10px", width: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center" }}
+                    style={{ fontSize: "var(--text-xs)", width: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center" }}
                   >
                     {KIND_LETTER[m.kind] ?? "?"}
                   </span>
-                  <span style={{ color: "var(--dim)", whiteSpace: "nowrap" }}>{m.date} {m.time}</span>
+                  <span style={{ color: "var(--dim)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.date} {m.time}</span>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {m.account}
-                      {m.cat && m.cat !== "—" && (
-                        <span style={{ color: "var(--dim)" }}> · {m.cat}</span>
+                      {m.kind === "xfr" && m.counterAccount ? (
+                        <>{m.account} {"→"} {m.counterAccount}</>
+                      ) : (
+                        <>
+                          {m.account}
+                          {m.cat && m.cat !== "—" && (
+                            <span style={{ color: "var(--dim)" }}> · {m.cat}</span>
+                          )}
+                        </>
                       )}
                     </div>
-                    {m.note && (
-                      <div style={{ color: "var(--dim)", fontSize: "11px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {m.note}
+                    {m.kind === "xfr" ? (
+                      <div style={{ color: "var(--dim)", fontSize: "var(--text-xs)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {m.note || t("transactions.compensation.dialog.transfer_label")}
                       </div>
+                    ) : (
+                      m.note && (
+                        <div style={{ color: "var(--dim)", fontSize: "var(--text-xs)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {m.note}
+                        </div>
+                      )
                     )}
                   </div>
                   <span style={{ whiteSpace: "nowrap" }}>{m.amount}</span>

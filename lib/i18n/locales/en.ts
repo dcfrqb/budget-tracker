@@ -1107,6 +1107,7 @@ export const enDict: RuDictShape = {
         netto_label: "netto",
         members_count: "members: {n}",
         break_button: "Break compensation",
+        transfer_label: "Transfer",
       },
     },
   },
