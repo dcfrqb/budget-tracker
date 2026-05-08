@@ -14,6 +14,7 @@ import {
 } from "@/lib/data/transactions";
 import { getPersonalDebtsWithProgress } from "@/lib/data/debts";
 import { getLatestRatesMap } from "@/lib/data/wallet";
+import { getCompensationProjection } from "@/lib/data/_shared/compensation-projection";
 import { getCategories } from "@/lib/data/categories";
 import { getConnectedCredentials } from "@/lib/data/_queries/integrations";
 import { db } from "@/lib/db";
@@ -93,7 +94,7 @@ export default async function TransactionsPage({
     ...(sp.accountId ? { accountId: sp.accountId } : {}),
   };
 
-  const [rawDays, summary, rates, debts, accounts, categories, rawCredentials] =
+  const [rawDays, summary, rates, debts, accounts, categories, rawCredentials, proj] =
     await Promise.all([
       getTransactionsGroupedByDay(userId, filters, tz),
       getTransactionsPeriodSummary(userId, {
@@ -110,6 +111,7 @@ export default async function TransactionsPage({
       }),
       getCategories(userId),
       getConnectedCredentials(userId),
+      getCompensationProjection(userId),
     ]);
 
   const syncCredentials = rawCredentials.map((c) => ({
@@ -122,7 +124,7 @@ export default async function TransactionsPage({
 
   const today = new Date();
   const days = rawDays.map((r) =>
-    toTxnDayView(r, today, rates, DEFAULT_CURRENCY, t, tz),
+    toTxnDayView(r, today, rates, DEFAULT_CURRENCY, t, tz, proj),
   );
   const summaryView = toPeriodSummaryView(summary);
   const debtViews = debts.map((d) => toDebtView(d, t, tz));

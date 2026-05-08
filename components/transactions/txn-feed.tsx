@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useT } from "@/lib/i18n";
 import { TxnRowActions } from "./txn-row-actions";
 import { SelectableRow } from "./selectable-row";
+import { CompensationDetailDialog } from "./compensation-detail-dialog";
 import type { TxnDayView, TxnView } from "@/lib/view/transactions";
 import type { AccountOption } from "@/components/forms/account-select";
 
@@ -40,6 +41,39 @@ function ReimbursableFlag() {
   );
 }
 
+interface CompensationBadgeProps {
+  groupId: string;
+  membersCount: number;
+}
+
+function CompensationBadge({ groupId, membersCount }: CompensationBadgeProps) {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  const otherCount = Math.max(0, membersCount - 1);
+
+  return (
+    <>
+      <button
+        type="button"
+        className="txn-comp-badge"
+        title={t("transactions.compensation.tooltip", { vars: { n: String(otherCount) } })}
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen(true);
+        }}
+        aria-label={t("transactions.compensation.tooltip", { vars: { n: String(otherCount) } })}
+      >
+        ⊂
+      </button>
+      <CompensationDetailDialog
+        open={open}
+        onOpenChange={setOpen}
+        groupId={groupId}
+      />
+    </>
+  );
+}
+
 interface TxnRowProps {
   t: TxnView;
   accounts: AccountOption[];
@@ -71,6 +105,12 @@ function TxnRow({ t, accounts, expanded, onToggle, tz }: TxnRowProps) {
           <div className="n">
             {t.name}
             {t.reimbursable && <ReimbursableFlag />}
+            {t.compensationMainBadge && t.compensationGroupId && t.compensationMembersCount != null && (
+              <CompensationBadge
+                groupId={t.compensationGroupId}
+                membersCount={t.compensationMembersCount}
+              />
+            )}
           </div>
           <div className="m">
             <span className="txn-cat">{t.cat}</span>

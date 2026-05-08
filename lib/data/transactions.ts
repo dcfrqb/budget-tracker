@@ -12,6 +12,7 @@ import { db } from "@/lib/db";
 import { convertToBase, getLatestRatesMap } from "./wallet";
 import { dayKeyInTz } from "@/lib/format/date";
 import { DEFAULT_TZ } from "@/lib/constants";
+import { getCompensationProjection } from "@/lib/data/_shared/compensation-projection";
 
 import type { ReimbursementFact } from "@prisma/client";
 
@@ -85,13 +86,15 @@ function buildWhere(userId: string, f: ListFilters): Prisma.TransactionWhereInpu
 
 // Группировка по дню occurredAt в таймзоне пользователя. Order: дни DESC, внутри дня — occurredAt DESC.
 // When no accountId filter is set, Transfer pairs are folded to one row (from-leg only).
+// Compensation group non-main members are hidden from the feed.
 export async function getTransactionsGroupedByDay(
   userId: string,
   filters: ListFilters,
   tz: string = DEFAULT_TZ,
 ): Promise<TxnDayRaw[]> {
+  const proj = await getCompensationProjection(userId);
   const rows = await db.transaction.findMany({
-    where: buildWhere(userId, filters),
+    where: { ...buildWhere(userId, filters), ...proj.whereExcludeNonMain },
     orderBy: [{ occurredAt: "desc" }, { id: "desc" }],
     include: TXN_INCLUDE,
   });
@@ -101,12 +104,12 @@ export async function getTransactionsGroupedByDay(
   // check is sufficient (no transferId-dedup needed). Orphan TRANSFER rows without
   // a Transfer record (transferId IS NULL) pass through as-is.
   const foldTransfers = !filters.accountId;
-  const filtered = foldTransfers
-    ? rows.filter((t) => {
-        if (t.kind !== "TRANSFER" || !t.transferId || !t.transfer) return true;
-        return t.accountId === t.transfer.fromAccountId;
-      })
-    : rows;
+  const filtered = rows.filter((t) => {
+    if (foldTransfers && t.kind === "TRANSFER" && t.transferId && t.transfer) {
+      return t.accountId === t.transfer.fromAccountId;
+    }
+    return true;
+  });
 
   const byDay = new Map<string, TxnWithJoins[]>();
   for (const t of filtered) {
@@ -175,9 +178,15 @@ export async function getTransactionsPeriodSummary(
   userId: string,
   { from, to, baseCcy }: { from?: Date; to?: Date; baseCcy: string },
 ): Promise<PeriodSummary> {
+  const [proj, rates] = await Promise.all([
+    getCompensationProjection(userId),
+    getLatestRatesMap(),
+  ]);
+
   const where: Prisma.TransactionWhereInput = {
     userId,
     deletedAt: null,
+    ...proj.whereExcludeNonMain,
   };
   if (from || to) {
     where.occurredAt = {};
@@ -185,10 +194,7 @@ export async function getTransactionsPeriodSummary(
     if (to) where.occurredAt.lte = to;
   }
 
-  const [rows, rates] = await Promise.all([
-    db.transaction.findMany({ where, include: TXN_INCLUDE }),
-    getLatestRatesMap(),
-  ]);
+  const rows = await db.transaction.findMany({ where, include: TXN_INCLUDE });
 
   const zero = new Prisma.Decimal(0);
   const result: PeriodSummary = {
@@ -216,9 +222,15 @@ export async function getTransactionsPeriodSummary(
       continue;
     }
 
-    const actual = actualAmount(t);
-    if (actual.isZero()) continue;
-    const inBase = convertToBase(actual, t.currencyCode, baseCcy, rates);
+    const override = proj.rewriteAmount(t.id);
+    let inBase: Prisma.Decimal | undefined;
+    if (override) {
+      inBase = override.netBase;
+    } else {
+      const actual = actualAmount(t);
+      if (actual.isZero()) continue;
+      inBase = convertToBase(actual, t.currencyCode, baseCcy, rates) ?? undefined;
+    }
     if (!inBase) continue;
 
     if (INFLOW_KINDS.includes(t.kind)) {
@@ -248,28 +260,24 @@ export async function getTransactionsFilterSummary(
   filters: ListFilters,
   baseCcy: string,
 ): Promise<FilterSummary> {
-  const where = buildWhere(userId, filters);
-  const [rows, rates] = await Promise.all([
-    db.transaction.findMany({ where, include: TXN_INCLUDE }),
+  const [proj, rates] = await Promise.all([
+    getCompensationProjection(userId),
     getLatestRatesMap(),
   ]);
+
+  const baseWhere = buildWhere(userId, filters);
+  const where: Prisma.TransactionWhereInput = { ...baseWhere, ...proj.whereExcludeNonMain };
+  const rows = await db.transaction.findMany({ where, include: TXN_INCLUDE });
 
   const zero = new Prisma.Decimal(0);
   let inflow = zero;
   let outflow = zero;
   let transfers = zero;
-  let reimb = zero;
+  const reimb = zero;
 
   for (const t of rows) {
-    if (t.isReimbursable && t.expectedReimbursement) {
-      const v = convertToBase(
-        t.expectedReimbursement,
-        t.currencyCode,
-        baseCcy,
-        rates,
-      );
-      if (v) reimb = reimb.plus(v);
-    }
+    // isReimbursable/expectedReimbursement model is superseded by CompensationGroup.
+    // Per locked decision #9: zero out reimburseExpectedTotal — stop summing here.
     if (t.kind === TransactionKind.TRANSFER) {
       if (t.transfer && t.accountId === t.transfer.fromAccountId) {
         const v = convertToBase(t.amount, t.currencyCode, baseCcy, rates);
@@ -277,9 +285,15 @@ export async function getTransactionsFilterSummary(
       }
       continue;
     }
-    const actual = actualAmount(t);
-    if (actual.isZero()) continue;
-    const inBase = convertToBase(actual, t.currencyCode, baseCcy, rates);
+    const override = proj.rewriteAmount(t.id);
+    let inBase: Prisma.Decimal | undefined;
+    if (override) {
+      inBase = override.netBase;
+    } else {
+      const actual = actualAmount(t);
+      if (actual.isZero()) continue;
+      inBase = convertToBase(actual, t.currencyCode, baseCcy, rates) ?? undefined;
+    }
     if (!inBase) continue;
     if (INFLOW_KINDS.includes(t.kind)) inflow = inflow.plus(inBase);
     else if (OUTFLOW_KINDS.includes(t.kind)) outflow = outflow.plus(inBase);

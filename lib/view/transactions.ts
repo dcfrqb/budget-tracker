@@ -9,6 +9,7 @@ import type {
   TxnWithJoins,
 } from "@/lib/data/transactions";
 import type { TKey } from "@/lib/i18n/t";
+import type { CompensationProjection } from "@/lib/data/_shared/compensation-projection";
 
 // ─────────────────────────────────────────────
 // TYPES (compatible with mock-transactions)
@@ -29,6 +30,9 @@ export type TxnView = {
   account: string;
   accountId: string;
   transferId: string | null;
+  compensationGroupId: string | null;
+  compensationMainBadge: boolean;
+  compensationMembersCount: number | null;
   status: TxnShortStatus;
   statusLabel: string;
   amount: string;
@@ -261,12 +265,45 @@ export function toTxnView(
   t: TFn,
   rates?: Map<string, Prisma.Decimal>,
   baseCcy?: string,
+  proj?: CompensationProjection,
 ): TxnView {
   const { tone, sign, strike } = amountToneAndPrefix(txn);
   const { note, noteTone } = resolveNote(txn, t);
 
+  // Compensation projection: for main rows, rewrite amount to netto in native ccy
+  const groupInfo = proj?.groupByMainTxnId.get(txn.id) ?? null;
+  const isCompensationMain = groupInfo !== null;
+
+  let displayAmount = txn.amount;
+  let displaySign = sign;
   let fxEquiv: string | undefined;
-  if (rates && baseCcy && txn.currencyCode !== baseCcy) {
+
+  if (isCompensationMain && groupInfo && rates && baseCcy) {
+    // nettoBase is in baseCcy; inverse-convert to native ccy
+    const { netBase, sign: netSign } = { netBase: groupInfo.nettoBase, sign: groupInfo.nettoSign };
+    if (txn.currencyCode === baseCcy) {
+      displayAmount = netBase;
+    } else {
+      // Inverse-convert: nettoBase / rate(native→base) = native amount
+      const fwdRate = rates.get(`${txn.currencyCode}-${baseCcy}`) ?? rates.get(`${baseCcy}-${txn.currencyCode}`);
+      if (fwdRate && !fwdRate.isZero()) {
+        const rateToBase = rates.get(`${txn.currencyCode}-${baseCcy}`);
+        if (rateToBase) {
+          displayAmount = netBase.div(rateToBase);
+        } else {
+          // inverse key exists: base→native = 1/rate
+          const inverseRate = rates.get(`${baseCcy}-${txn.currencyCode}`);
+          if (inverseRate) {
+            displayAmount = netBase.mul(inverseRate);
+          }
+        }
+      }
+      // Also show baseCcy equiv
+      fxEquiv = formatMoney(new Prisma.Decimal(netBase.toFixed(0)), baseCcy, { approx: true });
+    }
+    // Sign based on netto: +1 = income side, -1 = expense side
+    displaySign = netSign === 1 ? "+" : "-";
+  } else if (rates && baseCcy && txn.currencyCode !== baseCcy) {
     const inBase = convertToBase(txn.amount, txn.currencyCode, baseCcy, rates);
     if (inBase) {
       fxEquiv = formatMoney(new Prisma.Decimal(inBase.toFixed(0)), baseCcy, { approx: true });
@@ -284,9 +321,12 @@ export function toTxnView(
     account: resolveAccountLabel(txn),
     accountId: txn.accountId,
     transferId: txn.transferId ?? null,
+    compensationGroupId: txn.compensationGroupId ?? null,
+    compensationMainBadge: isCompensationMain,
+    compensationMembersCount: isCompensationMain && groupInfo ? groupInfo.memberCount : null,
     status: STATUS_SHORT[txn.status],
     statusLabel: t(`transactions.status.${STATUS_SHORT[txn.status]}` as TKey),
-    amount: signedAmount(txn.amount, txn.currency, sign),
+    amount: signedAmount(displayAmount, txn.currency, displaySign),
     amountTone: tone,
     ...(strike ? { amountStrike: true } : {}),
     ...(txn.isReimbursable ? { reimbursable: true } : {}),
@@ -304,6 +344,7 @@ function dayTotalsFromTxns(
   rates: Map<string, Prisma.Decimal>,
   baseCcy: string,
   t: TFn,
+  proj?: CompensationProjection,
 ): { totals: TxnDayTotal[]; hasConvertedAmounts: boolean } {
   let inflowTotal = new Prisma.Decimal(0);
   let outflowTotal = new Prisma.Decimal(0);
@@ -317,6 +358,18 @@ function dayTotalsFromTxns(
       cancelledCount += 1;
       continue;
     }
+    if (txn.status !== TransactionStatus.DONE && txn.status !== TransactionStatus.PARTIAL) {
+      continue;
+    }
+
+    // For compensation mains: use nettoBase directly (already in baseCcy)
+    const override = proj?.rewriteAmount(txn.id);
+    if (override) {
+      if (override.sign === 1) inflowTotal = inflowTotal.plus(override.netBase);
+      else outflowTotal = outflowTotal.plus(override.netBase);
+      continue;
+    }
+
     const amt = new Prisma.Decimal(txn.amount);
     const isInflow =
       txn.kind === TransactionKind.INCOME ||
@@ -327,9 +380,6 @@ function dayTotalsFromTxns(
       txn.kind === TransactionKind.LOAN_PAYMENT ||
       txn.kind === TransactionKind.DEBT_OUT;
     if (!isInflow && !isOutflow) continue;
-    if (txn.status !== TransactionStatus.DONE && txn.status !== TransactionStatus.PARTIAL) {
-      continue;
-    }
     const actual =
       txn.status === TransactionStatus.PARTIAL
         ? txn.facts.reduce((a, f) => a.plus(f.amount), new Prisma.Decimal(0))
@@ -402,15 +452,16 @@ export function toTxnDayView(
   baseCcy: string,
   t: TFn,
   tz: string = DEFAULT_TZ,
+  proj?: CompensationProjection,
 ): TxnDayView {
   const d = new Date(raw.date + "T00:00:00Z");
-  const { totals, hasConvertedAmounts } = dayTotalsFromTxns(raw.txns, rates, baseCcy, t);
+  const { totals, hasConvertedAmounts } = dayTotalsFromTxns(raw.txns, rates, baseCcy, t, proj);
   return {
     date: formatDateRu(d, tz),
     weekday: formatWeekdayRu(d, today, t, tz),
     totals,
     hasConvertedAmounts,
-    txns: raw.txns.map((txn) => toTxnView(txn, t, rates, baseCcy)),
+    txns: raw.txns.map((txn) => toTxnView(txn, t, rates, baseCcy, proj)),
   };
 }
 

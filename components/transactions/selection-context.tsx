@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useTransition, useCallback } from "react";
 import { useT } from "@/lib/i18n";
 import { markPairAsTransfer, breakTransfer } from "@/lib/data/_mutations/transfer-manual";
+import { createCompensationGroup, breakCompensationGroup } from "@/lib/data/_mutations/compensations";
 import type { TxnView } from "@/lib/view/transactions";
 
 type SelectionContextValue = {
@@ -64,23 +65,58 @@ export function TransactionsSelectionProvider({
   const selectedRows = Array.from(rowsMap.values());
   const count = selected.size;
 
+  // ── Transfer eligibility ──────────────────────────────────
   const canMarkAsTransfer =
     count === 2 &&
     selectedRows.every((r) => r.transferId === null) &&
+    selectedRows.every((r) => r.compensationGroupId === null) &&
     new Set(selectedRows.map((r) => r.accountId)).size === 2;
-
-  const canBreakTransfer =
-    count >= 1 &&
-    selectedRows.every((r) => r.transferId !== null);
-
-  const transferIds = Array.from(new Set(selectedRows.map((r) => r.transferId).filter(Boolean) as string[]));
 
   const markDisabledReason: string | null = (() => {
     if (count !== 2) return t("transactions.selection.tooltip.need_two");
+    if (selectedRows.some((r) => r.compensationGroupId !== null)) return t("transactions.selection.tooltip.already_grouped");
     if (selectedRows.some((r) => r.transferId !== null)) return t("transactions.selection.tooltip.already_transfer");
     if (new Set(selectedRows.map((r) => r.accountId)).size !== 2) return t("transactions.selection.tooltip.same_account");
     return null;
   })();
+
+  // ── Compensation eligibility ──────────────────────────────
+  const hasExpense = selectedRows.some((r) => r.kind === "exp");
+  const hasIncome = selectedRows.some((r) => r.kind === "inc");
+  const allUnlinked = selectedRows.every((r) => r.transferId === null && r.compensationGroupId === null);
+
+  const canMarkAsCompensation =
+    count >= 2 &&
+    allUnlinked &&
+    hasExpense &&
+    hasIncome;
+
+  const compensationDisabledReason: string | null = (() => {
+    if (count < 2) return t("transactions.selection.tooltip.need_two");
+    if (selectedRows.some((r) => r.transferId !== null)) return t("transactions.selection.tooltip.already_transfer");
+    if (selectedRows.some((r) => r.compensationGroupId !== null)) return t("transactions.selection.tooltip.already_grouped");
+    if (!hasExpense || !hasIncome) return t("transactions.selection.tooltip.need_mixed_kinds");
+    return null;
+  })();
+
+  // ── Break eligibility ─────────────────────────────────────
+  const allHaveTransfer = count >= 1 && selectedRows.every((r) => r.transferId !== null);
+  const allHaveCompensation = count >= 1 && selectedRows.every((r) => r.compensationGroupId !== null);
+  const mixedBreakTypes =
+    selectedRows.some((r) => r.transferId !== null) &&
+    selectedRows.some((r) => r.compensationGroupId !== null);
+
+  const canBreak = (allHaveTransfer || allHaveCompensation) && !mixedBreakTypes;
+
+  const breakDisabledReason: string | null = (() => {
+    if (count < 1) return null;
+    if (mixedBreakTypes) return t("transactions.selection.tooltip.break_mixed");
+    if (!allHaveTransfer && !allHaveCompensation) return t("transactions.selection.tooltip.break_link");
+    return null;
+  })();
+
+  const transferIds = Array.from(new Set(selectedRows.map((r) => r.transferId).filter(Boolean) as string[]));
+  const compensationGroupIds = Array.from(new Set(selectedRows.map((r) => r.compensationGroupId).filter(Boolean) as string[]));
 
   function handleMarkAsTransfer() {
     const ids = Array.from(selected);
@@ -100,16 +136,44 @@ export function TransactionsSelectionProvider({
     });
   }
 
-  function handleBreakTransfer() {
+  function handleMarkAsCompensation() {
+    const ids = Array.from(selected);
     startTransition(async () => {
-      const results = await Promise.all(transferIds.map((id) => breakTransfer({ transferId: id })));
-      const firstError = results.find((r) => !r.ok);
-      if (firstError && !firstError.ok) {
-        setActionState({ kind: "error", msgKey: firstError.error });
-      } else {
-        setActionState({ kind: "success", msgKey: "transactions.selection.success.broken" });
+      const result = await createCompensationGroup({ txnIds: ids });
+      if (result.ok) {
+        setActionState({ kind: "success", msgKey: "transactions.selection.success.compensation_made" });
         setSelected(new Set());
         setRowsMap(new Map());
+      } else {
+        setActionState({ kind: "error", msgKey: result.error });
+      }
+    });
+  }
+
+  function handleBreak() {
+    startTransition(async () => {
+      if (allHaveTransfer) {
+        const results = await Promise.all(transferIds.map((id) => breakTransfer({ transferId: id })));
+        const firstError = results.find((r) => !r.ok);
+        if (firstError && !firstError.ok) {
+          setActionState({ kind: "error", msgKey: firstError.error });
+        } else {
+          setActionState({ kind: "success", msgKey: "transactions.selection.success.broken" });
+          setSelected(new Set());
+          setRowsMap(new Map());
+        }
+      } else if (allHaveCompensation) {
+        const results = await Promise.all(
+          compensationGroupIds.map((id) => breakCompensationGroup({ groupId: id })),
+        );
+        const firstError = results.find((r) => !r.ok);
+        if (firstError && !firstError.ok) {
+          setActionState({ kind: "error", msgKey: firstError.error });
+        } else {
+          setActionState({ kind: "success", msgKey: "transactions.selection.success.compensation_broken" });
+          setSelected(new Set());
+          setRowsMap(new Map());
+        }
       }
     });
   }
@@ -136,8 +200,19 @@ export function TransactionsSelectionProvider({
           <button
             type="button"
             className="btn"
-            disabled={!canBreakTransfer || isPending}
-            onClick={handleBreakTransfer}
+            disabled={!canMarkAsCompensation || isPending}
+            title={compensationDisabledReason ?? ""}
+            onClick={handleMarkAsCompensation}
+          >
+            {t("transactions.selection.mark_as_compensation")}
+          </button>
+
+          <button
+            type="button"
+            className="btn"
+            disabled={!canBreak || isPending}
+            title={breakDisabledReason ?? ""}
+            onClick={handleBreak}
           >
             {t("transactions.selection.break_transfer")}
           </button>

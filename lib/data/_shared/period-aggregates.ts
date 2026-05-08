@@ -8,6 +8,7 @@ import {
   getCashStash,
   resolveCreditState,
 } from "@/lib/data/wallet";
+import { getCompensationProjection } from "@/lib/data/_shared/compensation-projection";
 import { getLoans } from "@/lib/data/loans";
 import { getSubscriptions } from "@/lib/data/subscriptions";
 import { getFundsWithProgress } from "@/lib/data/funds";
@@ -61,13 +62,19 @@ export const getPeriodFlow = cache(async (
     occurredAt: { gte: range.from, lte: range.to },
   } as const;
 
-  const [sumRows, countRows, rates] = await Promise.all([
+  const [proj, rates] = await Promise.all([
+    getCompensationProjection(userId),
+    getLatestRatesMap(),
+  ]);
+
+  const [sumRows, countRows] = await Promise.all([
     db.transaction.findMany({
       where: {
         ...rangeWhere,
         kind: { in: [TransactionKind.INCOME, TransactionKind.EXPENSE] },
         transferId: null,
         status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
+        ...proj.whereExcludeNonMain,
       },
       select: {
         id: true,
@@ -83,7 +90,6 @@ export const getPeriodFlow = cache(async (
       where: rangeWhere,
       select: { id: true, transferId: true, kind: true },
     }),
-    getLatestRatesMap(),
   ]);
 
   const zero = new Prisma.Decimal(0);
@@ -91,11 +97,21 @@ export const getPeriodFlow = cache(async (
   let outflow = zero;
 
   for (const t of sumRows) {
-    const actual = confirmedAmt(t as Parameters<typeof confirmedAmt>[0]);
-    const inBase = convertToBase(actual, t.currencyCode, baseCcy, rates);
-    if (!inBase) continue;
-    if (t.kind === TransactionKind.INCOME) inflow = inflow.plus(inBase);
-    else outflow = outflow.plus(inBase);
+    const override = proj.rewriteAmount(t.id);
+    let inBase: Prisma.Decimal | undefined;
+    if (override) {
+      inBase = override.netBase;
+      // override.sign: +1 = income side wins, -1 = expense side wins
+      if (override.sign === 1) inflow = inflow.plus(inBase);
+      else outflow = outflow.plus(inBase);
+    } else {
+      const actual = confirmedAmt(t as Parameters<typeof confirmedAmt>[0]);
+      const converted = convertToBase(actual, t.currencyCode, baseCcy, rates);
+      if (!converted) continue;
+      inBase = converted;
+      if (t.kind === TransactionKind.INCOME) inflow = inflow.plus(inBase);
+      else outflow = outflow.plus(inBase);
+    }
   }
 
   const distinctTransferIds = new Set(
@@ -131,36 +147,53 @@ export const getCategoryBreakdown = cache(async (
 ): Promise<Map<string, Prisma.Decimal>> => {
   const txKind = kind === "INCOME" ? TransactionKind.INCOME : TransactionKind.EXPENSE;
 
-  const [rows, rates] = await Promise.all([
-    db.transaction.findMany({
-      where: {
-        userId,
-        deletedAt: null,
-        occurredAt: { gte: range.from, lte: range.to },
-        kind: txKind,
-        transferId: null,
-        status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
-        categoryId: { not: null },
-      },
-      select: {
-        categoryId: true,
-        status: true,
-        amount: true,
-        currencyCode: true,
-        transferId: true,
-        facts: { select: { amount: true } },
-      },
-    }),
+  const [proj, rates] = await Promise.all([
+    getCompensationProjection(userId),
     getLatestRatesMap(),
   ]);
+
+  const rows = await db.transaction.findMany({
+    where: {
+      userId,
+      deletedAt: null,
+      occurredAt: { gte: range.from, lte: range.to },
+      kind: txKind,
+      transferId: null,
+      status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
+      categoryId: { not: null },
+      ...proj.whereExcludeNonMain,
+    },
+    select: {
+      id: true,
+      categoryId: true,
+      status: true,
+      amount: true,
+      currencyCode: true,
+      transferId: true,
+      facts: { select: { amount: true } },
+    },
+  });
 
   const byCat = new Map<string, Prisma.Decimal>();
   for (const t of rows) {
     if (!t.categoryId) continue;
-    const actual = confirmedAmt(t as Parameters<typeof confirmedAmt>[0]);
-    const inBase = convertToBase(actual, t.currencyCode, baseCcy, rates);
-    if (!inBase) continue;
-    byCat.set(t.categoryId, (byCat.get(t.categoryId) ?? new Prisma.Decimal(0)).plus(inBase));
+    const override = proj.rewriteAmount(t.id);
+    let inBase: Prisma.Decimal | undefined;
+    let catId = t.categoryId;
+    if (override) {
+      inBase = override.netBase;
+      // For category breakdown, use categoryIdForAggregation from the group
+      const groupInfo = proj.groupByMainTxnId.get(t.id);
+      if (groupInfo?.categoryIdForAggregation) {
+        catId = groupInfo.categoryIdForAggregation;
+      }
+    } else {
+      const actual = confirmedAmt(t as Parameters<typeof confirmedAmt>[0]);
+      const converted = convertToBase(actual, t.currencyCode, baseCcy, rates);
+      if (!converted) continue;
+      inBase = converted;
+    }
+    byCat.set(catId, (byCat.get(catId) ?? new Prisma.Decimal(0)).plus(inBase));
   }
   return byCat;
 });

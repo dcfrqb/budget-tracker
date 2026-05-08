@@ -44,6 +44,7 @@ model User {
   funds                  Fund[]
   plannedEvents          PlannedEvent[]
   personalDebts          PersonalDebt[]
+  compensationGroups     CompensationGroup[]
   budgetSettings         BudgetSettings?
   familyMemberships      FamilyMember[]
   ownedFamilies          Family[]                @relation("FamilyOwner")
@@ -227,12 +228,13 @@ model Category {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent        Category?      @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
-  children      Category[]     @relation("CategoryTree")
-  transactions  Transaction[]
-  subscriptions Subscription[]
-  longProjects  LongProject[]
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent             Category?           @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children           Category[]          @relation("CategoryTree")
+  transactions       Transaction[]
+  subscriptions      Subscription[]
+  longProjects       LongProject[]
+  compensationGroups CompensationGroup[]
 
   @@index([userId])
   @@index([userId, archivedAt])
@@ -315,34 +317,38 @@ model Transaction {
   source     String?
 
   // Связи с доменными объектами
-  transferId     String?
-  loanId         String?
-  loanPaymentId  String?
-  subscriptionId String?
-  longProjectId  String?
-  fundId         String?
-  workSourceId   String?
-  personalDebtId String?
-  plannedEventId String?
+  transferId          String?
+  loanId              String?
+  loanPaymentId       String?
+  subscriptionId      String?
+  longProjectId       String?
+  fundId              String?
+  workSourceId        String?
+  personalDebtId      String?
+  plannedEventId      String?
+  // Compensation group: never updated by sync adapters — only by createCompensationGroup / breakCompensationGroup server actions
+  compensationGroupId String?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  account      Account       @relation(fields: [accountId], references: [id], onDelete: Restrict)
-  category     Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  currency     Currency      @relation(fields: [currencyCode], references: [code])
-  family       Family?       @relation(fields: [familyId], references: [id], onDelete: SetNull)
-  transfer     Transfer?     @relation(fields: [transferId], references: [id], onDelete: SetNull)
-  loan         Loan?         @relation(fields: [loanId], references: [id], onDelete: SetNull)
-  loanPayment  LoanPayment?  @relation(fields: [loanPaymentId], references: [id], onDelete: SetNull)
-  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
-  longProject  LongProject?  @relation(fields: [longProjectId], references: [id], onDelete: SetNull)
-  fund         Fund?         @relation(fields: [fundId], references: [id], onDelete: SetNull)
-  workSource   WorkSource?   @relation(fields: [workSourceId], references: [id], onDelete: SetNull)
-  personalDebt PersonalDebt? @relation(fields: [personalDebtId], references: [id], onDelete: SetNull)
-  plannedEvent PlannedEvent? @relation(fields: [plannedEventId], references: [id], onDelete: SetNull)
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account            Account            @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  category           Category?          @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  currency           Currency           @relation(fields: [currencyCode], references: [code])
+  family             Family?            @relation(fields: [familyId], references: [id], onDelete: SetNull)
+  transfer           Transfer?          @relation(fields: [transferId], references: [id], onDelete: SetNull)
+  loan               Loan?              @relation(fields: [loanId], references: [id], onDelete: SetNull)
+  loanPayment        LoanPayment?       @relation(fields: [loanPaymentId], references: [id], onDelete: SetNull)
+  subscription       Subscription?      @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  longProject        LongProject?       @relation(fields: [longProjectId], references: [id], onDelete: SetNull)
+  fund               Fund?              @relation(fields: [fundId], references: [id], onDelete: SetNull)
+  workSource         WorkSource?        @relation(fields: [workSourceId], references: [id], onDelete: SetNull)
+  personalDebt       PersonalDebt?      @relation(fields: [personalDebtId], references: [id], onDelete: SetNull)
+  plannedEvent       PlannedEvent?      @relation(fields: [plannedEventId], references: [id], onDelete: SetNull)
+  compensationGroup  CompensationGroup? @relation("CompensationMembers", fields: [compensationGroupId], references: [id], onDelete: SetNull)
+  mainOfCompensation CompensationGroup? @relation("CompensationMain")
 
   facts          TransactionFact[]
   reimbursements ReimbursementFact[]
@@ -352,6 +358,7 @@ model Transaction {
   @@index([accountId])
   @@index([categoryId])
   @@index([status])
+  @@index([compensationGroupId])
 }
 
 // Факты частичного подтверждения (когда транзакция PARTIAL и деньги приходят траншами).
@@ -408,6 +415,33 @@ model Transfer {
   toCurrency   Currency @relation("TransferToCcy", fields: [toCcy], references: [code])
 
   transactions Transaction[]
+
+  @@index([userId, occurredAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// COMPENSATION GROUPS
+// ─────────────────────────────────────────────────────────────
+
+model CompensationGroup {
+  id                       String   @id @default(cuid())
+  userId                   String
+  // Pre-computed at create time, treated as immutable until the group is broken.
+  // Aggregators read these instead of re-running FX on every query.
+  mainTxnId                String   @unique
+  nettoBase                Decimal  @db.Decimal(28, 10)
+  nettoSign                Int // +1 if winning side = INCOME, −1 if EXPENSE
+  baseCcy                  String // ccy used for nettoBase (BudgetSettings.primaryCurrencyCode at create time)
+  categoryIdForAggregation String? // category from biggest-|amount| EXPENSE leg; immutable after create
+  occurredAt               DateTime // copied from main leg for sorted feeds
+  note                     String?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mainTxn      Transaction   @relation("CompensationMain", fields: [mainTxnId], references: [id], onDelete: Restrict)
+  category     Category?     @relation(fields: [categoryIdForAggregation], references: [id], onDelete: SetNull)
+  transactions Transaction[] @relation("CompensationMembers")
 
   @@index([userId, occurredAt])
 }

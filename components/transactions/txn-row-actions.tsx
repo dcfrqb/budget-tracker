@@ -133,6 +133,7 @@ export function TxnRowActions({ txn, accounts, tz }: TxnRowActionsProps) {
     txn.status === "planned" ||
     txn.status === "partial";
   const isReimbursable = txn.reimbursable === true;
+  const isInCompensationGroup = !!txn.compensationGroupId;
 
   return (
     <>
@@ -190,6 +191,8 @@ export function TxnRowActions({ txn, accounts, tz }: TxnRowActionsProps) {
           className="btn"
           style={{ fontSize: "10px", padding: "3px 8px" }}
           onClick={() => router.push(`/transactions/${txn.id}/edit`)}
+          disabled={isInCompensationGroup}
+          title={isInCompensationGroup ? t("transactions.compensation.error.edit_blocked") : undefined}
         >
           {t("forms.tx_row.edit")}
         </button>
@@ -198,7 +201,8 @@ export function TxnRowActions({ txn, accounts, tz }: TxnRowActionsProps) {
           className="btn"
           style={{ fontSize: "10px", padding: "3px 8px", color: "var(--neg)" }}
           onClick={() => setDeleteOpen(true)}
-          disabled={isPending}
+          disabled={isPending || isInCompensationGroup}
+          title={isInCompensationGroup ? t("transactions.compensation.error.edit_blocked") : undefined}
         >
           {t("forms.tx_row.delete")}
         </button>

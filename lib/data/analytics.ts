@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { getLatestRatesMap, convertToBase } from "@/lib/data/wallet";
 import { startOfWeekInTzKey, monthKeyInTz } from "@/lib/format/date";
 import { DEFAULT_TZ } from "@/lib/constants";
+import { getCompensationProjection } from "@/lib/data/_shared/compensation-projection";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -123,37 +124,47 @@ export const getPeriodKpis = cache(async (
   range: DateRange,
   baseCcy: string,
 ): Promise<PeriodKpis> => {
-  const [rows, rates] = await Promise.all([
-    db.transaction.findMany({
-      where: {
-        userId,
-        deletedAt: null,
-        occurredAt: { gte: range.from, lte: range.to },
-        kind: { in: [TransactionKind.INCOME, TransactionKind.EXPENSE] },
-        transferId: null,
-        status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
-      },
-      select: {
-        kind: true,
-        status: true,
-        amount: true,
-        currencyCode: true,
-        facts: { select: { amount: true } },
-      },
-    }),
+  const [proj, rates] = await Promise.all([
+    getCompensationProjection(userId),
     getLatestRatesMap(),
   ]);
+
+  const rows = await db.transaction.findMany({
+    where: {
+      userId,
+      deletedAt: null,
+      occurredAt: { gte: range.from, lte: range.to },
+      kind: { in: [TransactionKind.INCOME, TransactionKind.EXPENSE] },
+      transferId: null,
+      status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
+      ...proj.whereExcludeNonMain,
+    },
+    select: {
+      id: true,
+      kind: true,
+      status: true,
+      amount: true,
+      currencyCode: true,
+      facts: { select: { amount: true } },
+    },
+  });
 
   const zero = new Prisma.Decimal(0);
   let inflow = zero;
   let outflow = zero;
 
   for (const t of rows) {
-    const actual = confirmedAmt(t as Parameters<typeof confirmedAmt>[0]);
-    const inBase = convertToBase(actual, t.currencyCode, baseCcy, rates);
-    if (!inBase) continue;
-    if (t.kind === TransactionKind.INCOME) inflow = inflow.plus(inBase);
-    else outflow = outflow.plus(inBase);
+    const override = proj.rewriteAmount(t.id);
+    if (override) {
+      if (override.sign === 1) inflow = inflow.plus(override.netBase);
+      else outflow = outflow.plus(override.netBase);
+    } else {
+      const actual = confirmedAmt(t as Parameters<typeof confirmedAmt>[0]);
+      const inBase = convertToBase(actual, t.currencyCode, baseCcy, rates);
+      if (!inBase) continue;
+      if (t.kind === TransactionKind.INCOME) inflow = inflow.plus(inBase);
+      else outflow = outflow.plus(inBase);
+    }
   }
 
   const net = inflow.minus(outflow);
@@ -178,25 +189,8 @@ export const getCategoryPie = cache(async (
   range: DateRange,
   baseCcy: string,
 ): Promise<CategoryPieSlice[]> => {
-  const [rows, rates, categories] = await Promise.all([
-    db.transaction.findMany({
-      where: {
-        userId,
-        deletedAt: null,
-        occurredAt: { gte: range.from, lte: range.to },
-        kind: TransactionKind.EXPENSE,
-        transferId: null,
-        status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
-        categoryId: { not: null },
-      },
-      select: {
-        categoryId: true,
-        status: true,
-        amount: true,
-        currencyCode: true,
-        facts: { select: { amount: true } },
-      },
-    }),
+  const [proj, rates, categories] = await Promise.all([
+    getCompensationProjection(userId),
     getLatestRatesMap(),
     db.category.findMany({
       where: { userId, kind: "EXPENSE" },
@@ -204,15 +198,46 @@ export const getCategoryPie = cache(async (
     }),
   ]);
 
+  const rows = await db.transaction.findMany({
+    where: {
+      userId,
+      deletedAt: null,
+      occurredAt: { gte: range.from, lte: range.to },
+      kind: TransactionKind.EXPENSE,
+      transferId: null,
+      status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
+      categoryId: { not: null },
+      ...proj.whereExcludeNonMain,
+    },
+    select: {
+      id: true,
+      categoryId: true,
+      status: true,
+      amount: true,
+      currencyCode: true,
+      facts: { select: { amount: true } },
+    },
+  });
+
   const catMap = new Map(categories.map((c) => [c.id, c]));
   const byCat = new Map<string, Prisma.Decimal>();
 
   for (const t of rows) {
     if (!t.categoryId) continue;
-    const actual = confirmedAmt(t as Parameters<typeof confirmedAmt>[0]);
-    const inBase = convertToBase(actual, t.currencyCode, baseCcy, rates);
-    if (!inBase) continue;
-    byCat.set(t.categoryId, (byCat.get(t.categoryId) ?? new Prisma.Decimal(0)).plus(inBase));
+    const override = proj.rewriteAmount(t.id);
+    let inBase: Prisma.Decimal | undefined;
+    let catId = t.categoryId;
+    if (override) {
+      inBase = override.netBase;
+      const groupInfo = proj.groupByMainTxnId.get(t.id);
+      if (groupInfo?.categoryIdForAggregation) catId = groupInfo.categoryIdForAggregation;
+    } else {
+      const actual = confirmedAmt(t as Parameters<typeof confirmedAmt>[0]);
+      const converted = convertToBase(actual, t.currencyCode, baseCcy, rates);
+      if (!converted) continue;
+      inBase = converted;
+    }
+    byCat.set(catId, (byCat.get(catId) ?? new Prisma.Decimal(0)).plus(inBase));
   }
 
   let total = new Prisma.Decimal(0);
@@ -250,7 +275,16 @@ export const getPeriodCompare = cache(async (
     to: new Date(range.to.getTime() - rangeLen),
   };
 
-  const [currentRows, prevRows, rates, categories] = await Promise.all([
+  const [proj, rates, categories] = await Promise.all([
+    getCompensationProjection(userId),
+    getLatestRatesMap(),
+    db.category.findMany({
+      where: { userId, kind: "EXPENSE" },
+      select: { id: true, name: true, icon: true },
+    }),
+  ]);
+
+  const [currentRows, prevRows] = await Promise.all([
     db.transaction.findMany({
       where: {
         userId,
@@ -260,8 +294,10 @@ export const getPeriodCompare = cache(async (
         transferId: null,
         status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
         categoryId: { not: null },
+        ...proj.whereExcludeNonMain,
       },
       select: {
+        id: true,
         categoryId: true,
         status: true,
         amount: true,
@@ -278,19 +314,16 @@ export const getPeriodCompare = cache(async (
         transferId: null,
         status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
         categoryId: { not: null },
+        ...proj.whereExcludeNonMain,
       },
       select: {
+        id: true,
         categoryId: true,
         status: true,
         amount: true,
         currencyCode: true,
         facts: { select: { amount: true } },
       },
-    }),
-    getLatestRatesMap(),
-    db.category.findMany({
-      where: { userId, kind: "EXPENSE" },
-      select: { id: true, name: true, icon: true },
     }),
   ]);
 
@@ -300,10 +333,20 @@ export const getPeriodCompare = cache(async (
     const map = new Map<string, Prisma.Decimal>();
     for (const t of txns) {
       if (!t.categoryId) continue;
-      const actual = confirmedAmt(t as Parameters<typeof confirmedAmt>[0]);
-      const inBase = convertToBase(actual, t.currencyCode, baseCcy, rates);
-      if (!inBase) continue;
-      map.set(t.categoryId, (map.get(t.categoryId) ?? new Prisma.Decimal(0)).plus(inBase));
+      const override = proj.rewriteAmount(t.id);
+      let inBase: Prisma.Decimal | undefined;
+      let catId = t.categoryId;
+      if (override) {
+        inBase = override.netBase;
+        const groupInfo = proj.groupByMainTxnId.get(t.id);
+        if (groupInfo?.categoryIdForAggregation) catId = groupInfo.categoryIdForAggregation;
+      } else {
+        const actual = confirmedAmt(t as Parameters<typeof confirmedAmt>[0]);
+        const converted = convertToBase(actual, t.currencyCode, baseCcy, rates);
+        if (!converted) continue;
+        inBase = converted;
+      }
+      map.set(catId, (map.get(catId) ?? new Prisma.Decimal(0)).plus(inBase));
     }
     return map;
   };
@@ -358,28 +401,32 @@ export const getTrendPoints = cache(async (
   granularity: "weekly" | "monthly" = "monthly",
   tz: string = DEFAULT_TZ,
 ): Promise<TrendPoint[]> => {
-  const [rows, rates] = await Promise.all([
-    db.transaction.findMany({
-      where: {
-        userId,
-        deletedAt: null,
-        occurredAt: { gte: range.from, lte: range.to },
-        kind: { in: [TransactionKind.INCOME, TransactionKind.EXPENSE] },
-        transferId: null,
-        status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
-      },
-      select: {
-        kind: true,
-        status: true,
-        amount: true,
-        currencyCode: true,
-        occurredAt: true,
-        facts: { select: { amount: true } },
-      },
-      orderBy: { occurredAt: "asc" },
-    }),
+  const [proj, rates] = await Promise.all([
+    getCompensationProjection(userId),
     getLatestRatesMap(),
   ]);
+
+  const rows = await db.transaction.findMany({
+    where: {
+      userId,
+      deletedAt: null,
+      occurredAt: { gte: range.from, lte: range.to },
+      kind: { in: [TransactionKind.INCOME, TransactionKind.EXPENSE] },
+      transferId: null,
+      status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
+      ...proj.whereExcludeNonMain,
+    },
+    select: {
+      id: true,
+      kind: true,
+      status: true,
+      amount: true,
+      currencyCode: true,
+      occurredAt: true,
+      facts: { select: { amount: true } },
+    },
+    orderBy: { occurredAt: "asc" },
+  });
 
   type Bucket = { inflow: Prisma.Decimal; outflow: Prisma.Decimal };
   const buckets = new Map<string, Bucket>();
@@ -399,14 +446,19 @@ export const getTrendPoints = cache(async (
     }
     const bucket = buckets.get(key)!;
 
-    const actual = confirmedAmt(t as Parameters<typeof confirmedAmt>[0]);
-    const inBase = convertToBase(actual, t.currencyCode, baseCcy, rates);
-    if (!inBase) continue;
-
-    if (t.kind === TransactionKind.INCOME) {
-      bucket.inflow = bucket.inflow.plus(inBase);
+    const override = proj.rewriteAmount(t.id);
+    if (override) {
+      if (override.sign === 1) bucket.inflow = bucket.inflow.plus(override.netBase);
+      else bucket.outflow = bucket.outflow.plus(override.netBase);
     } else {
-      bucket.outflow = bucket.outflow.plus(inBase);
+      const actual = confirmedAmt(t as Parameters<typeof confirmedAmt>[0]);
+      const inBase = convertToBase(actual, t.currencyCode, baseCcy, rates);
+      if (!inBase) continue;
+      if (t.kind === TransactionKind.INCOME) {
+        bucket.inflow = bucket.inflow.plus(inBase);
+      } else {
+        bucket.outflow = bucket.outflow.plus(inBase);
+      }
     }
   }
 
@@ -438,7 +490,12 @@ export const getWeather = cache(async (
   // Последние 3 месяца для storm-check
   const threeMonthsAgo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 3, 1));
 
-  const [lastMonthRows, last3MonthsRows, rates] = await Promise.all([
+  const [proj, rates] = await Promise.all([
+    getCompensationProjection(userId),
+    getLatestRatesMap(),
+  ]);
+
+  const [lastMonthRows, last3MonthsRows] = await Promise.all([
     db.transaction.findMany({
       where: {
         userId,
@@ -447,8 +504,10 @@ export const getWeather = cache(async (
         kind: { in: [TransactionKind.INCOME, TransactionKind.EXPENSE] },
         transferId: null,
         status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
+        ...proj.whereExcludeNonMain,
       },
       select: {
+        id: true,
         kind: true,
         status: true,
         amount: true,
@@ -464,8 +523,10 @@ export const getWeather = cache(async (
         kind: { in: [TransactionKind.INCOME, TransactionKind.EXPENSE] },
         transferId: null,
         status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
+        ...proj.whereExcludeNonMain,
       },
       select: {
+        id: true,
         kind: true,
         status: true,
         amount: true,
@@ -474,18 +535,23 @@ export const getWeather = cache(async (
         facts: { select: { amount: true } },
       },
     }),
-    getLatestRatesMap(),
   ]);
 
   // savingsRate по последнему месяцу
   let lastMonthInflow = new Prisma.Decimal(0);
   let lastMonthOutflow = new Prisma.Decimal(0);
   for (const t of lastMonthRows) {
-    const actual = confirmedAmt(t as Parameters<typeof confirmedAmt>[0]);
-    const inBase = convertToBase(actual, t.currencyCode, baseCcy, rates);
-    if (!inBase) continue;
-    if (t.kind === TransactionKind.INCOME) lastMonthInflow = lastMonthInflow.plus(inBase);
-    else lastMonthOutflow = lastMonthOutflow.plus(inBase);
+    const override = proj.rewriteAmount(t.id);
+    if (override) {
+      if (override.sign === 1) lastMonthInflow = lastMonthInflow.plus(override.netBase);
+      else lastMonthOutflow = lastMonthOutflow.plus(override.netBase);
+    } else {
+      const actual = confirmedAmt(t as Parameters<typeof confirmedAmt>[0]);
+      const inBase = convertToBase(actual, t.currencyCode, baseCcy, rates);
+      if (!inBase) continue;
+      if (t.kind === TransactionKind.INCOME) lastMonthInflow = lastMonthInflow.plus(inBase);
+      else lastMonthOutflow = lastMonthOutflow.plus(inBase);
+    }
   }
 
   const lastMonthNet = lastMonthInflow.minus(lastMonthOutflow);
@@ -503,11 +569,17 @@ export const getWeather = cache(async (
       monthlyBuckets.set(key, { inflow: new Prisma.Decimal(0), outflow: new Prisma.Decimal(0) });
     }
     const bucket = monthlyBuckets.get(key)!;
-    const actual = confirmedAmt(t as Parameters<typeof confirmedAmt>[0]);
-    const inBase = convertToBase(actual, t.currencyCode, baseCcy, rates);
-    if (!inBase) continue;
-    if (t.kind === TransactionKind.INCOME) bucket.inflow = bucket.inflow.plus(inBase);
-    else bucket.outflow = bucket.outflow.plus(inBase);
+    const override = proj.rewriteAmount(t.id);
+    if (override) {
+      if (override.sign === 1) bucket.inflow = bucket.inflow.plus(override.netBase);
+      else bucket.outflow = bucket.outflow.plus(override.netBase);
+    } else {
+      const actual = confirmedAmt(t as Parameters<typeof confirmedAmt>[0]);
+      const inBase = convertToBase(actual, t.currencyCode, baseCcy, rates);
+      if (!inBase) continue;
+      if (t.kind === TransactionKind.INCOME) bucket.inflow = bucket.inflow.plus(inBase);
+      else bucket.outflow = bucket.outflow.plus(inBase);
+    }
   }
 
   // Берём последние 3 месяца в правильном порядке
@@ -553,33 +625,43 @@ export const getForecastMonth = cache(async (
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999));
 
-  const [rows, rates] = await Promise.all([
-    db.transaction.findMany({
-      where: {
-        userId,
-        deletedAt: null,
-        occurredAt: { gte: monthStart, lte: monthEnd },
-        kind: { in: [TransactionKind.INCOME, TransactionKind.EXPENSE] },
-        transferId: null,
-        status: { notIn: [TransactionStatus.CANCELLED] },
-      },
-      select: {
-        kind: true,
-        amount: true,
-        currencyCode: true,
-      },
-    }),
+  const [proj, rates] = await Promise.all([
+    getCompensationProjection(userId),
     getLatestRatesMap(),
   ]);
+
+  const rows = await db.transaction.findMany({
+    where: {
+      userId,
+      deletedAt: null,
+      occurredAt: { gte: monthStart, lte: monthEnd },
+      kind: { in: [TransactionKind.INCOME, TransactionKind.EXPENSE] },
+      transferId: null,
+      status: { notIn: [TransactionStatus.CANCELLED] },
+      ...proj.whereExcludeNonMain,
+    },
+    select: {
+      id: true,
+      kind: true,
+      amount: true,
+      currencyCode: true,
+    },
+  });
 
   let inflow = new Prisma.Decimal(0);
   let outflow = new Prisma.Decimal(0);
 
   for (const t of rows) {
-    const inBase = convertToBase(t.amount, t.currencyCode, baseCcy, rates);
-    if (!inBase) continue;
-    if (t.kind === TransactionKind.INCOME) inflow = inflow.plus(inBase);
-    else outflow = outflow.plus(inBase);
+    const override = proj.rewriteAmount(t.id);
+    if (override) {
+      if (override.sign === 1) inflow = inflow.plus(override.netBase);
+      else outflow = outflow.plus(override.netBase);
+    } else {
+      const inBase = convertToBase(t.amount, t.currencyCode, baseCcy, rates);
+      if (!inBase) continue;
+      if (t.kind === TransactionKind.INCOME) inflow = inflow.plus(inBase);
+      else outflow = outflow.plus(inBase);
+    }
   }
 
   const net = inflow.minus(outflow);
