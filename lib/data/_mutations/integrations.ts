@@ -532,6 +532,39 @@ export async function syncCredential(
                   const categoryId = resolvedCategoryIds[rowIdx] ?? null;
 
                   if (row.externalId) {
+                    // Fingerprint check: Tinkoff rotates externalId when auth→settled.
+                    // Find a row with identical (accountId, source, occurredAt, amount, currencyCode, kind)
+                    // but a DIFFERENT externalId — that's the same physical op under a new id.
+                    const existingByFingerprint = await tx.transaction.findFirst({
+                      where: {
+                        accountId,
+                        source,
+                        occurredAt: new Date(row.occurredAt),
+                        amount: row.amount,
+                        currencyCode: row.currencyCode,
+                        kind,
+                        name,
+                        deletedAt: null,
+                        externalId: { not: row.externalId },
+                      },
+                      select: { id: true, externalId: true },
+                    });
+                    if (existingByFingerprint) {
+                      console.log(`[persist] fingerprint-match bucket=A: replacing externalId ${existingByFingerprint.externalId} -> ${row.externalId} on tx=${existingByFingerprint.id} accountId=${accountId} source=${source}`);
+                      await tx.transaction.update({
+                        where: { id: existingByFingerprint.id },
+                        data: {
+                          externalId: row.externalId,
+                          kind,
+                          amount: row.amount,
+                          name,
+                          occurredAt: new Date(row.occurredAt),
+                          ...(row.note !== undefined ? { note: row.note } : {}),
+                          // do not update categoryId — preserve manual re-categorization
+                        },
+                      });
+                      continue;
+                    }
                     // Upsert: DB constraint importDedupe(accountId, source, externalId) handles dedupe.
                     console.log(`[persist] adapter=${cred.adapterId} bucket=A path=upsert accountId=${accountId} source=${source} externalId=${row.externalId} amount=${row.amount} occurredAt=${row.occurredAt}`);
                     await tx.transaction.upsert({
@@ -693,6 +726,37 @@ export async function syncCredential(
                 const bucketBSource = row.source ?? cred.adapterId;
 
                 if (row.externalId) {
+                  // Fingerprint check: Tinkoff rotates externalId when auth→settled.
+                  const existingByFingerprintB = await tx.transaction.findFirst({
+                    where: {
+                      accountId,
+                      source: bucketBSource,
+                      occurredAt: new Date(row.occurredAt),
+                      amount: row.amount,
+                      currencyCode: row.currencyCode,
+                      kind,
+                      name,
+                      deletedAt: null,
+                      externalId: { not: row.externalId },
+                    },
+                    select: { id: true, externalId: true },
+                  });
+                  if (existingByFingerprintB) {
+                    console.log(`[persist] fingerprint-match bucket=B: replacing externalId ${existingByFingerprintB.externalId} -> ${row.externalId} on tx=${existingByFingerprintB.id} accountId=${accountId} source=${bucketBSource}`);
+                    await tx.transaction.update({
+                      where: { id: existingByFingerprintB.id },
+                      data: {
+                        externalId: row.externalId,
+                        kind,
+                        amount: row.amount,
+                        name,
+                        occurredAt: new Date(row.occurredAt),
+                        ...(row.note !== undefined ? { note: row.note } : {}),
+                        // do not update categoryId — preserve manual re-categorization
+                      },
+                    });
+                    continue;
+                  }
                   // Upsert: DB constraint importDedupe(accountId, source, externalId) handles dedupe.
                   console.log(`[persist] adapter=${cred.adapterId} bucket=B path=upsert accountId=${accountId} source=${bucketBSource} externalId=${row.externalId} amount=${row.amount} occurredAt=${row.occurredAt}`);
                   await tx.transaction.upsert({
