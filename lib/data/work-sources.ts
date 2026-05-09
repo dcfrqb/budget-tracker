@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { db } from "@/lib/db";
-import { Prisma, TransactionKind, TransactionStatus } from "@prisma/client";
+import { Prisma, TransactionKind, TransactionStatus, FreelanceOrderStatus } from "@prisma/client";
 import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
 import { startOfMonthUtcInTz, periodBounds } from "@/lib/data/_period";
 import type { PeriodCode } from "@/lib/data/_period";
@@ -494,6 +494,143 @@ export const getEmploymentMonthlyPlanFact = cache(
       actual: bucket.total,
       delta: expected ? bucket.total.minus(expected) : bucket.total,
     }));
+  },
+);
+
+// ─────────────────────────────────────────────────────────────
+// Freelance latency KPIs
+// ─────────────────────────────────────────────────────────────
+
+export type FreelanceLatencyKpis = {
+  avgDaysToPay: number | null;
+  latePaymentStreak: number;
+};
+
+export const getFreelanceLatencyKpis = cache(
+  async (
+    userId: string,
+    workSourceId: string,
+    bounds: { from: Date; to: Date },
+  ): Promise<FreelanceLatencyKpis> => {
+    const orders = await db.freelanceOrder.findMany({
+      where: {
+        userId,
+        workSourceId,
+        status: FreelanceOrderStatus.COMPLETED,
+        performedAt: { gte: bounds.from, lte: bounds.to },
+        paidAt: { not: null },
+      },
+      orderBy: { performedAt: "desc" },
+      select: { performedAt: true, paidAt: true },
+    });
+
+    const qualifying = orders.filter(
+      (o) => o.performedAt != null && o.paidAt != null,
+    ) as Array<{ performedAt: Date; paidAt: Date }>;
+
+    if (qualifying.length === 0) {
+      return { avgDaysToPay: null, latePaymentStreak: 0 };
+    }
+
+    const MS_PER_DAY = 86_400_000;
+    const LATE_THRESHOLD_DAYS = 14;
+
+    let totalDays = 0;
+    for (const o of qualifying) {
+      totalDays += (o.paidAt.getTime() - o.performedAt.getTime()) / MS_PER_DAY;
+    }
+    const avgDaysToPay =
+      Math.round((totalDays / qualifying.length) * 10) / 10;
+
+    let latePaymentStreak = 0;
+    for (const o of qualifying) {
+      const days =
+        (o.paidAt.getTime() - o.performedAt.getTime()) / MS_PER_DAY;
+      if (days > LATE_THRESHOLD_DAYS) {
+        latePaymentStreak++;
+      } else {
+        break;
+      }
+    }
+
+    return { avgDaysToPay, latePaymentStreak };
+  },
+);
+
+// ─────────────────────────────────────────────────────────────
+// Synthetic forecast (employment, MONTHLY, next N paydays)
+// ─────────────────────────────────────────────────────────────
+
+export type SyntheticForecastEntry = {
+  expectedAt: Date;
+  amount: Prisma.Decimal;
+  currencyCode: string;
+};
+
+function daysInMonth(year: number, month: number): number {
+  return new Date(year, month + 1, 0).getDate();
+}
+
+export const getSyntheticForecast = cache(
+  async (
+    userId: string,
+    workSourceId: string,
+    count: number = 3,
+  ): Promise<SyntheticForecastEntry[]> => {
+    const ws = await db.workSource.findFirst({
+      where: { id: workSourceId, userId },
+    });
+
+    if (
+      !ws ||
+      ws.kind !== "EMPLOYMENT" ||
+      ws.rateType !== "MONTHLY" ||
+      !ws.rateAmount ||
+      !ws.payDay
+    ) {
+      return [];
+    }
+
+    const tz = await getCurrentUserTz();
+    const now = new Date();
+    const amount = ws.premiumAmount
+      ? new Prisma.Decimal(ws.rateAmount).plus(ws.premiumAmount)
+      : new Prisma.Decimal(ws.rateAmount);
+
+    const result: SyntheticForecastEntry[] = [];
+    const payDay = ws.payDay;
+
+    const nowLocal = new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(now);
+    const [localYear, localMonth, localDay] = nowLocal
+      .split("-")
+      .map(Number) as [number, number, number];
+
+    let year = localYear;
+    let month = localMonth - 1; // 0-indexed
+
+    const clampedDay = Math.min(payDay, daysInMonth(year, month));
+    if (localDay >= clampedDay) {
+      month += 1;
+      if (month > 11) { month = 0; year += 1; }
+    }
+
+    while (result.length < count) {
+      const dim = daysInMonth(year, month);
+      const day = Math.min(payDay, dim);
+      const expectedAt = new Date(
+        Date.UTC(year, month, day),
+      );
+      result.push({ expectedAt, amount, currencyCode: ws.currencyCode });
+      month += 1;
+      if (month > 11) { month = 0; year += 1; }
+    }
+
+    return result;
   },
 );
 

@@ -672,6 +672,13 @@ export const ruDict = {
           effective_rate: "Эфф. часовая ставка",
           estimated_tax: "Расчётный налог",
           tax_hint: "Σ доход × {pct}%, не учитывает реально уплаченный",
+          avg_days_to_pay: "Средн. срок оплаты",
+          late_streak: "Подряд просрочены",
+          days_unit: "дн.",
+        },
+        forecast: {
+          title: "Прогноз ближайших выплат",
+          note: "Прогноз, не записан в базу",
         },
         chart: {
           monthly: "Помесячно",

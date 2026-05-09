@@ -664,6 +664,13 @@ export const enDict: RuDictShape = {
           effective_rate: "Effective hourly rate",
           estimated_tax: "Estimated tax",
           tax_hint: "Σ income × {pct}%, ignores what's actually paid",
+          avg_days_to_pay: "Avg time to pay",
+          late_streak: "Late streak",
+          days_unit: "days",
+        },
+        forecast: {
+          title: "Upcoming expected payments",
+          note: "Synthetic forecast (not in DB)",
         },
         chart: {
           monthly: "Monthly",

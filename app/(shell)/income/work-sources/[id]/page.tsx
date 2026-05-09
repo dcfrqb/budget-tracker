@@ -11,6 +11,8 @@ import {
   getWorkSourceTransactions,
   getWorkSourceFreelanceOrders,
   getEmploymentMonthlyPlanFact,
+  getFreelanceLatencyKpis,
+  getSyntheticForecast,
 } from "@/lib/data/work-sources";
 import { TransactionStatus } from "@prisma/client";
 import { DetailHeader } from "@/components/income/detail/detail-header";
@@ -21,6 +23,8 @@ import { CumulativeLineChart } from "@/components/income/detail/cumulative-line-
 import { TransactionsList } from "@/components/income/detail/transactions-list";
 import { FreelanceOrdersPanel } from "@/components/income/detail/freelance-orders-panel";
 import { EmploymentPlanGrid } from "@/components/income/detail/employment-plan-grid";
+import { FreelanceLatencyKpisBlock } from "@/components/income/detail/freelance-latency-kpis";
+import { SyntheticForecastBlock } from "@/components/income/detail/synthetic-forecast-block";
 
 export const dynamic = "force-dynamic";
 
@@ -69,13 +73,17 @@ export default async function WorkSourceDetailPage({ params, searchParams }: Pro
   const isFreelance = source.kind === "FREELANCE";
   const isEmployment = source.kind === "EMPLOYMENT";
 
-  const freelanceOrders = isFreelance
-    ? await getWorkSourceFreelanceOrders(userId, id, bounds)
-    : [];
-
-  const planRows = isEmployment
-    ? await getEmploymentMonthlyPlanFact(userId, id, bounds)
-    : [];
+  const [freelanceOrders, planRows, freelanceLatency, syntheticForecast] =
+    await Promise.all([
+      isFreelance ? getWorkSourceFreelanceOrders(userId, id, bounds) : Promise.resolve([]),
+      isEmployment ? getEmploymentMonthlyPlanFact(userId, id, bounds) : Promise.resolve([]),
+      isFreelance
+        ? getFreelanceLatencyKpis(userId, id, bounds)
+        : Promise.resolve(null),
+      isEmployment
+        ? getSyntheticForecast(userId, id, 3)
+        : Promise.resolve([]),
+    ]);
 
   const taxRatePct = source.taxRatePct ? Number(source.taxRatePct.toString()) : null;
 
@@ -89,11 +97,19 @@ export default async function WorkSourceDetailPage({ params, searchParams }: Pro
         sourceCcy={source.currencyCode}
         baseCcy={DEFAULT_CURRENCY}
       />
-      <MonthlyBarChart series={monthlySeries} sourceCcy={source.currencyCode} />
-      <CumulativeLineChart series={monthlySeries} sourceCcy={source.currencyCode} />
+      <div className="ws-chart-row">
+        <MonthlyBarChart series={monthlySeries} sourceCcy={source.currencyCode} />
+        <CumulativeLineChart series={monthlySeries} sourceCcy={source.currencyCode} />
+      </div>
       {isFreelance && <FreelanceOrdersPanel orders={freelanceOrders} />}
+      {isFreelance && freelanceLatency && (
+        <FreelanceLatencyKpisBlock kpis={freelanceLatency} />
+      )}
       {isEmployment && (
         <EmploymentPlanGrid rows={planRows} sourceCcy={source.currencyCode} />
+      )}
+      {isEmployment && (
+        <SyntheticForecastBlock entries={syntheticForecast} />
       )}
       <TransactionsList
         txns={txns}
