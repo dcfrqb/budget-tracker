@@ -53,6 +53,14 @@
   --space-5: 20px;
   --space-6: 24px;
 
+  /* short-hand aliases used across components */
+  --sp-1: var(--space-1);
+  --sp-2: var(--space-2);
+  --sp-3: var(--space-3);
+  --sp-4: var(--space-4);
+  --sp-5: var(--space-5);
+  --sp-6: var(--space-6);
+
   /* typography scale */
   --text-xs:  11px;
   --text-sm:  12px;

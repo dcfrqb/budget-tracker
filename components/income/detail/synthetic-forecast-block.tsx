@@ -31,7 +31,7 @@ export async function SyntheticForecastBlock({ entries }: Props) {
       <div className="section-body">
         {entries.map((entry, i) => (
           <div
-            key={i}
+            key={entry.expectedAt.toISOString()}
             style={{
               display: "flex",
               justifyContent: "space-between",

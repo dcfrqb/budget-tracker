@@ -51,20 +51,19 @@ export default function WorkSourceDetailLoading() {
         </div>
       </div>
 
-      {/* Chart placeholder 1 (bar) */}
+      {/* Chart placeholders (bar + line) — single section matching ws-chart-row */}
       <div
+        className="ws-chart-row"
         style={{ padding: "var(--sp-3)", borderBottom: "1px solid var(--border)" }}
       >
-        <div className="skeleton-block" style={{ width: 80, height: 12, marginBottom: 8 }} />
-        <div className="skeleton-block" style={{ width: "100%", height: 100, borderRadius: 3 }} />
-      </div>
-
-      {/* Chart placeholder 2 (line) */}
-      <div
-        style={{ padding: "var(--sp-3)", borderBottom: "1px solid var(--border)" }}
-      >
-        <div className="skeleton-block" style={{ width: 100, height: 12, marginBottom: 8 }} />
-        <div className="skeleton-block" style={{ width: "100%", height: 100, borderRadius: 3 }} />
+        <div>
+          <div className="skeleton-block" style={{ width: 80, height: 12, marginBottom: 8 }} />
+          <div className="skeleton-block" style={{ width: "100%", height: 100, borderRadius: 3 }} />
+        </div>
+        <div>
+          <div className="skeleton-block" style={{ width: 100, height: 12, marginBottom: 8 }} />
+          <div className="skeleton-block" style={{ width: "100%", height: 100, borderRadius: 3 }} />
+        </div>
       </div>
 
       {/* Optional panel placeholder */}

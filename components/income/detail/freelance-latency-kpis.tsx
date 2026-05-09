@@ -33,7 +33,7 @@ export async function FreelanceLatencyKpisBlock({ kpis }: Props) {
             borderRadius: 4,
             display: "flex",
             flexDirection: "column",
-            gap: 4,
+            gap: "var(--space-1)",
           }}
         >
           <div
@@ -63,7 +63,7 @@ export async function FreelanceLatencyKpisBlock({ kpis }: Props) {
             borderRadius: 4,
             display: "flex",
             flexDirection: "column",
-            gap: 4,
+            gap: "var(--space-1)",
           }}
         >
           <div
