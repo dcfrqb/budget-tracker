@@ -2,6 +2,12 @@ import { cache } from "react";
 import { db } from "@/lib/db";
 import { Prisma, TransactionKind, TransactionStatus } from "@prisma/client";
 import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
+import { startOfMonthUtcInTz, periodBounds } from "@/lib/data/_period";
+import type { PeriodCode } from "@/lib/data/_period";
+import { convertToBase, getLatestRatesMap } from "@/lib/data/wallet";
+import { HOURS_PER_MONTH_DEFAULT } from "@/lib/constants";
+
+export type { PeriodCode };
 
 export const getActiveWorkSources = cache(async (userId: string) => {
   return db.workSource.findMany({
@@ -41,106 +47,109 @@ export type WorkSourceCardSummary = {
   nextExpectedAt: Date | null;
 };
 
-function startOfMonthUtcInTz(tz: string, now: Date = new Date()): Date {
-  const ymFmt = new Intl.DateTimeFormat("en-US", { timeZone: tz, year: "numeric", month: "2-digit" });
-  const ymParts = ymFmt.formatToParts(now);
-  const year = Number(ymParts.find(p => p.type === "year")!.value);
-  const month = Number(ymParts.find(p => p.type === "month")!.value);
-  // Naive UTC midnight for that year/month
-  const naive = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
-  // Determine what that naive UTC instant looks like in the target TZ
-  const wallFmt = new Intl.DateTimeFormat("en-US", {
-    timeZone: tz,
-    year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
-  });
-  const wallParts = wallFmt.formatToParts(naive);
-  const get = (t: string) => Number(wallParts.find(p => p.type === t)!.value);
-  const asTzMs = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour") % 24, get("minute"), get("second"));
-  const offsetMs = asTzMs - naive.getTime();
-  return new Date(naive.getTime() - offsetMs);
-}
+// ─────────────────────────────────────────────────────────────
+// getWorkSourceCardSummaries — N+1 refactored to batch queries
+// ─────────────────────────────────────────────────────────────
 
-export const getWorkSourceCardSummaries = cache(async (userId: string): Promise<WorkSourceCardSummary[]> => {
-  const tz = await getCurrentUserTz();
+export const getWorkSourceCardSummaries = cache(
+  async (userId: string): Promise<WorkSourceCardSummary[]> => {
+    const tz = await getCurrentUserTz();
+    const now = new Date();
+    const mtdStart = startOfMonthUtcInTz(tz, now);
 
-  const now = new Date();
-  const mtdStart = startOfMonthUtcInTz(tz, now);
+    const sources = await db.workSource.findMany({
+      where: { userId },
+      orderBy: [{ isActive: "desc" }, { createdAt: "asc" }],
+    });
 
-  const sources = await db.workSource.findMany({
-    where: { userId },
-    orderBy: [
-      { isActive: "desc" },
-      { createdAt: "asc" },
-    ],
-  });
+    if (sources.length === 0) return [];
 
-  const results: WorkSourceCardSummary[] = await Promise.all(
-    sources.map(async (ws) => {
-      // Last payment (DONE or PARTIAL INCOME)
-      const lastTxn = await db.transaction.findFirst({
-        where: {
-          userId,
-          workSourceId: ws.id,
-          deletedAt: null,
-          kind: TransactionKind.INCOME,
-          status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
-        },
-        orderBy: { occurredAt: "desc" },
-        select: { occurredAt: true, amount: true, status: true, facts: { select: { amount: true } } },
-      });
+    const sourceIds = sources.map((s) => s.id);
+
+    // Batch: all DONE+PARTIAL income txns per source for last payment + MTD
+    const allDonePartialTxns = await db.transaction.findMany({
+      where: {
+        userId,
+        workSourceId: { in: sourceIds },
+        deletedAt: null,
+        kind: TransactionKind.INCOME,
+        status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
+      },
+      orderBy: { occurredAt: "desc" },
+      select: {
+        workSourceId: true,
+        occurredAt: true,
+        amount: true,
+        status: true,
+        facts: { select: { amount: true } },
+      },
+    });
+
+    // Batch: next planned income per source
+    const allNextPlanned = await db.transaction.findMany({
+      where: {
+        userId,
+        workSourceId: { in: sourceIds },
+        deletedAt: null,
+        kind: TransactionKind.INCOME,
+        status: TransactionStatus.PLANNED,
+        occurredAt: { gte: now },
+      },
+      orderBy: { occurredAt: "asc" },
+      select: { workSourceId: true, occurredAt: true },
+    });
+
+    // Build per-source maps
+    const lastTxnBySource = new Map<string, (typeof allDonePartialTxns)[0]>();
+    const mtdTxnsBySource = new Map<string, typeof allDonePartialTxns>();
+    const nextPlannedBySource = new Map<string, Date>();
+
+    for (const txn of allDonePartialTxns) {
+      if (!txn.workSourceId) continue;
+      if (!lastTxnBySource.has(txn.workSourceId)) {
+        lastTxnBySource.set(txn.workSourceId, txn);
+      }
+      if (txn.occurredAt >= mtdStart && txn.occurredAt <= now) {
+        const arr = mtdTxnsBySource.get(txn.workSourceId) ?? [];
+        arr.push(txn);
+        mtdTxnsBySource.set(txn.workSourceId, arr);
+      }
+    }
+
+    for (const txn of allNextPlanned) {
+      if (!txn.workSourceId) continue;
+      if (!nextPlannedBySource.has(txn.workSourceId)) {
+        nextPlannedBySource.set(txn.workSourceId, txn.occurredAt);
+      }
+    }
+
+    function effectiveAmount(
+      txn: (typeof allDonePartialTxns)[0],
+    ): Prisma.Decimal {
+      if (txn.status === TransactionStatus.DONE) {
+        return new Prisma.Decimal(txn.amount);
+      }
+      return txn.facts.reduce(
+        (s, f) => s.plus(f.amount),
+        new Prisma.Decimal(0),
+      );
+    }
+
+    return sources.map((ws) => {
+      const lastTxn = lastTxnBySource.get(ws.id) ?? null;
+      const mtdTxns = mtdTxnsBySource.get(ws.id) ?? [];
 
       let lastPaymentAt: Date | null = null;
       let lastPaymentAmount: Prisma.Decimal | null = null;
       if (lastTxn) {
         lastPaymentAt = lastTxn.occurredAt;
-        if (lastTxn.status === TransactionStatus.DONE) {
-          lastPaymentAmount = new Prisma.Decimal(lastTxn.amount);
-        } else {
-          lastPaymentAmount = lastTxn.facts.reduce(
-            (s, f) => s.plus(f.amount),
-            new Prisma.Decimal(0),
-          );
-        }
+        lastPaymentAmount = effectiveAmount(lastTxn);
       }
-
-      // MTD total
-      const mtdTxns = await db.transaction.findMany({
-        where: {
-          userId,
-          workSourceId: ws.id,
-          deletedAt: null,
-          kind: TransactionKind.INCOME,
-          status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
-          occurredAt: { gte: mtdStart, lte: now },
-        },
-        select: { amount: true, status: true, facts: { select: { amount: true } } },
-      });
 
       let mtdTotal = new Prisma.Decimal(0);
       for (const txn of mtdTxns) {
-        if (txn.status === TransactionStatus.DONE) {
-          mtdTotal = mtdTotal.plus(txn.amount);
-        } else {
-          mtdTotal = mtdTotal.plus(
-            txn.facts.reduce((s, f) => s.plus(f.amount), new Prisma.Decimal(0)),
-          );
-        }
+        mtdTotal = mtdTotal.plus(effectiveAmount(txn));
       }
-
-      // Next expected
-      const nextTxn = await db.transaction.findFirst({
-        where: {
-          userId,
-          workSourceId: ws.id,
-          deletedAt: null,
-          kind: TransactionKind.INCOME,
-          status: TransactionStatus.PLANNED,
-          occurredAt: { gte: now },
-        },
-        orderBy: { occurredAt: "asc" },
-        select: { occurredAt: true },
-      });
 
       return {
         id: ws.id,
@@ -156,10 +165,337 @@ export const getWorkSourceCardSummaries = cache(async (userId: string): Promise<
         lastPaymentAt,
         lastPaymentAmount,
         mtdTotal,
-        nextExpectedAt: nextTxn?.occurredAt ?? null,
+        nextExpectedAt: nextPlannedBySource.get(ws.id) ?? null,
       };
-    }),
-  );
+    });
+  },
+);
 
-  return results;
-});
+// ─────────────────────────────────────────────────────────────
+// Detail page data functions
+// ─────────────────────────────────────────────────────────────
+
+export type WorkSourceDetail = {
+  source: Awaited<ReturnType<typeof db.workSource.findFirst>> & object;
+  txnCount: number;
+  lastTxnAt: Date | null;
+  hasLinkedTxns: boolean;
+};
+
+export const getWorkSourceWithCounts = cache(
+  async (userId: string, id: string): Promise<WorkSourceDetail | null> => {
+    const source = await db.workSource.findFirst({ where: { id, userId } });
+    if (!source) return null;
+
+    const [txnCount, lastTxn] = await Promise.all([
+      db.transaction.count({ where: { workSourceId: id, deletedAt: null } }),
+      db.transaction.findFirst({
+        where: { workSourceId: id, deletedAt: null },
+        orderBy: { occurredAt: "desc" },
+        select: { occurredAt: true },
+      }),
+    ]);
+
+    return {
+      source,
+      txnCount,
+      lastTxnAt: lastTxn?.occurredAt ?? null,
+      hasLinkedTxns: txnCount > 0,
+    };
+  },
+);
+
+export type WorkSourceMonthlyBucket = {
+  monthKey: string;
+  total: Prisma.Decimal;
+};
+
+export const getWorkSourceMonthlySeries = cache(
+  async (
+    userId: string,
+    workSourceId: string,
+    bounds: { from: Date; to: Date },
+  ): Promise<WorkSourceMonthlyBucket[]> => {
+    const tz = await getCurrentUserTz();
+
+    const txns = await db.transaction.findMany({
+      where: {
+        userId,
+        workSourceId,
+        deletedAt: null,
+        kind: TransactionKind.INCOME,
+        status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
+        occurredAt: { gte: bounds.from, lte: bounds.to },
+      },
+      select: {
+        occurredAt: true,
+        amount: true,
+        status: true,
+        facts: { select: { amount: true } },
+      },
+    });
+
+    // Group by TZ-local YYYY-MM
+    const bucketMap = new Map<string, Prisma.Decimal>();
+
+    const tzMonthFmt = new Intl.DateTimeFormat("en-US", {
+      timeZone: tz,
+      year: "numeric",
+      month: "2-digit",
+    });
+
+    for (const txn of txns) {
+      const parts = tzMonthFmt.formatToParts(txn.occurredAt);
+      const yr = parts.find((p) => p.type === "year")!.value;
+      const mo = parts.find((p) => p.type === "month")!.value;
+      const key = `${yr}-${mo}`;
+
+      const amount =
+        txn.status === TransactionStatus.DONE
+          ? new Prisma.Decimal(txn.amount)
+          : txn.facts.reduce(
+              (s, f) => s.plus(f.amount),
+              new Prisma.Decimal(0),
+            );
+
+      bucketMap.set(key, (bucketMap.get(key) ?? new Prisma.Decimal(0)).plus(amount));
+    }
+
+    // Build zero-filled series for all months in the bounds
+    const result: WorkSourceMonthlyBucket[] = [];
+    const cursor = startOfMonthUtcInTz(tz, bounds.from);
+    const end = bounds.to;
+
+    while (cursor <= end) {
+      const parts = tzMonthFmt.formatToParts(cursor);
+      const yr = parts.find((p) => p.type === "year")!.value;
+      const mo = parts.find((p) => p.type === "month")!.value;
+      const key = `${yr}-${mo}`;
+      result.push({ monthKey: key, total: bucketMap.get(key) ?? new Prisma.Decimal(0) });
+      cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+    }
+
+    return result;
+  },
+);
+
+export type WorkSourceKpis = {
+  totalIncome: Prisma.Decimal;
+  totalIncomeBase: Prisma.Decimal;
+  txnCount: number;
+  avgPerMonth: Prisma.Decimal;
+  lastPaymentAt: Date | null;
+  lastPaymentAmount: Prisma.Decimal | null;
+  nextExpectedAt: Date | null;
+  nextExpectedAmount: Prisma.Decimal | null;
+  estimatedTax: Prisma.Decimal;
+  effectiveHourlyRate: Prisma.Decimal | null;
+};
+
+export const getWorkSourceKpis = cache(
+  async (
+    userId: string,
+    workSourceId: string,
+    bounds: { from: Date; to: Date },
+    baseCurrency: string,
+  ): Promise<WorkSourceKpis> => {
+    const [ws, rates] = await Promise.all([
+      db.workSource.findFirst({ where: { id: workSourceId, userId } }),
+      getLatestRatesMap(),
+    ]);
+
+    const txns = await db.transaction.findMany({
+      where: {
+        userId,
+        workSourceId,
+        deletedAt: null,
+        kind: TransactionKind.INCOME,
+        status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
+        occurredAt: { gte: bounds.from, lte: bounds.to },
+      },
+      orderBy: { occurredAt: "desc" },
+      select: {
+        occurredAt: true,
+        amount: true,
+        currencyCode: true,
+        status: true,
+        facts: { select: { amount: true } },
+      },
+    });
+
+    let totalIncome = new Prisma.Decimal(0);
+    let totalIncomeBase = new Prisma.Decimal(0);
+    let lastPaymentAt: Date | null = null;
+    let lastPaymentAmount: Prisma.Decimal | null = null;
+
+    for (const txn of txns) {
+      const amount =
+        txn.status === TransactionStatus.DONE
+          ? new Prisma.Decimal(txn.amount)
+          : txn.facts.reduce(
+              (s, f) => s.plus(f.amount),
+              new Prisma.Decimal(0),
+            );
+
+      totalIncome = totalIncome.plus(amount);
+
+      const inBase = convertToBase(amount, txn.currencyCode, baseCurrency, rates);
+      if (inBase) totalIncomeBase = totalIncomeBase.plus(inBase);
+
+      if (!lastPaymentAt) {
+        lastPaymentAt = txn.occurredAt;
+        lastPaymentAmount = amount;
+      }
+    }
+
+    // Next planned
+    const nextTxn = await db.transaction.findFirst({
+      where: {
+        userId,
+        workSourceId,
+        deletedAt: null,
+        kind: TransactionKind.INCOME,
+        status: TransactionStatus.PLANNED,
+        occurredAt: { gte: new Date() },
+      },
+      orderBy: { occurredAt: "asc" },
+      select: { occurredAt: true, amount: true },
+    });
+
+    const numMonths = Math.max(
+      1,
+      Math.ceil(
+        (bounds.to.getTime() - bounds.from.getTime()) /
+          (1000 * 60 * 60 * 24 * 30),
+      ),
+    );
+
+    const avgPerMonth = totalIncome.div(numMonths);
+
+    const taxRatePct = ws?.taxRatePct ? new Prisma.Decimal(ws.taxRatePct) : new Prisma.Decimal(0);
+    const estimatedTax = totalIncome.times(taxRatePct).div(100);
+
+    // Effective hourly rate
+    let effectiveHourlyRate: Prisma.Decimal | null = null;
+    if (ws) {
+      const hoursPerMonth = ws.hoursPerMonth ?? HOURS_PER_MONTH_DEFAULT;
+      if (ws.rateType === "HOURLY" && ws.rateAmount) {
+        effectiveHourlyRate = new Prisma.Decimal(ws.rateAmount);
+      } else if (ws.rateType === "MONTHLY" && ws.rateAmount) {
+        effectiveHourlyRate = new Prisma.Decimal(ws.rateAmount).div(hoursPerMonth);
+      } else if (ws.rateType === "DAILY" && ws.rateAmount) {
+        effectiveHourlyRate = new Prisma.Decimal(ws.rateAmount).div(8);
+      }
+    }
+
+    return {
+      totalIncome,
+      totalIncomeBase,
+      txnCount: txns.length,
+      avgPerMonth,
+      lastPaymentAt,
+      lastPaymentAmount,
+      nextExpectedAt: nextTxn?.occurredAt ?? null,
+      nextExpectedAmount: nextTxn ? new Prisma.Decimal(nextTxn.amount) : null,
+      estimatedTax,
+      effectiveHourlyRate,
+    };
+  },
+);
+
+export type WorkSourceTransaction = Awaited<
+  ReturnType<typeof getWorkSourceTransactions>
+>[number];
+
+export const getWorkSourceTransactions = cache(
+  async (
+    userId: string,
+    workSourceId: string,
+    bounds: { from: Date; to: Date },
+    statusFilter?: TransactionStatus[],
+  ) => {
+    return db.transaction.findMany({
+      where: {
+        userId,
+        workSourceId,
+        deletedAt: null,
+        kind: TransactionKind.INCOME,
+        ...(statusFilter ? { status: { in: statusFilter } } : {}),
+        occurredAt: { gte: bounds.from, lte: bounds.to },
+      },
+      orderBy: { occurredAt: "desc" },
+      include: {
+        account: true,
+        category: true,
+        facts: { select: { amount: true } },
+      },
+    });
+  },
+);
+
+export type WorkSourceFreelanceOrder = Awaited<
+  ReturnType<typeof getWorkSourceFreelanceOrders>
+>[number];
+
+export const getWorkSourceFreelanceOrders = cache(
+  async (
+    userId: string,
+    workSourceId: string,
+    bounds: { from: Date; to: Date },
+  ) => {
+    return db.freelanceOrder.findMany({
+      where: {
+        userId,
+        workSourceId,
+        OR: [
+          { performedAt: { gte: bounds.from, lte: bounds.to } },
+          { paidAt: { gte: bounds.from, lte: bounds.to } },
+        ],
+      },
+      orderBy: [
+        { performedAt: { sort: "desc", nulls: "last" } },
+        { createdAt: "desc" },
+      ],
+    });
+  },
+);
+
+export type EmploymentMonthRow = {
+  monthKey: string;
+  expected: Prisma.Decimal | null;
+  actual: Prisma.Decimal;
+  delta: Prisma.Decimal;
+};
+
+export const getEmploymentMonthlyPlanFact = cache(
+  async (
+    userId: string,
+    workSourceId: string,
+    bounds: { from: Date; to: Date },
+  ): Promise<EmploymentMonthRow[]> => {
+    const ws = await db.workSource.findFirst({
+      where: { id: workSourceId, userId },
+    });
+
+    const series = await getWorkSourceMonthlySeries(userId, workSourceId, bounds);
+
+    // Expected per month = rateAmount (if MONTHLY) + premiumAmount
+    const rateAmount = ws?.rateType === "MONTHLY" && ws.rateAmount
+      ? new Prisma.Decimal(ws.rateAmount)
+      : null;
+    const premiumAmount = ws?.premiumAmount
+      ? new Prisma.Decimal(ws.premiumAmount)
+      : new Prisma.Decimal(0);
+    const expected = rateAmount ? rateAmount.plus(premiumAmount) : null;
+
+    return series.map((bucket) => ({
+      monthKey: bucket.monthKey,
+      expected,
+      actual: bucket.total,
+      delta: expected ? bucket.total.minus(expected) : bucket.total,
+    }));
+  },
+);
+
+// Re-export for backward compat with income/page.tsx imports
+export { periodBounds, startOfMonthUtcInTz };

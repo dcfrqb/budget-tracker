@@ -61,3 +61,12 @@ export async function deactivateWorkSource(userId: string, id: string) {
   await db.workSource.update({ where: { id }, data: { isActive: false } });
   return { id };
 }
+
+// Re-activate
+export async function activateWorkSource(userId: string, id: string) {
+  const existing = await getWorkSourceById(userId, id);
+  if (!existing) throw Object.assign(new Error("work source not found"), { code: "NOT_FOUND" });
+
+  await db.workSource.update({ where: { id }, data: { isActive: true } });
+  return { id };
+}

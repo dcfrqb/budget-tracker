@@ -75,10 +75,9 @@ export async function WorkSourcesSection({ items }: WorkSourcesSectionProps) {
               const hasPaymentSummary = src.lastPaymentLabel || src.mtdTotalLabel || src.nextExpectedLabel;
 
               return (
-                // TODO Phase 2: flip href to detail page /income/work-sources/${src.id} once it exists
                 <Link
                   key={src.id}
-                  href={`/income/work-sources/${src.id}/edit`}
+                  href={`/income/work-sources/${src.id}`}
                   className="ws-card"
                   tabIndex={0}
                   style={{ display: "flex", flexDirection: "column", gap: 10, textDecoration: "none" }}

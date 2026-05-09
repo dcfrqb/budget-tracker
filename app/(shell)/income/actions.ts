@@ -12,6 +12,7 @@ import {
   createWorkSource,
   updateWorkSource,
   deactivateWorkSource,
+  activateWorkSource,
 } from "@/lib/data/_mutations/work-sources";
 import {
   freelanceOrderCreateSchema,
@@ -74,6 +75,20 @@ export async function deactivateWorkSourceAction(id: string) {
   const userId = await getCurrentUserId();
   try {
     const result = await deactivateWorkSource(userId, id);
+    revalidateTag("work-sources", "default");
+    revalidatePath("/", "layout");
+    return actionOk(result);
+  } catch (e) {
+    const err = e as { code?: string };
+    if (err.code === "NOT_FOUND") return actionError("not_found");
+    return actionError("internal_error");
+  }
+}
+
+export async function activateWorkSourceAction(id: string) {
+  const userId = await getCurrentUserId();
+  try {
+    const result = await activateWorkSource(userId, id);
     revalidateTag("work-sources", "default");
     revalidatePath("/", "layout");
     return actionOk(result);

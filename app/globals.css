@@ -1087,6 +1087,20 @@ a { color: inherit; text-decoration: none; }
 .ws-amt.pos { color: var(--pos); }
 .ws-amt.acc { color: var(--accent); }
 
+/* Work-source detail page layout */
+.ws-detail { container-type: inline-size; container-name: wsdetail; }
+.ws-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-2);
+}
+@container wsdetail (max-width: 520px) {
+  .ws-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@container wsdetail (max-width: 380px) {
+  .ws-kpi-grid { grid-template-columns: 1fr; }
+}
+
 .stages { display: flex; gap: 6px; margin-top: 6px; }
 .stage {
   flex: 1; padding: 6px 8px;
