@@ -18,6 +18,7 @@ interface SelectFieldProps {
   hint?: string;
   required?: boolean;
   placeholder?: string;
+  disabled?: boolean;
 }
 
 export function SelectField({
@@ -28,6 +29,7 @@ export function SelectField({
   hint,
   required,
   placeholder,
+  disabled,
 }: SelectFieldProps) {
   return (
     <Field label={label} name={register.name} error={error} hint={hint} required={required}>
@@ -35,6 +37,7 @@ export function SelectField({
         {...register}
         id={register.name}
         aria-invalid={!!error}
+        disabled={disabled}
       >
         {placeholder && (
           <option value="" disabled>

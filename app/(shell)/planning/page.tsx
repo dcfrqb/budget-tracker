@@ -68,10 +68,12 @@ export default async function PlanningPage() {
   let hourlyRateLabel = "";
   if (primaryWorkSource) {
     const hoursPerMonth = primaryWorkSource.hoursPerMonth ?? HOURS_PER_MONTH_DEFAULT;
-    if (primaryWorkSource.hourlyRate) {
-      hourlyRate = new Prisma.Decimal(primaryWorkSource.hourlyRate);
-    } else if (primaryWorkSource.baseAmount) {
-      hourlyRate = new Prisma.Decimal(primaryWorkSource.baseAmount).div(hoursPerMonth);
+    if (primaryWorkSource.rateType === "HOURLY" && primaryWorkSource.rateAmount) {
+      hourlyRate = new Prisma.Decimal(primaryWorkSource.rateAmount);
+    } else if (primaryWorkSource.rateType === "MONTHLY" && primaryWorkSource.rateAmount) {
+      hourlyRate = new Prisma.Decimal(primaryWorkSource.rateAmount).div(hoursPerMonth);
+    } else if (primaryWorkSource.rateAmount) {
+      hourlyRate = new Prisma.Decimal(primaryWorkSource.rateAmount).div(hoursPerMonth);
     }
     if (hourlyRate) {
       hourlyRateLabel = `${formatMoney(hourlyRate, "RUB", { decimals: 0 })}/${t("common.unit.hour")}`;

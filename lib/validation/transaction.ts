@@ -2,7 +2,7 @@ import { z } from "zod";
 import { Scope, TransactionKind, TransactionStatus } from "@prisma/client";
 import { zCuid, zCurrencyCode, zIsoDate, zMoney } from "./shared";
 
-export const transactionCreateSchema = z.object({
+const transactionCreateBaseSchema = z.object({
   accountId: zCuid,
   categoryId: zCuid.nullish(),
   kind: z.nativeEnum(TransactionKind),
@@ -31,8 +31,16 @@ export const transactionCreateSchema = z.object({
   plannedEventId: zCuid.nullish(),
 });
 
+export const transactionCreateSchema = transactionCreateBaseSchema.superRefine((data, ctx) => {
+  if (data.kind === TransactionKind.INCOME) {
+    if (!data.workSourceId || data.workSourceId.trim() === "") {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "work_source_required", path: ["workSourceId"] });
+    }
+  }
+});
+
 // На update — kind/status/transferId менять нельзя (status через отдельные endpoint'ы).
-export const transactionUpdateSchema = transactionCreateSchema
+export const transactionUpdateSchema = transactionCreateBaseSchema
   .omit({ accountId: true, kind: true, status: true })
   .partial();
 

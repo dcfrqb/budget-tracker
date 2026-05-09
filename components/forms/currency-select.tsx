@@ -16,6 +16,7 @@ interface CurrencySelectProps {
   error?: string;
   required?: boolean;
   placeholder?: string;
+  disabled?: boolean;
 }
 
 export function CurrencySelect({
@@ -25,6 +26,7 @@ export function CurrencySelect({
   error,
   required,
   placeholder,
+  disabled,
 }: CurrencySelectProps) {
   const options = currencies.map((c) => ({
     value: c.code,
@@ -39,6 +41,7 @@ export function CurrencySelect({
       error={error}
       required={required}
       placeholder={placeholder}
+      disabled={disabled}
     />
   );
 }

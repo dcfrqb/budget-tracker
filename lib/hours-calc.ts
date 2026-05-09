@@ -27,37 +27,29 @@ export function computeHoursForAmount(input: HoursCalcInput): HoursCalcOutput {
     ? new Prisma.Decimal(workSource.taxRatePct).div(100)
     : new Prisma.Decimal(0);
 
-  // Вычисляем почасовую ставку (gross)
+  // Derive hourly rate from rateType + rateAmount
   let hourlyGross: Prisma.Decimal;
 
-  if (workSource.kind === "FREELANCE") {
-    if (!workSource.hourlyRate) {
-      throw new Error("hourly_rate_required_for_freelance");
-    }
-    hourlyGross = new Prisma.Decimal(workSource.hourlyRate);
-  } else if (workSource.kind === "EMPLOYMENT") {
-    if (!workSource.baseAmount) {
-      throw new Error("base_amount_required_for_employment");
-    }
-    hourlyGross = new Prisma.Decimal(workSource.baseAmount).div(hoursPerMonth);
+  if (workSource.rateType === "HOURLY" && workSource.rateAmount) {
+    hourlyGross = new Prisma.Decimal(workSource.rateAmount);
+  } else if (workSource.rateType === "MONTHLY" && workSource.rateAmount) {
+    hourlyGross = new Prisma.Decimal(workSource.rateAmount).div(hoursPerMonth);
+  } else if (workSource.rateType === "DAILY" && workSource.rateAmount) {
+    // Assume 8h/day
+    hourlyGross = new Prisma.Decimal(workSource.rateAmount).div(8);
+  } else if (workSource.rateAmount) {
+    // PER_TASK or COMMISSION_PCT — fall back to monthly-style division
+    hourlyGross = new Prisma.Decimal(workSource.rateAmount).div(hoursPerMonth);
   } else {
-    // ONE_TIME: если есть baseAmount — как EMPLOYMENT, иначе как FREELANCE
-    if (workSource.baseAmount) {
-      hourlyGross = new Prisma.Decimal(workSource.baseAmount).div(hoursPerMonth);
-    } else if (workSource.hourlyRate) {
-      hourlyGross = new Prisma.Decimal(workSource.hourlyRate);
-    } else {
-      throw new Error("base_amount_or_hourly_rate_required");
-    }
+    throw new Error("rate_amount_required");
   }
 
   // hourlyNet = hourlyGross * (1 - taxRate)
   const hourlyNet = hourlyGross.times(new Prisma.Decimal(1).minus(taxRate));
 
-  // Конвертируем amount в валюту workSource
+  // Convert amount to workSource currency
   const amountInSourceCcy = (() => {
     if (currencyCode === workSource.currencyCode) return amount;
-    // Конвертируем через rates: сначала amount → baseCcy → workSource.currencyCode
     const inBase = convertToBase(amount, currencyCode, input.baseCcy, rates);
     if (!inBase) return null;
     if (workSource.currencyCode === input.baseCcy) return inBase;

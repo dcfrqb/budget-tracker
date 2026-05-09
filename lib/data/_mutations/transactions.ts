@@ -51,13 +51,21 @@ export async function updateTransaction(
 ) {
   const existing = await db.transaction.findFirst({
     where: { id, userId, deletedAt: null },
-    select: { id: true, transferId: true },
+    select: { id: true, transferId: true, kind: true },
   });
   if (!existing) throw Object.assign(new Error("transaction not found"), { code: "NOT_FOUND" });
   if (existing.transferId) {
     throw Object.assign(
       new Error("transfer-side transaction — edit via transfers"),
       { code: "CONFLICT" },
+    );
+  }
+
+  // INCOME transactions must always have a workSourceId
+  if (existing.kind === TransactionKind.INCOME && input.workSourceId === null) {
+    throw Object.assign(
+      new Error("INCOME transaction requires a workSourceId"),
+      { code: "WORK_SOURCE_REQUIRED" },
     );
   }
 

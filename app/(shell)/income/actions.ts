@@ -61,6 +61,7 @@ export async function updateWorkSourceAction(id: string, rawData: unknown) {
   } catch (e) {
     const err = e as { code?: string };
     if (err.code === "NOT_FOUND") return actionError("not_found");
+    if (err.code === "CURRENCY_LOCKED") return actionError("currency_locked");
     return actionError("internal_error");
   }
 }

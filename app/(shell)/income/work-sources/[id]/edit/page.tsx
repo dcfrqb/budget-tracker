@@ -25,10 +25,14 @@ export default async function EditWorkSourcePage({ params }: Props) {
 
   const currencyOptions = currencies.map((c) => ({ code: c.code, symbol: c.symbol }));
 
-  const orders =
+  const [orders, linkedTxnCount] = await Promise.all([
     ws.kind === "FREELANCE"
-      ? await getFreelanceOrdersByWorkSource(userId, id)
-      : [];
+      ? getFreelanceOrdersByWorkSource(userId, id)
+      : Promise.resolve([]),
+    db.transaction.count({ where: { workSourceId: id, deletedAt: null } }),
+  ]);
+
+  const currencyHasLockedTxns = linkedTxnCount > 0;
 
   return (
     <div className="page-content">
@@ -37,15 +41,20 @@ export default async function EditWorkSourcePage({ params }: Props) {
         mode="edit"
         workSourceId={id}
         currencies={currencyOptions}
+        currencyHasLockedTxns={currencyHasLockedTxns}
         initialValues={{
           name: ws.name,
           kind: ws.kind,
           currencyCode: ws.currencyCode,
-          baseAmount: ws.baseAmount?.toString(),
-          hourlyRate: ws.hourlyRate?.toString(),
+          rateType: ws.rateType ?? undefined,
+          rateAmount: ws.rateAmount?.toString() ?? undefined,
+          premiumAmount: ws.premiumAmount?.toString() ?? undefined,
+          premiumNote: ws.premiumNote ?? undefined,
           payDay: ws.payDay ?? undefined,
           taxRatePct: ws.taxRatePct ? Number(ws.taxRatePct.toString()) : undefined,
           hoursPerMonth: ws.hoursPerMonth ?? undefined,
+          startedAt: ws.startedAt ?? undefined,
+          endedAt: ws.endedAt ?? undefined,
           isActive: ws.isActive,
           note: ws.note ?? undefined,
         }}

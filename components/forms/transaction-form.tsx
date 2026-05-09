@@ -8,6 +8,7 @@ import { transactionCreateSchema } from "@/lib/validation/transaction";
 import type { TransactionCreateInput } from "@/lib/validation/transaction";
 import { createTransactionAction } from "@/app/(shell)/transactions/actions";
 import { createTransferAction } from "@/app/(shell)/transactions/transfer-actions";
+import Link from "next/link";
 import { useT } from "@/lib/i18n";
 import { DEFAULT_CURRENCY, DEFAULT_TZ } from "@/lib/constants";
 import { todayKeyInTz } from "@/lib/format/date";
@@ -518,16 +519,52 @@ export function TransactionForm({
         />
       )}
 
-      {workSources && workSources.length > 0 && (
-        <SelectField
-          register={register("workSourceId")}
-          label={t("forms.tx.field.work_source")}
-          options={[
-            { value: "", label: "—" },
-            ...workSources.map((w) => ({ value: w.id, label: w.name })),
-          ]}
-          error={errMsg(errors.workSourceId)}
-        />
+      {watchedKind === TransactionKind.INCOME ? (
+        workSources && workSources.length > 0 ? (
+          <SelectField
+            register={register("workSourceId")}
+            label={t("forms.tx.field.work_source_required")}
+            options={workSources.map((w) => ({ value: w.id, label: w.name }))}
+            error={
+              errMsg(errors.workSourceId) === "work_source_required"
+                ? t("forms.tx.errors.work_source_required")
+                : errMsg(errors.workSourceId)
+            }
+            required
+          />
+        ) : (
+          <div
+            className="field"
+            style={{
+              padding: "var(--sp-4)",
+              background: "var(--surface-2, var(--surface))",
+              border: "1px solid var(--border)",
+              borderRadius: "var(--radius, 4px)",
+            }}
+          >
+            <div className="mono" style={{ fontWeight: 600, marginBottom: "var(--sp-2)" }}>
+              {t("forms.tx.work_source.empty_cta_title")}
+            </div>
+            <p className="mono" style={{ fontSize: 12, color: "var(--muted)", marginBottom: "var(--sp-3)" }}>
+              {t("forms.tx.work_source.empty_cta_body")}
+            </p>
+            <Link href="/income/work-sources/new" className="btn primary" style={{ fontSize: 12 }}>
+              {t("forms.tx.work_source.empty_cta_button")}
+            </Link>
+          </div>
+        )
+      ) : (
+        workSources && workSources.length > 0 && (
+          <SelectField
+            register={register("workSourceId")}
+            label={t("forms.tx.field.work_source")}
+            options={[
+              { value: "", label: "—" },
+              ...workSources.map((w) => ({ value: w.id, label: w.name })),
+            ]}
+            error={errMsg(errors.workSourceId)}
+          />
+        )
       )}
 
       {plannedEvents && plannedEvents.length > 0 && (
@@ -542,17 +579,22 @@ export function TransactionForm({
         />
       )}
 
-      <SubmitRow
-        isSubmitting={isPending}
-        submitLabel={t("forms.common.save")}
-        cancelLabel={t("forms.common.cancel")}
-        onCancel={
-          variant === "page"
-            ? () => router.back()
-            : onSuccess
-        }
-        formError={translatedErrorKey}
-      />
+      {(() => {
+        const incomeNoSources = watchedKind === TransactionKind.INCOME && (!workSources || workSources.length === 0);
+        return (
+          <SubmitRow
+            isSubmitting={isPending || incomeNoSources}
+            submitLabel={t("forms.common.save")}
+            cancelLabel={t("forms.common.cancel")}
+            onCancel={
+              variant === "page"
+                ? () => router.back()
+                : onSuccess
+            }
+            formError={translatedErrorKey}
+          />
+        );
+      })()}
     </form>
   );
 }

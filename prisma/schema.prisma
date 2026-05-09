@@ -488,23 +488,39 @@ enum WorkKind {
   ONE_TIME
 }
 
+enum RateType {
+  HOURLY
+  MONTHLY
+  PER_TASK
+  DAILY
+  COMMISSION_PCT
+}
+
 model WorkSource {
-  id            String   @id @default(cuid())
-  userId        String
-  name          String
-  kind          WorkKind
-  currencyCode  String
-  // Salary: чистая ежемесячная сумма. Freelance: ставка (почасовая или проектная).
-  baseAmount    Decimal? @db.Decimal(28, 10)
-  hourlyRate    Decimal? @db.Decimal(28, 10)
+  id           String   @id @default(cuid())
+  userId       String
+  name         String
+  kind         WorkKind
+  currencyCode String
+
+  rateType   RateType?
+  rateAmount Decimal?  @db.Decimal(28, 10)
+
+  premiumAmount Decimal? @db.Decimal(28, 10)
+  premiumNote   String?
+
   payDay        Int? // для EMPLOYMENT: день месяца
   taxRatePct    Decimal? @db.Decimal(5, 2) // 6, 13, ...
   /// Override для расчёта часовой ставки (цена в часах работы). null → fallback HOURS_PER_MONTH_DEFAULT=160 из lib/constants.ts.
   hoursPerMonth Int?
-  note          String?
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+
+  startedAt DateTime?
+  endedAt   DateTime?
+  isActive  Boolean   @default(true)
+
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   currency        Currency         @relation(fields: [currencyCode], references: [code])
@@ -512,6 +528,7 @@ model WorkSource {
   freelanceOrders FreelanceOrder[]
 
   @@index([userId])
+  @@index([userId, isActive])
 }
 
 // ─────────────────────────────────────────────────────────────

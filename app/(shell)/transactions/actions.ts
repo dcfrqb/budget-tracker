@@ -65,7 +65,10 @@ export async function updateTransactionAction(
     revalidateTag("transactions", "default");
     revalidatePath("/", "layout");
     return actionOk(tx);
-  } catch {
+  } catch (err) {
+    if (err instanceof Error && (err as NodeJS.ErrnoException & { code?: string }).code === "WORK_SOURCE_REQUIRED") {
+      return actionError("work_source_required");
+    }
     return actionError("internal_error");
   }
 }

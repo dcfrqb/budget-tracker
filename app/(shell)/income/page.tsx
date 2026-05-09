@@ -8,7 +8,7 @@ import type { WorkSourceCardView } from "@/components/income/work-sources";
 import { DEFAULT_CURRENCY, HOURS_PER_MONTH_DEFAULT } from "@/lib/constants";
 import { getCurrentUserId } from "@/lib/api/auth";
 import { db } from "@/lib/db";
-import { getActiveWorkSources } from "@/lib/data/work-sources";
+import { getActiveWorkSources, getWorkSourceCardSummaries } from "@/lib/data/work-sources";
 import { getLatestRatesMap, convertToBase } from "@/lib/data/wallet";
 import { getT } from "@/lib/i18n/server";
 import { Prisma, TransactionKind, TransactionStatus } from "@prisma/client";
@@ -110,8 +110,9 @@ export default async function IncomePage({
   const periodValue = (["30d", "90d", "1y", "all"].includes(sp.period ?? "") ? sp.period : "90d") as PeriodValue;
   let kpiWindow = periodToWindow(periodValue, now);
 
-  const [workSources, rates] = await Promise.all([
+  const [workSources, workSourceSummaries, rates] = await Promise.all([
     getActiveWorkSources(userId),
+    getWorkSourceCardSummaries(userId),
     getLatestRatesMap(),
   ]);
 
@@ -157,20 +158,20 @@ export default async function IncomePage({
   const hasInflowData = inflowWindowDaysRaw > 0;
   const inflowAvgPerMonth = inflowTotal.div(inflowWindowDays).mul(30).toFixed(0);
 
-  // Hourly rate from primary work source
+  // Hourly rate from primary work source (derived from rateType + rateAmount)
   let hourlyRate = 0;
   if (workSources.length > 0) {
     const primary = workSources[0];
-    if (primary.hourlyRate) {
-      hourlyRate = Number(new Prisma.Decimal(primary.hourlyRate).toFixed(0));
-    } else if (primary.baseAmount) {
+    if (primary.rateType === "HOURLY" && primary.rateAmount) {
+      hourlyRate = Number(new Prisma.Decimal(primary.rateAmount).toFixed(0));
+    } else if (primary.rateType === "MONTHLY" && primary.rateAmount) {
       const hpm = primary.hoursPerMonth ?? HOURS_PER_MONTH_DEFAULT;
-      hourlyRate = Number(new Prisma.Decimal(primary.baseAmount).div(hpm).toFixed(0));
+      hourlyRate = Number(new Prisma.Decimal(primary.rateAmount).div(hpm).toFixed(0));
     }
   }
 
-  // Map WorkSource records → WorkSourceCardView
-  const workSourceViews: WorkSourceCardView[] = workSources.map(ws => {
+  // Map WorkSourceCardSummary → WorkSourceCardView
+  const workSourceViews: WorkSourceCardView[] = workSourceSummaries.map(ws => {
     const kindLabel =
       ws.kind === "EMPLOYMENT"
         ? t("income.work.kind_label.employment")
@@ -181,7 +182,6 @@ export default async function IncomePage({
     let taxLabel: string | undefined;
     if (ws.taxRatePct) {
       const pct = new Prisma.Decimal(ws.taxRatePct).toFixed(0);
-      // Heuristic: 6% → self-employed / Самозанятый; 13% → NDFL; others → plain %
       if (ws.taxRatePct.equals(6)) {
         taxLabel = t("income.work.tax.szn", { vars: { pct } });
       } else if (ws.taxRatePct.equals(13)) {
@@ -193,6 +193,24 @@ export default async function IncomePage({
       taxLabel = t("income.work.tax.none");
     }
 
+    // Format payment summary labels
+    let lastPaymentLabel: string | undefined;
+    if (ws.lastPaymentAt && ws.lastPaymentAmount) {
+      const d = ws.lastPaymentAt;
+      const dateStr = `${d.getUTCDate()} ${monthShort[d.getUTCMonth()]}`;
+      lastPaymentLabel = `${fmtWorkMoney(ws.lastPaymentAmount, ws.currencyCode)} · ${dateStr}`;
+    }
+
+    const mtdTotalLabel: string | undefined = ws.mtdTotal.gt(0)
+      ? fmtWorkMoney(ws.mtdTotal, ws.currencyCode)
+      : undefined;
+
+    let nextExpectedLabel: string | undefined;
+    if (ws.nextExpectedAt) {
+      const d = ws.nextExpectedAt;
+      nextExpectedLabel = `${d.getUTCDate()} ${monthShort[d.getUTCMonth()]}`;
+    }
+
     return {
       id: ws.id,
       kind: ws.kind as WorkSourceCardView["kind"],
@@ -200,15 +218,15 @@ export default async function IncomePage({
       name: ws.name,
       sub: ws.note ?? undefined,
       currencyCode: ws.currencyCode,
-      baseAmount: ws.baseAmount
-        ? fmtWorkMoney(new Prisma.Decimal(ws.baseAmount), ws.currencyCode)
-        : undefined,
-      hourlyRate: ws.hourlyRate
-        ? fmtWorkMoney(new Prisma.Decimal(ws.hourlyRate), ws.currencyCode) + "/h"
+      rateAmount: ws.rateAmount
+        ? fmtWorkMoney(new Prisma.Decimal(ws.rateAmount), ws.currencyCode)
         : undefined,
       payDay: ws.payDay,
       taxLabel,
       isActive: ws.isActive,
+      lastPaymentLabel,
+      mtdTotalLabel,
+      nextExpectedLabel,
     };
   });
 

@@ -240,8 +240,8 @@ const WORK_IDS = {
 async function seedWorkSources() {
   await db.workSource.createMany({
     data: [
-      { id: WORK_IDS.acme,   userId: DEFAULT_USER_ID, name: "Acme · Senior Designer",  kind: WorkKind.EMPLOYMENT, currencyCode: "RUB", baseAmount: "120000", hourlyRate: "750",   payDay: 10, taxRatePct: "13.00", note: "зарплата 10-го, премия Q1" },
-      { id: WORK_IDS.hatch,  userId: DEFAULT_USER_ID, name: "Hatch · фриланс-контракт", kind: WorkKind.FREELANCE,  currencyCode: "EUR", baseAmount: null,     hourlyRate: "45",    taxRatePct: "6.00", note: "этапы 1/3 · 2/3 · 3/3" },
+      { id: WORK_IDS.acme,   userId: DEFAULT_USER_ID, name: "Acme · Senior Designer",  kind: WorkKind.EMPLOYMENT, currencyCode: "RUB", rateType: "MONTHLY", rateAmount: "120000", payDay: 10, taxRatePct: "13.00", note: "зарплата 10-го, премия Q1" },
+      { id: WORK_IDS.hatch,  userId: DEFAULT_USER_ID, name: "Hatch · фриланс-контракт", kind: WorkKind.FREELANCE,  currencyCode: "EUR", rateType: "HOURLY",  rateAmount: "45",    taxRatePct: "6.00", note: "этапы 1/3 · 2/3 · 3/3" },
       { id: WORK_IDS.oneoff, userId: DEFAULT_USER_ID, name: "Разовое / подарки",       kind: WorkKind.ONE_TIME,   currencyCode: "RUB", isActive: false },
     ],
   });
