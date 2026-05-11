@@ -811,7 +811,7 @@ export const enDict: RuDictShape = {
     },
     calendar: {
       section_title: "Events",
-      events_count: "{n} events",
+      events_count: "{n} {word}",
       in_days: " · {n}d",
     },
     upcoming: {
@@ -1352,7 +1352,7 @@ export const enDict: RuDictShape = {
       savings_label:     "buffer / savings",
       savings_sub:       "{n} savings accounts",
       cash_label:        "cash",
-      cash_sub:          "{n} locations",
+      cash_sub:          "{n} {word}",
     },
     strip: {
       group: "GROUP",
@@ -1373,7 +1373,31 @@ export const enDict: RuDictShape = {
       btn_manual: "Manual entry",
       btn_integration: "Integration",
     },
+    kind: {
+      card: "Debit",
+      credit: "Credit",
+      savings: "Savings",
+      cash: "Cash",
+      crypto: "Exchange",
+      loan: "Auto-debit",
+    },
+    collateral: {
+      card: "Card",
+      credit: "Credit",
+      savings: "Savings",
+      cash: "Cash",
+      crypto: "Crypto",
+      loan: "Service",
+    },
+    archived: {
+      closed: "closed",
+      recent: "closed recently",
+      months: "closed {n} mo ago",
+      years: "closed {n} {word} ago",
+    },
     account: {
+      refreshed: "upd",
+      refreshed_ago: "upd {ago}",
       badge: {
         not_in_analytics: "not in analytics",
       },

@@ -174,7 +174,7 @@ export default async function WalletPage({
   const showArchive = group === "all" || group === "arch";
 
   // ── Views ────────────────────────────────────────────────────────────────
-  const totalsView = toWalletTotalsView(totals, t);
+  const totalsView = toWalletTotalsView(totals, t, locale);
   const fxView = fxRows.map(toFxRateView);
 
   // Latest recordedAt across all displayed FX rows (for freshness indicator).
@@ -186,12 +186,12 @@ export default async function WalletPage({
         )
       : null;
   const instViews = filteredInstitutions.map((i) =>
-    toInstitutionView(i, rates, DEFAULT_CURRENCY, locale),
+    toInstitutionView(i, rates, DEFAULT_CURRENCY, locale, t),
   );
   const cashView = filteredCash.map((a) =>
     toCashStashView(a, rates, DEFAULT_CURRENCY),
   );
-  const archivedView = filteredArchived.map(toArchivedView);
+  const archivedView = filteredArchived.map((a) => toArchivedView(a, t, locale));
 
   const cashCcyCount = new Set(filteredCash.map((a) => a.currencyCode)).size;
   const locWord = locale === "ru"

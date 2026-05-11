@@ -12,7 +12,10 @@ import { getFundsWithProgress } from "@/lib/data/funds";
 import { getPlannedEvents } from "@/lib/data/planned-events";
 import { Prisma } from "@prisma/client";
 import { formatMoney } from "@/lib/format/money";
-import { getT } from "@/lib/i18n/server";
+import { getT, getLocale } from "@/lib/i18n/server";
+import { pluralRu, pluralEn } from "@/lib/i18n/plural";
+import { ruPluralForms } from "@/lib/i18n/locales/ru";
+import { enPluralForms } from "@/lib/i18n/locales/en";
 
 const MONTH_KEYS = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"] as const;
 
@@ -86,7 +89,7 @@ export default async function PlanningSummary() {
   const now = new Date();
   const window14End = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
 
-  const [userId, t] = await Promise.all([getCurrentUserId(), getT()]);
+  const [userId, t, locale] = await Promise.all([getCurrentUserId(), getT(), getLocale()]);
   const monthShort = MONTH_KEYS.map(k => t(`common.month.short.${k}` as Parameters<typeof t>[0]));
 
   const [funds, events14] = await Promise.all([
@@ -128,7 +131,7 @@ export default async function PlanningSummary() {
         fundsCount={funds.length}
         labels={{
           title: t("summary.planning.funds_label"),
-          fundsCount: `${funds.length} ${t("planning.kpi.saved_sub", { vars: { count: String(funds.length) } }).split(" ").slice(1).join(" ")}`,
+          fundsCount: t("planning.kpi.saved_sub", { vars: { count: String(funds.length), word: locale === "ru" ? pluralRu(funds.length, ruPluralForms.funds) : pluralEn(funds.length, ...enPluralForms.funds) } }),
           totalSavedFmt: formatMoney(totalSaved, "RUB", { decimals: 0 }),
           goalKey: t("summary.planning.goal_total_key"),
           progressKey: t("summary.planning.progress_key"),

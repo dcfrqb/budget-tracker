@@ -1381,7 +1381,31 @@ export const ruDict = {
       btn_manual: "Ручной ввод",
       btn_integration: "Интеграция",
     },
+    kind: {
+      card: "Дебет",
+      credit: "Кредит",
+      savings: "Накоп.",
+      cash: "Наличные",
+      crypto: "Биржа",
+      loan: "Автосписание",
+    },
+    collateral: {
+      card: "Карта",
+      credit: "Кредитная",
+      savings: "Накоп.",
+      cash: "Наличные",
+      crypto: "Крипто",
+      loan: "Сервисн.",
+    },
+    archived: {
+      closed: "закрыт",
+      recent: "закрыт недавно",
+      months: "закрыт {n} мес назад",
+      years: "закрыт {n} {word} назад",
+    },
     account: {
+      refreshed: "обн",
+      refreshed_ago: "обн {ago}",
       badge: {
         not_in_analytics: "не в аналитике",
       },

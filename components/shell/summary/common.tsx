@@ -8,6 +8,7 @@ import { getHomeDashboard } from "@/lib/data/dashboard";
 import { getIntegrationsSummary } from "@/lib/data/_queries/integrations";
 import { toHomeView } from "@/lib/view/home";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
+import { getAvailableNow } from "@/lib/data/_shared/period-aggregates";
 
 // ─────────────────────────────────────────────────────────────
 // Self-fetch helper — called when no data prop is supplied.
@@ -36,7 +37,7 @@ export type AvailableData = {
   freeBase: number;
   totalBase: number;
   reservedBase: number;
-  /** Sum of spendable money (debit + credit-available + cash + crypto). Optional — falls back to freeBase. */
+  /** Sum of spendable money (debit + credit-available + cash + crypto). */
   liquidBase?: number;
 };
 
@@ -108,14 +109,26 @@ export async function SafeUntilBlock({ data }: { data?: SafeUntilData }) {
 // ─────────────────────────────────────────────────────────────
 
 export async function AvailableBlock({ data }: { data?: AvailableData }) {
-  const [t, locale] = await Promise.all([getT(), getLocale()]);
-  const resolved = data ?? (await loadSharedSummary()).available;
-  const freeBase = resolved?.freeBase ?? 0;
-  const totalBase = resolved?.totalBase ?? 0;
-  const reservedBase = resolved?.reservedBase ?? 0;
-  // Big number shows liquid (sum of spendable money: debit + credit-available + cash + crypto).
-  // Falls back to freeBase for legacy callers that haven't plumbed liquidBase yet.
-  const displayBase = resolved?.liquidBase ?? freeBase;
+  const [t, locale, userId] = await Promise.all([getT(), getLocale(), getCurrentUserId()]);
+
+  let freeBase: number;
+  let totalBase: number;
+  let reservedBase: number;
+  let displayBase: number;
+
+  if (data) {
+    freeBase = data.freeBase;
+    totalBase = data.totalBase;
+    reservedBase = data.reservedBase;
+    displayBase = data.liquidBase ?? 0;
+  } else {
+    const now = new Date();
+    const avail = await getAvailableNow(userId, DEFAULT_CURRENCY, now);
+    totalBase = Number(avail.totalBase.toFixed(0));
+    reservedBase = Number(avail.reservedBase.toFixed(0));
+    freeBase = Number(avail.freeBase.toFixed(0));
+    displayBase = Number(avail.liquidBase.toFixed(0));
+  }
 
   return (
     <div className="sum-block avail">

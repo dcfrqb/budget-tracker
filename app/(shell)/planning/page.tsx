@@ -267,10 +267,15 @@ export default async function PlanningPage({
     };
     monthMap.get(key)!.events.push(calEvt);
   }
-  const calendarMonths = [...monthMap.values()].map((m) => ({
-    ...m,
-    sub: t("planning.calendar.events_count", { vars: { n: String(m.events.length) } }),
-  }));
+  const calendarMonths = [...monthMap.values()].map((m) => {
+    const eventsWord = locale === "ru"
+      ? pluralRu(m.events.length, ruPluralForms.events)
+      : pluralEn(m.events.length, ...enPluralForms.events);
+    return {
+      ...m,
+      sub: t("planning.calendar.events_count", { vars: { n: String(m.events.length), word: eventsWord } }),
+    };
+  });
 
   // ── Upcoming dates (14d) ─────────────────────────────────────
   const upcomingEvents = await getPlannedEvents(userId, { from: now, to: window14End });

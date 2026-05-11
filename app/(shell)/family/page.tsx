@@ -81,7 +81,7 @@ export default async function FamilyPage() {
   if (!family) {
     return (
       <>
-        <FamilyStatusStrip />
+        <FamilyStatusStrip hasGroup={false} />
         <GroupHeader group={undefined} />
         <FamilySetup />
       </>
@@ -169,7 +169,7 @@ export default async function FamilyPage() {
 
   return (
     <>
-      <FamilyStatusStrip />
+      <FamilyStatusStrip hasGroup={true} />
       <GroupHeader group={groupData} />
       <div className="section-hd" style={{ padding: "8px 20px" }}>
         <Link

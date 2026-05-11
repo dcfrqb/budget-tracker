@@ -3,7 +3,10 @@
 import React, { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useT } from "@/lib/i18n";
+import { useT, useLocale } from "@/lib/i18n";
+import { pluralRu, pluralEn } from "@/lib/i18n/plural";
+import { ruPluralForms } from "@/lib/i18n/locales/ru";
+import { enPluralForms } from "@/lib/i18n/locales/en";
 import { Dialog } from "@/components/ui/dialog";
 import { FundContributeDialog } from "@/components/planning/fund-contribute-dialog";
 import { deleteFundAction } from "@/app/(shell)/planning/funds/actions";
@@ -133,13 +136,17 @@ export function FundsSection({
   tz?: string;
 }) {
   const t = useT();
+  const locale = useLocale();
   const accs = accounts ?? [];
+  const fundsWord = locale === "ru"
+    ? pluralRu(funds.length, ruPluralForms.funds)
+    : pluralEn(funds.length, ...enPluralForms.funds);
   return (
     <div className="section fade-in" style={{ animationDelay: "240ms" }}>
       <div className="section-hd">
         <div className="ttl mono">
           <b>{t("planning.funds.section_title")}</b>{" "}
-          <span className="dim">· {funds.length} {t("planning.kpi.saved_sub", { vars: { count: String(funds.length) } })}</span>
+          <span className="dim">· {funds.length} {t("planning.kpi.saved_sub", { vars: { count: String(funds.length), word: fundsWord } })}</span>
         </div>
         <div className="meta mono">
           <Link

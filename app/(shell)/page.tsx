@@ -1,7 +1,6 @@
 import { Obligations } from "@/components/home/obligations";
 import { PlanFact } from "@/components/home/plan-fact";
 import { QuickActions } from "@/components/home/quick-actions";
-import { Signals } from "@/components/home/signals";
 import { StatusStrip } from "@/components/home/status-strip";
 import { TopCategories } from "@/components/home/top-categories";
 import { getHomeDashboard, parseHomePeriod } from "@/lib/data/dashboard";
@@ -36,10 +35,6 @@ export default async function HomePage({ searchParams }: PageProps) {
 
   const view = toHomeView(dashboard, t, tz);
 
-  // Сигналы из живых данных пока не реализованы — возвращаем пустой список.
-  // TODO: добавить логику генерации сигналов когда появятся правила
-  const signals: import("@/components/home/signals").SignalView[] = [];
-
   // First non-archived account as default for quick input
   const defaultAccount = activeAccounts[0];
 
@@ -59,7 +54,6 @@ export default async function HomePage({ searchParams }: PageProps) {
       <PlanFact cells={view.planFact} period={period} />
       <Obligations obligations={view.obligations} />
       <TopCategories categories={view.topCategories} />
-      <Signals signals={signals} />
     </>
   );
 }

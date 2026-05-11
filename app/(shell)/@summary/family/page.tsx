@@ -8,16 +8,18 @@ import {
   SummaryShell,
 } from "@/components/shell/summary/common";
 import { SpaceSwitch, NoGroupBlock } from "@/components/shell/summary/family-client";
+import { getCurrentUserId } from "@/lib/api/auth";
+import { getUserFamily } from "@/lib/data/families";
 import { getT } from "@/lib/i18n/server";
 
 export default async function FamilySummary() {
-  const t = await getT();
+  const [userId, t] = await Promise.all([getCurrentUserId(), getT()]);
+  const family = await getUserFamily(userId);
   return (
     <SummaryShell>
       <SafeUntilBlock />
       <AvailableBlock />
-      <NoGroupBlock />
-      <SpaceSwitch />
+      {family ? <SpaceSwitch /> : <NoGroupBlock />}
       <BalancesBlock />
       <SessionStateBlock
         rows={[

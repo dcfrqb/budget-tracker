@@ -4,6 +4,9 @@ import { formatMoney } from "@/lib/format/money";
 import { formatRelative } from "@/lib/format/relative-time";
 import type { Locale, TOptions } from "@/lib/i18n/types";
 import type { TKey } from "@/lib/i18n/t";
+import { pluralRu, pluralEn } from "@/lib/i18n/plural";
+import { ruPluralForms } from "@/lib/i18n/locales/ru";
+import { enPluralForms } from "@/lib/i18n/locales/en";
 import { convertToBase, resolveCreditState } from "@/lib/data/wallet";
 import type {
   AccountWithCurrency,
@@ -20,7 +23,7 @@ type TFn = (key: TKey, options?: TOptions) => string;
 
 export type AccountView = {
   id: string;
-  kind: string;            // lowercase для CSS ("card", "savings", …)
+  kind: string;            // lowercase for CSS ("card", "savings", …)
   icon: string;
   name: string;
   sub: string;
@@ -37,31 +40,37 @@ export type AccountView = {
   creditNoLimit?: boolean;
 };
 
-const KIND_LABEL: Record<AccountKind, string> = {
-  CARD: "Дебет",
-  CREDIT: "Кредит",
-  SAVINGS: "Накоп.",
-  CASH: "Наличные",
-  CRYPTO: "Биржа",
-  LOAN: "Автосписание",
-};
+function kindLabelKey(kind: AccountKind): TKey {
+  const map: Record<AccountKind, TKey> = {
+    CARD: "wallet.kind.card",
+    CREDIT: "wallet.kind.credit",
+    SAVINGS: "wallet.kind.savings",
+    CASH: "wallet.kind.cash",
+    CRYPTO: "wallet.kind.crypto",
+    LOAN: "wallet.kind.loan",
+  };
+  return map[kind];
+}
 
-const COL_PILL: Record<AccountKind, string> = {
-  CARD: "Карта",
-  CREDIT: "Кредитная",
-  SAVINGS: "Накоп.",
-  CASH: "Наличные",
-  CRYPTO: "Крипто",
-  LOAN: "Сервисн.",
-};
+function colPillKey(kind: AccountKind): TKey {
+  const map: Record<AccountKind, TKey> = {
+    CARD: "wallet.collateral.card",
+    CREDIT: "wallet.collateral.credit",
+    SAVINGS: "wallet.collateral.savings",
+    CASH: "wallet.collateral.cash",
+    CRYPTO: "wallet.collateral.crypto",
+    LOAN: "wallet.collateral.loan",
+  };
+  return map[kind];
+}
 
 function firstLetter(s: string): string {
   return s.trim().charAt(0).toUpperCase() || "?";
 }
 
-// Для крипты first-pill label из subtype (cold-wallet → Hardware, exchange/остальное → Биржа).
-function cryptoKindLabelFromSubtype(subtype: string | null): string {
-  return subtype === "cold-wallet" ? "Hardware" : "Биржа";
+// For crypto: cold-wallet → "Hardware" (loanword, same in all locales), exchange → wallet.kind.crypto
+function cryptoKindLabelFromSubtype(subtype: string | null, t: TFn): string {
+  return subtype === "cold-wallet" ? "Hardware" : t("wallet.kind.crypto");
 }
 
 function approxRubString(
@@ -80,26 +89,27 @@ export function toAccountView(
   rates: Map<string, Prisma.Decimal>,
   baseCcy: string,
   locale: Locale = "ru",
+  t: TFn,
 ): AccountView {
   const value = formatMoney(a.balance, a.currencyCode);
 
-  // Собираем updated из 2 частей: "≈ N ₽" (для инвалютных) + "обн N мин" (если трогали баланс).
+  // Build updated from 2 parts: "≈ N ₽" (for foreign-ccy) + "upd N min" (if balance was touched).
   const parts: string[] = [];
   if (a.currencyCode !== baseCcy) {
     const approx = approxRubString(a.balance, a.currencyCode, baseCcy, rates);
     if (approx) parts.push(approx);
   }
   if (a.balanceUpdatedAt) {
-    parts.push(`обн ${formatRelative(a.balanceUpdatedAt, locale)}`);
+    parts.push(t("wallet.account.refreshed_ago", { vars: { ago: formatRelative(a.balanceUpdatedAt, locale) } }));
   }
-  const updated = parts.length > 0 ? parts.join(" · ") : "обн";
+  const updated = parts.length > 0 ? parts.join(" · ") : t("wallet.account.refreshed");
 
   const kindLabel =
     a.kind === "CRYPTO"
-      ? cryptoKindLabelFromSubtype(a.subtype)
-      : KIND_LABEL[a.kind];
+      ? cryptoKindLabelFromSubtype(a.subtype, t)
+      : t(kindLabelKey(a.kind));
 
-  const colPill = a.customPillLabel ?? COL_PILL[a.kind];
+  const colPill = a.customPillLabel ?? t(colPillKey(a.kind));
 
   // CREDIT-specific fields
   let creditDebt: string | undefined;
@@ -161,8 +171,9 @@ export function toInstitutionView(
   rates: Map<string, Prisma.Decimal>,
   baseCcy: string,
   locale: Locale = "ru",
+  t: TFn,
 ): InstitutionView {
-  const accounts = inst.accounts.map((a) => toAccountView(a, rates, baseCcy, locale));
+  const accounts = inst.accounts.map((a) => toAccountView(a, rates, baseCcy, locale, t));
 
   const logo =
     inst.logo && KNOWN_LOGOS.has(inst.logo) ? inst.logo : "default";
@@ -228,19 +239,27 @@ export type ArchivedView = {
   updated: string;
 };
 
-function archivedAgo(archivedAt: Date | null): string {
-  if (!archivedAt) return "закрыт";
+function archivedAgo(archivedAt: Date | null, t: TFn, locale: Locale): string {
+  if (!archivedAt) return t("wallet.archived.closed");
   const now = Date.now();
   const months = Math.floor(
     (now - archivedAt.getTime()) / (30 * 24 * 60 * 60 * 1000),
   );
-  if (months < 1) return "закрыт недавно";
-  if (months < 12) return `закрыт ${months} мес назад`;
+  if (months < 1) return t("wallet.archived.recent");
+  if (months < 12) return t("wallet.archived.months", { vars: { n: String(months) } });
   const years = Math.floor(months / 12);
-  return years === 1 ? "закрыт 1 год назад" : `закрыт ${years} года назад`;
+  const word =
+    locale === "ru"
+      ? pluralRu(years, ["год", "года", "лет"])
+      : pluralEn(years, "year", "years");
+  return t("wallet.archived.years", { vars: { n: String(years), word } });
 }
 
-export function toArchivedView(a: AccountWithCurrency): ArchivedView {
+export function toArchivedView(
+  a: AccountWithCurrency,
+  t: TFn,
+  locale: Locale = "ru",
+): ArchivedView {
   return {
     id: a.id,
     icon: firstLetter(a.name),
@@ -249,7 +268,7 @@ export function toArchivedView(a: AccountWithCurrency): ArchivedView {
     sub: a.sub ?? "",
     ccy: a.currencyCode,
     value: formatMoney(a.balance, a.currencyCode),
-    updated: archivedAgo(a.archivedAt),
+    updated: archivedAgo(a.archivedAt, t, locale),
   };
 }
 
@@ -264,7 +283,7 @@ export type FxRateView = {
   deltaTone: "pos" | "neg" | "mut";
 };
 
-// Для FX-таблицы: рост курса = валюта иностранная дорожает = цвет neg.
+// FX table: rate increase = foreign currency gets more expensive = neg color.
 export function toFxRateView(row: FxRateRow): FxRateView {
   const val = new Prisma.Decimal(row.rate).toFixed(2);
   if (row.delta24hPct === null) {
@@ -294,7 +313,11 @@ export type WalletTotalView = {
   s: string;
 };
 
-export function toWalletTotalsView(totals: WalletTotals, t: TFn): WalletTotalView[] {
+export function toWalletTotalsView(totals: WalletTotals, t: TFn, locale: Locale = "ru"): WalletTotalView[] {
+  const cashCount = totals.cash.accountsCount;
+  const cashWord = locale === "ru"
+    ? pluralRu(cashCount, ruPluralForms.locations)
+    : pluralEn(cashCount, ...enPluralForms.locations);
   return [
     {
       k: t("wallet.totals.net_label"),
@@ -318,7 +341,7 @@ export function toWalletTotalsView(totals: WalletTotals, t: TFn): WalletTotalVie
       k: t("wallet.totals.cash_label"),
       value: Number(totals.cash.valueBase.toFixed(0)),
       tone: "warn",
-      s: t("wallet.totals.cash_sub", { vars: { n: String(totals.cash.accountsCount) } }),
+      s: t("wallet.totals.cash_sub", { vars: { n: String(cashCount), word: cashWord } }),
     },
   ];
 }

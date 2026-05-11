@@ -26,7 +26,7 @@ const now = new Date();
 const MONTH_DAY = now.getDate();
 const MONTH_DAYS = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
 
-export function FamilyStatusStrip() {
+export function FamilyStatusStrip({ hasGroup }: { hasGroup: boolean }) {
   const t = useT();
   const [space, setSpace] = useState<Space>("shared");
   const [period, setPeriod] = useState<Period>("month");
@@ -48,8 +48,12 @@ export function FamilyStatusStrip() {
 
   return (
     <div className="status-strip fade-in" style={{ animationDelay: "0ms" }}>
-      <span className="lbl">{t("family.status_strip.space_label")}</span>
-      <Segmented options={SPACES} value={space} onChange={setSpace} />
+      {hasGroup && (
+        <>
+          <span className="lbl">{t("family.status_strip.space_label")}</span>
+          <Segmented options={SPACES} value={space} onChange={setSpace} />
+        </>
+      )}
       <span className="lbl">{t("family.status_strip.period_label")}</span>
       <Segmented options={PERIODS} value={period} onChange={setPeriod} />
       <div className="clock-right">
