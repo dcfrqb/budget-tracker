@@ -32,7 +32,16 @@ const WEEKDAY_KEYS = ["sun","mon","tue","wed","thu","fri","sat"] as const;
 type FundKind = "TRIP" | "BUY" | "VAULT" | "GIFT" | "OTHER";
 type EventKind = "BIRTHDAY" | "HOLIDAY" | "TRIP" | "PURCHASE" | "OTHER";
 
-export default async function PlanningPage() {
+export default async function PlanningPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string; horizon?: string }>;
+}) {
+  const sp = await searchParams;
+  const _view = sp.view ?? "all";
+  const _horizon = sp.horizon ?? "90d";
+  void _view; void _horizon;
+
   const [userId, t, locale, tz] = await Promise.all([getCurrentUserId(), getT(), getLocale(), getCurrentUserTz()]);
 
   const monthShort = MONTH_KEYS.map(k => t(`common.month.short.${k}` as Parameters<typeof t>[0]));
@@ -49,6 +58,11 @@ export default async function PlanningPage() {
   }
 
   const now = new Date();
+  const nowInTz = new Date(now.toLocaleString("en-US", { timeZone: tz }));
+  const monthLabel = `${monthShort[nowInTz.getMonth()]} ${nowInTz.getFullYear()}`;
+  const daysInMonth = new Date(nowInTz.getFullYear(), nowInTz.getMonth() + 1, 0).getDate();
+  const dayLabel = `${nowInTz.getDate()}/${daysInMonth}`;
+
   const window90End = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
   const window14End = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
 
@@ -280,7 +294,7 @@ export default async function PlanningPage() {
 
   return (
     <>
-      <PlanningStatusStrip />
+      <PlanningStatusStrip monthLabel={monthLabel} dayLabel={dayLabel} />
       <PlanningKpiRow kpi={kpi} />
       <HoursCalculator
         hourlyRate={hourlyRate ? hourlyRate.toFixed(2) : null}

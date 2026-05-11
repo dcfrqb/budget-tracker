@@ -848,6 +848,37 @@ export const ruDict = {
       meta: "{count} {word}",
       empty: "нет ближайших событий",
     },
+    timeline: {
+      title: "лента событий",
+      subtitle: "горизонт планирования",
+      empty_title: "нет событий в периоде",
+      empty_body: "Добавь события, подписки, кредиты или накопления, чтобы они появились здесь.",
+      today: "сегодня",
+      legend: {
+        event: "события",
+        subscription: "подписки",
+        loan: "кредиты",
+        fund_target: "цели",
+        txn_planned: "планируемые",
+      },
+      kind: {
+        subscription: "подписка",
+        loan_payment: "платёж",
+        fund_target: "цель накопления",
+        txn_planned: "план. транзакция",
+      },
+    },
+    mini_calendar: {
+      title: "календарь",
+      subtitle: "два месяца",
+      click_hint: "нажми на день",
+    },
+    calendar_page: {
+      h1: "Календарь",
+      sub: "визуальная лента событий",
+      breadcrumb_planning: "Планирование",
+      breadcrumb_calendar: "Календарь",
+    },
   },
 
   analytics: {

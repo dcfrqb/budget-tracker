@@ -840,6 +840,37 @@ export const enDict: RuDictShape = {
       meta: "{count} {word}",
       empty: "no upcoming events",
     },
+    timeline: {
+      title: "event feed",
+      subtitle: "planning horizon",
+      empty_title: "no events in period",
+      empty_body: "Add events, subscriptions, loans or savings goals to see them here.",
+      today: "today",
+      legend: {
+        event: "events",
+        subscription: "subscriptions",
+        loan: "loans",
+        fund_target: "goals",
+        txn_planned: "planned",
+      },
+      kind: {
+        subscription: "subscription",
+        loan_payment: "payment",
+        fund_target: "savings goal",
+        txn_planned: "planned txn",
+      },
+    },
+    mini_calendar: {
+      title: "calendar",
+      subtitle: "two months",
+      click_hint: "click a day",
+    },
+    calendar_page: {
+      h1: "Calendar",
+      sub: "visual event timeline",
+      breadcrumb_planning: "Planning",
+      breadcrumb_calendar: "Calendar",
+    },
   },
 
   analytics: {
