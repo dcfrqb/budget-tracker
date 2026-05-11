@@ -6,9 +6,11 @@ export type TimelineLegendLabels = {
   loan: string;
   fund_target: string;
   txn_planned: string;
+  trip: string;
 };
 
 const KINDS: { id: TimelineItemKind; glyph: string }[] = [
+  { id: "trip",         glyph: "R" },
   { id: "event",        glyph: "E" },
   { id: "subscription", glyph: "S" },
   { id: "loan",         glyph: "L" },

@@ -76,6 +76,7 @@ export default async function PlanningCalendarPage({
     id: item.id,
     kind: item.kind,
     date: item.date,
+    endDate: item.endDate,
     isoDate: item.date.toISOString().slice(0, 10),
     label: item.label,
     formattedAmount: item.amount && item.currencyCode
@@ -85,16 +86,25 @@ export default async function PlanningCalendarPage({
     glyph: item.glyph,
   }));
 
-  // Build itemsByDay for mini-calendar
+  // Build itemsByDay for mini-calendar — fan out multi-day items (trips)
   const itemsByDay: ItemCountsByDay = {};
   for (const item of timelineItems) {
-    if (!itemsByDay[item.isoDate]) itemsByDay[item.isoDate] = {};
-    const counts = itemsByDay[item.isoDate]!;
-    counts[item.kind] = (counts[item.kind] ?? 0) + 1;
+    const startIso = item.isoDate;
+    const endIso = item.endDate ? item.endDate.toISOString().slice(0, 10) : startIso;
+    const cur = new Date(startIso + "T00:00:00Z");
+    const end = new Date(endIso + "T00:00:00Z");
+    while (cur <= end) {
+      const iso = cur.toISOString().slice(0, 10);
+      if (!itemsByDay[iso]) itemsByDay[iso] = {};
+      const counts = itemsByDay[iso]!;
+      counts[item.kind] = (counts[item.kind] ?? 0) + 1;
+      cur.setUTCDate(cur.getUTCDate() + 1);
+    }
   }
 
   // Legend labels
   const legendLabels: TimelineLegendLabels = {
+    trip:         t("planning.timeline.legend.trip"),
     event:        t("planning.timeline.legend.event"),
     subscription: t("planning.timeline.legend.subscription"),
     loan:         t("planning.timeline.legend.loan"),

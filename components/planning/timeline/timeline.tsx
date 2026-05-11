@@ -7,6 +7,7 @@ export type TimelineItemView = {
   id: string;
   kind: TimelineItemKind;
   date: Date;
+  endDate?: Date | null;
   isoDate: string;
   label: string;
   formattedAmount: string | null;
@@ -133,6 +134,35 @@ export function Timeline({ items, horizonDays, selectedDay, labels }: Props) {
             const topPx = lane * 28;
 
             const isFaded = selectedDay !== null && item.isoDate !== selectedDay;
+
+            if (item.endDate) {
+              const endPct = Math.min(100, Math.max(pct,
+                (item.endDate.getTime() - from.getTime()) / totalMs * 100
+              ));
+              const widthPct = endPct - pct;
+              return (
+                <Link
+                  key={item.id}
+                  href={item.href}
+                  className={`tl-chip tl-chip--${item.kind} tl-chip--band${isFaded ? " is-faded" : ""}`}
+                  style={{ left: `${pct}%`, top: `${topPx}px`, width: `${widthPct}%` }}
+                  title={item.label}
+                >
+                  <span className="tl-chip-glyph">{item.glyph}</span>
+                  <span className="tl-chip-label">{item.label}</span>
+                  {item.formattedAmount && (
+                    <span className="tl-chip-amt">{item.formattedAmount}</span>
+                  )}
+                  <div className="tl-pop">
+                    <div className="tl-pop-label">{item.label}</div>
+                    <div className="tl-pop-date">{item.isoDate}</div>
+                    {item.formattedAmount && (
+                      <div className="tl-pop-amt">{item.formattedAmount}</div>
+                    )}
+                  </div>
+                </Link>
+              );
+            }
 
             return (
               <Link

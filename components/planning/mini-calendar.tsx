@@ -24,6 +24,7 @@ type Props = {
 };
 
 const KIND_ORDER: TimelineItemKind[] = [
+  "trip",
   "event",
   "subscription",
   "loan",

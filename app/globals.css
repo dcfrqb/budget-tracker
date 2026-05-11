@@ -3837,13 +3837,17 @@ input[type="checkbox"]:disabled {
 .tl-chip--loan        { background: color-mix(in srgb, var(--neg) 12%, transparent); border-color: color-mix(in srgb, var(--neg) 30%, transparent); color: var(--neg); }
 .tl-chip--fund_target { background: color-mix(in srgb, var(--pos) 12%, transparent); border-color: color-mix(in srgb, var(--pos) 30%, transparent); color: var(--pos); }
 .tl-chip--txn_planned { background: color-mix(in srgb, var(--muted) 12%, transparent); border-color: color-mix(in srgb, var(--muted) 30%, transparent); color: var(--muted); }
+.tl-chip--trip        { background: color-mix(in srgb, var(--accent-alt, var(--accent)) 15%, transparent); border-color: color-mix(in srgb, var(--accent-alt, var(--accent)) 40%, transparent); color: var(--accent-alt, var(--accent)); border-radius: var(--radius-sm); }
+.tl-chip--band        { position: absolute; min-width: 4ch; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* legend dot colors */
+.tl-legend-dot--trip        { background: var(--accent-alt, var(--accent)); }
 .tl-legend-dot--event       { background: var(--accent); }
 .tl-legend-dot--subscription { background: var(--warn); }
 .tl-legend-dot--loan        { background: var(--neg); }
 .tl-legend-dot--fund_target { background: var(--pos); }
 .tl-legend-dot--txn_planned { background: var(--muted); }
+.mini-cal-dot--trip         { background: var(--accent-alt, var(--accent)); }
 
 /* ── Hover popover ──────────────────────────────────────────── */
 .tl-pop {
@@ -3957,3 +3961,7 @@ input[type="checkbox"]:disabled {
   font: 400 8px / 1 var(--mono); color: var(--dim);
   text-align: center;
 }
+
+/* ── Booking form inline inputs ─────────────────────────────── */
+.booking-form-amount { width: 9ch; }
+.booking-form-ccy    { width: 5ch; }

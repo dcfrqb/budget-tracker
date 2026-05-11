@@ -50,6 +50,7 @@ model User {
   familyMemberships      FamilyMember[]
   ownedFamilies          Family[]                @relation("FamilyOwner")
   integrationCredentials IntegrationCredential[]
+  trips                  Trip[]
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -76,6 +77,8 @@ model Currency {
   ratesTo         ExchangeRate[]   @relation("RateToCcy")
   transfersFrom   Transfer[]       @relation("TransferFromCcy")
   transfersTo     Transfer[]       @relation("TransferToCcy")
+  trips           Trip[]
+  tripBookings    TripBooking[]
 }
 
 model ExchangeRate {
@@ -273,6 +276,26 @@ enum Scope {
   SHARED
 }
 
+enum TripStatus {
+  DRAFT
+  PLANNING
+  ACTIVE
+  ARCHIVED
+}
+
+enum TripBookingKind {
+  TRANSPORT
+  LODGING
+  FOOD
+  ACTIVITY
+  OTHER
+}
+
+enum TripBookingStatus {
+  PLANNED
+  PAID
+}
+
 enum TransactionKind {
   INCOME
   EXPENSE
@@ -331,6 +354,9 @@ model Transaction {
   // Compensation group: never updated by sync adapters — only by createCompensationGroup / breakCompensationGroup server actions
   compensationGroupId String?
 
+  // Trip Planner: optional link to a trip
+  tripId String?
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
@@ -351,9 +377,11 @@ model Transaction {
   plannedEvent       PlannedEvent?      @relation(fields: [plannedEventId], references: [id], onDelete: SetNull)
   compensationGroup  CompensationGroup? @relation("CompensationMembers", fields: [compensationGroupId], references: [id], onDelete: SetNull)
   mainOfCompensation CompensationGroup? @relation("CompensationMain")
+  trip               Trip?              @relation(fields: [tripId], references: [id], onDelete: SetNull)
 
   facts          TransactionFact[]
   reimbursements ReimbursementFact[]
+  tripBooking    TripBooking?
 
   @@unique([accountId, source, externalId], name: "importDedupe")
   @@index([userId, occurredAt])
@@ -361,6 +389,7 @@ model Transaction {
   @@index([categoryId])
   @@index([status])
   @@index([compensationGroupId])
+  @@index([tripId])
 }
 
 // Факты частичного подтверждения (когда транзакция PARTIAL и деньги приходят траншами).
@@ -730,6 +759,7 @@ model Fund {
 
   plannedEvents PlannedEvent[]
   transactions  Transaction[]
+  trips         Trip[]
 
   @@index([userId])
 }
@@ -762,6 +792,60 @@ model PlannedEvent {
   transactions Transaction[]
 
   @@index([userId, eventDate])
+}
+
+// ─────────────────────────────────────────────────────────────
+// TRIP PLANNER
+// ─────────────────────────────────────────────────────────────
+
+model Trip {
+  id                String     @id @default(cuid())
+  userId            String
+  name              String
+  destination       String?
+  startDate         DateTime
+  endDate           DateTime
+  currencyCode      String
+  totalBudget       Decimal    @db.Decimal(28, 10)
+  // JSON: { TRANSPORT: "300", LODGING: "1200", FOOD: "400", ACTIVITY: "200", OTHER: "100" }
+  // Decimals stored as strings. null = unallocated, UI falls back to 0 per kind.
+  budgetAllocations Json?
+  fundId            String?
+  status            TripStatus @default(PLANNING)
+  note              String?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  deletedAt         DateTime?
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currency     Currency      @relation(fields: [currencyCode], references: [code])
+  fund         Fund?         @relation(fields: [fundId], references: [id], onDelete: SetNull)
+  bookings     TripBooking[]
+  transactions Transaction[]
+
+  @@index([userId])
+  @@index([userId, startDate])
+}
+
+model TripBooking {
+  id            String            @id @default(cuid())
+  tripId        String
+  kind          TripBookingKind
+  label         String
+  date          DateTime
+  amount        Decimal           @db.Decimal(28, 10)
+  currencyCode  String
+  status        TripBookingStatus @default(PLANNED)
+  transactionId String?           @unique
+  note          String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  trip        Trip         @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  currency    Currency     @relation(fields: [currencyCode], references: [code])
+  transaction Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@index([tripId, date])
 }
 
 // ─────────────────────────────────────────────────────────────

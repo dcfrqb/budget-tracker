@@ -4,6 +4,7 @@ import { getPlannedEvents } from "@/lib/data/planned-events";
 import { getSubscriptions } from "@/lib/data/subscriptions";
 import { getLoans } from "@/lib/data/loans";
 import { getFundsWithProgress } from "@/lib/data/funds";
+import { getActiveTripsInRange } from "@/lib/data/trips";
 import { computeAmortization } from "@/lib/amortization";
 
 export type TimelineItemKind =
@@ -11,13 +12,15 @@ export type TimelineItemKind =
   | "subscription"
   | "loan"
   | "fund_target"
-  | "txn_planned";
+  | "txn_planned"
+  | "trip";
 
 export type TimelineItem = {
   id: string;
   kind: TimelineItemKind;
   subKind?: string;
   date: Date;
+  endDate?: Date | null;
   label: string;
   amount: Prisma.Decimal | null;
   currencyCode: string | null;
@@ -39,7 +42,7 @@ export async function getPlanningTimeline(
 ): Promise<TimelineItem[]> {
   const { from, to } = opts;
 
-  const [events, subscriptions, loans, funds, plannedTxns] = await Promise.all([
+  const [events, subscriptions, loans, funds, plannedTxns, trips] = await Promise.all([
     getPlannedEvents(userId, { from, to }),
     getSubscriptions(userId),
     getLoans(userId),
@@ -53,6 +56,7 @@ export async function getPlanningTimeline(
       },
       orderBy: { occurredAt: "asc" },
     }),
+    getActiveTripsInRange(userId, from, to),
   ]);
 
   const items: TimelineItem[] = [];
@@ -144,6 +148,21 @@ export async function getPlanningTimeline(
       currencyCode: txn.currencyCode,
       href: `/transactions`,
       glyph: "P",
+    });
+  }
+
+  // ── Trips (multi-day bands) ──────────────────────────────────
+  for (const trip of trips) {
+    items.push({
+      id: `trip:${trip.id}:${trip.startDate.toISOString().slice(0, 10)}`,
+      kind: "trip",
+      date: trip.startDate,
+      endDate: trip.endDate,
+      label: trip.name,
+      amount: trip.totalBudget,
+      currencyCode: trip.currencyCode,
+      href: `/planning/trips/${trip.id}`,
+      glyph: "R",
     });
   }
 

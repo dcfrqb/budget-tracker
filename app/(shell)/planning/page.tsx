@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { BigPurchases } from "@/components/planning/big-purchases";
 import { FundsSection } from "@/components/planning/funds";
 import { HoursCalculator } from "@/components/planning/hours-calc";
@@ -305,6 +306,17 @@ export default async function PlanningPage({
       <PlanningCalendar months={calendarMonths} />
       <FundsSection funds={fundViews} accounts={accounts} tz={tz} />
       <BigPurchases purchases={bigPurchaseViews} hourlyRate={hourlyRateLabel || undefined} />
+      <div className="section fade-in">
+        <div className="section-hd">
+          <span className="ttl mono dim">{t("planning.trips.list.title")}</span>
+          <Link href="/planning/trips" className="btn-link acc">
+            {t("planning.trips.list.create_cta")}
+          </Link>
+        </div>
+        <Link href="/planning/trips" className="dim mono" style={{ fontSize: "var(--text-sm)" }}>
+          {t("planning.trips.list.subtitle")} →
+        </Link>
+      </div>
       <UpcomingDates items={upcomingItems} labels={upcomingDatesLabels} />
     </>
   );
