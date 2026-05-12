@@ -551,19 +551,38 @@ export async function syncCredential(
                     });
                     if (existingByFingerprint) {
                       console.log(`[persist] fingerprint-match bucket=A: replacing externalId ${existingByFingerprint.externalId} -> ${row.externalId} on tx=${existingByFingerprint.id} accountId=${accountId} source=${source}`);
-                      await tx.transaction.update({
-                        where: { id: existingByFingerprint.id },
-                        data: {
+                      const conflictingExternalIdHolder = await tx.transaction.findFirst({
+                        where: {
+                          accountId,
+                          source,
                           externalId: row.externalId,
-                          kind,
-                          amount: row.amount,
-                          name,
-                          occurredAt: new Date(row.occurredAt),
-                          ...(row.note !== undefined ? { note: row.note } : {}),
-                          // do not update categoryId — preserve manual re-categorization
+                          NOT: { id: existingByFingerprint.id },
                         },
+                        select: { id: true, deletedAt: true },
                       });
-                      continue;
+                      if (conflictingExternalIdHolder) {
+                        if (conflictingExternalIdHolder.deletedAt !== null) {
+                          await tx.transaction.delete({ where: { id: conflictingExternalIdHolder.id } });
+                          console.log(`[persist] ghost-hard-delete bucket=A id=${conflictingExternalIdHolder.id} externalId=${row.externalId}`);
+                        } else {
+                          console.log(`[persist] fingerprint-rename-skipped bucket=A live-conflict externalId=${row.externalId} kept-tx=${existingByFingerprint.id}`);
+                        }
+                      }
+                      if (!conflictingExternalIdHolder || conflictingExternalIdHolder.deletedAt !== null) {
+                        await tx.transaction.update({
+                          where: { id: existingByFingerprint.id },
+                          data: {
+                            externalId: row.externalId,
+                            kind,
+                            amount: row.amount,
+                            name,
+                            occurredAt: new Date(row.occurredAt),
+                            ...(row.note !== undefined ? { note: row.note } : {}),
+                            // do not update categoryId — preserve manual re-categorization
+                          },
+                        });
+                        continue;
+                      }
                     }
                     // Upsert: DB constraint importDedupe(accountId, source, externalId) handles dedupe.
                     console.log(`[persist] adapter=${cred.adapterId} bucket=A path=upsert accountId=${accountId} source=${source} externalId=${row.externalId} amount=${row.amount} occurredAt=${row.occurredAt}`);
@@ -581,6 +600,7 @@ export async function syncCredential(
                         name,
                         occurredAt: new Date(row.occurredAt),
                         ...(row.note !== undefined ? { note: row.note } : {}),
+                        deletedAt: null,  // resurrect ghosts intentionally — see fix for unique-constraint crash on tinkoff-retail sync
                         // do not update categoryId — preserve manual re-categorization
                       },
                       create: {
@@ -743,19 +763,38 @@ export async function syncCredential(
                   });
                   if (existingByFingerprintB) {
                     console.log(`[persist] fingerprint-match bucket=B: replacing externalId ${existingByFingerprintB.externalId} -> ${row.externalId} on tx=${existingByFingerprintB.id} accountId=${accountId} source=${bucketBSource}`);
-                    await tx.transaction.update({
-                      where: { id: existingByFingerprintB.id },
-                      data: {
+                    const conflictingExternalIdHolderB = await tx.transaction.findFirst({
+                      where: {
+                        accountId,
+                        source: bucketBSource,
                         externalId: row.externalId,
-                        kind,
-                        amount: row.amount,
-                        name,
-                        occurredAt: new Date(row.occurredAt),
-                        ...(row.note !== undefined ? { note: row.note } : {}),
-                        // do not update categoryId — preserve manual re-categorization
+                        NOT: { id: existingByFingerprintB.id },
                       },
+                      select: { id: true, deletedAt: true },
                     });
-                    continue;
+                    if (conflictingExternalIdHolderB) {
+                      if (conflictingExternalIdHolderB.deletedAt !== null) {
+                        await tx.transaction.delete({ where: { id: conflictingExternalIdHolderB.id } });
+                        console.log(`[persist] ghost-hard-delete bucket=B id=${conflictingExternalIdHolderB.id} externalId=${row.externalId}`);
+                      } else {
+                        console.log(`[persist] fingerprint-rename-skipped bucket=B live-conflict externalId=${row.externalId} kept-tx=${existingByFingerprintB.id}`);
+                      }
+                    }
+                    if (!conflictingExternalIdHolderB || conflictingExternalIdHolderB.deletedAt !== null) {
+                      await tx.transaction.update({
+                        where: { id: existingByFingerprintB.id },
+                        data: {
+                          externalId: row.externalId,
+                          kind,
+                          amount: row.amount,
+                          name,
+                          occurredAt: new Date(row.occurredAt),
+                          ...(row.note !== undefined ? { note: row.note } : {}),
+                          // do not update categoryId — preserve manual re-categorization
+                        },
+                      });
+                      continue;
+                    }
                   }
                   // Upsert: DB constraint importDedupe(accountId, source, externalId) handles dedupe.
                   console.log(`[persist] adapter=${cred.adapterId} bucket=B path=upsert accountId=${accountId} source=${bucketBSource} externalId=${row.externalId} amount=${row.amount} occurredAt=${row.occurredAt}`);
@@ -772,6 +811,7 @@ export async function syncCredential(
                       amount: row.amount,
                       name,
                       occurredAt: new Date(row.occurredAt),
+                      deletedAt: null,  // resurrect ghosts intentionally — see fix for unique-constraint crash on tinkoff-retail sync
                     },
                     create: {
                       userId,
