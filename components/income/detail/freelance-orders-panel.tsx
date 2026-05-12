@@ -2,20 +2,28 @@ import { getT } from "@/lib/i18n/server";
 import { formatMoney } from "@/lib/format/money";
 import { Prisma } from "@prisma/client";
 import type { WorkSourceFreelanceOrder } from "@/lib/data/work-sources";
+import { FreelanceOrdersPanelAdd } from "./freelance-orders-panel-add";
+import type { CurrencyOption } from "@/components/forms/currency-select";
 
 interface Props {
   orders: WorkSourceFreelanceOrder[];
+  workSourceId?: string;
+  workSourceCurrency?: string;
+  currencies?: CurrencyOption[];
 }
 
 const STATUS_COLOR: Record<string, string> = {
+  PLANNED: "var(--info)",
   ACTIVE: "var(--accent)",
   AWAITING_PAYMENT: "var(--warn)",
   COMPLETED: "var(--pos)",
   CANCELLED: "var(--muted)",
 };
 
-export async function FreelanceOrdersPanel({ orders }: Props) {
+export async function FreelanceOrdersPanel({ orders, workSourceId, workSourceCurrency, currencies }: Props) {
   const t = await getT();
+
+  const canAdd = !!(workSourceId && workSourceCurrency && currencies);
 
   return (
     <div className="section" style={{ borderBottom: "1px solid var(--border)" }}>
@@ -24,6 +32,13 @@ export async function FreelanceOrdersPanel({ orders }: Props) {
           <b>{t("income.work.detail.orders.title")}</b>
           <span className="dim"> · {orders.length}</span>
         </div>
+        {canAdd && (
+          <FreelanceOrdersPanelAdd
+            workSourceId={workSourceId!}
+            workSourceCurrency={workSourceCurrency!}
+            currencies={currencies!}
+          />
+        )}
       </div>
       <div className="section-body flush">
         {orders.length === 0 ? (

@@ -565,6 +565,7 @@ model WorkSource {
 // ─────────────────────────────────────────────────────────────
 
 enum FreelanceOrderStatus {
+  PLANNED // запланирован
   ACTIVE // в работе
   AWAITING_PAYMENT // сделано, ждём оплату
   COMPLETED // оплачено

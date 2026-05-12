@@ -20,12 +20,14 @@ interface FreelanceOrdersSectionProps {
 function StatusBadge({ status }: { status: FreelanceOrderStatus }) {
   const t = useT();
   const labelMap: Record<FreelanceOrderStatus, string> = {
+    PLANNED: t("forms.freelance_order.status.planned"),
     ACTIVE: t("forms.freelance_order.status.active"),
     AWAITING_PAYMENT: t("forms.freelance_order.status.awaiting_payment"),
     COMPLETED: t("forms.freelance_order.status.completed"),
     CANCELLED: t("forms.freelance_order.status.cancelled"),
   };
   const classMap: Record<FreelanceOrderStatus, string> = {
+    PLANNED: "fo-badge fo-badge--planned",
     ACTIVE: "fo-badge fo-badge--active",
     AWAITING_PAYMENT: "fo-badge fo-badge--awaiting",
     COMPLETED: "fo-badge fo-badge--completed",
@@ -57,7 +59,7 @@ export function FreelanceOrdersSection({
           <button
             type="button"
             className="btn primary"
-            style={{ padding: "3px 9px", fontSize: "var(--text-xs)" }}
+            style={{ padding: "var(--sp-1) var(--sp-3)", fontSize: "var(--text-xs)" }}
             onClick={() => { setShowAddForm(true); setEditingId(null); }}
           >
             {t("income.freelance_orders.add")}
@@ -161,7 +163,7 @@ export function FreelanceOrdersSection({
                       <button
                         type="button"
                         className="btn-ghost"
-                        style={{ padding: "2px 8px", fontSize: "var(--text-xs)" }}
+                        style={{ padding: "var(--sp-1) var(--sp-2)", fontSize: "var(--text-xs)" }}
                         onClick={() => { setEditingId(order.id); setShowAddForm(false); }}
                       >
                         {t("forms.common.edit")}

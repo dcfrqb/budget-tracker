@@ -701,7 +701,9 @@ export const ruDict = {
           empty: "Заказов за период нет",
           paid_prefix: "Оплачено",
           tips_suffix: "чаевые",
+          add: "Добавить заказ",
           status: {
+            planned: "Запланирован",
             active: "В работе",
             awaiting_payment: "Ожидание оплаты",
             completed: "Завершён",
@@ -1764,6 +1766,7 @@ export const ruDict = {
         note: "Заметка (опционально)",
       },
       status: {
+        planned: "Запланирован",
         active: "В работе",
         awaiting_payment: "Ждёт оплату",
         completed: "Оплачен",

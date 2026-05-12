@@ -128,6 +128,7 @@ export function FreelanceOrderForm({
   }
 
   const statusOptions = [
+    { value: FreelanceOrderStatus.PLANNED, label: t("forms.freelance_order.status.planned") },
     { value: FreelanceOrderStatus.ACTIVE, label: t("forms.freelance_order.status.active") },
     { value: FreelanceOrderStatus.AWAITING_PAYMENT, label: t("forms.freelance_order.status.awaiting_payment") },
     { value: FreelanceOrderStatus.COMPLETED, label: t("forms.freelance_order.status.completed") },

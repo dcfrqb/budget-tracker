@@ -693,7 +693,9 @@ export const enDict: RuDictShape = {
           empty: "No orders in this period",
           paid_prefix: "Paid",
           tips_suffix: "tips",
+          add: "Add order",
           status: {
+            planned: "Planned",
             active: "Active",
             awaiting_payment: "Awaiting payment",
             completed: "Completed",
@@ -1756,6 +1758,7 @@ export const enDict: RuDictShape = {
         note: "Note (optional)",
       },
       status: {
+        planned: "Planned",
         active: "Active",
         awaiting_payment: "Awaiting payment",
         completed: "Completed",

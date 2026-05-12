@@ -15,6 +15,7 @@ import {
   getSyntheticForecast,
 } from "@/lib/data/work-sources";
 import { TransactionStatus } from "@prisma/client";
+import { listAllCurrencies } from "@/lib/data/currencies";
 import { DetailHeader } from "@/components/income/detail/detail-header";
 import { DetailPeriodTabs } from "@/components/income/detail/detail-period-tabs";
 import { DetailKpiGrid } from "@/components/income/detail/detail-kpi-grid";
@@ -73,7 +74,7 @@ export default async function WorkSourceDetailPage({ params, searchParams }: Pro
   const isFreelance = source.kind === "FREELANCE";
   const isEmployment = source.kind === "EMPLOYMENT";
 
-  const [freelanceOrders, planRows, freelanceLatency, syntheticForecast] =
+  const [freelanceOrders, planRows, freelanceLatency, syntheticForecast, currencies] =
     await Promise.all([
       isFreelance ? getWorkSourceFreelanceOrders(userId, id, bounds) : Promise.resolve([]),
       isEmployment ? getEmploymentMonthlyPlanFact(userId, id, bounds) : Promise.resolve([]),
@@ -83,7 +84,12 @@ export default async function WorkSourceDetailPage({ params, searchParams }: Pro
       isEmployment
         ? getSyntheticForecast(userId, id, 3)
         : Promise.resolve([]),
+      isFreelance
+        ? listAllCurrencies()
+        : Promise.resolve([]),
     ]);
+
+  const currencyOptions = currencies.map((c) => ({ code: c.code, symbol: c.symbol }));
 
   const taxRatePct = source.taxRatePct ? Number(source.taxRatePct.toString()) : null;
 
@@ -101,7 +107,14 @@ export default async function WorkSourceDetailPage({ params, searchParams }: Pro
         <MonthlyBarChart series={monthlySeries} sourceCcy={source.currencyCode} />
         <CumulativeLineChart series={monthlySeries} sourceCcy={source.currencyCode} />
       </div>
-      {isFreelance && <FreelanceOrdersPanel orders={freelanceOrders} />}
+      {isFreelance && (
+        <FreelanceOrdersPanel
+          orders={freelanceOrders}
+          workSourceId={id}
+          workSourceCurrency={source.currencyCode}
+          currencies={currencyOptions}
+        />
+      )}
       {isFreelance && freelanceLatency && (
         <FreelanceLatencyKpisBlock kpis={freelanceLatency} />
       )}
