@@ -53,7 +53,7 @@ export async function GET(req: Request) {
       getCategoryPie(userId, range, baseCcy),
       getPeriodCompare(userId, range, baseCcy),
       getTrendPoints(userId, range, baseCcy, granularity),
-      getWeather(userId, baseCcy, tz),
+      getWeather(userId, baseCcy, tz, range),
       getForecastMonth(userId, baseCcy),
       // Нужен safeUntilDays для KPI-виджета
       getHomeDashboard(userId, baseCcy),

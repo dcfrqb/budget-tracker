@@ -51,7 +51,7 @@ export default async function HomePage({ searchParams }: PageProps) {
         }))}
         accountName={defaultAccount?.name}
       />
-      <PlanFact cells={view.planFact} period={period} />
+      <PlanFact cells={view.planFact} />
       <Obligations obligations={view.obligations} />
       <TopCategories categories={view.topCategories} />
     </>

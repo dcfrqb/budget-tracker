@@ -151,7 +151,7 @@ export function toKpisView(kpis: PeriodKpis, _safeUntilDays: number | null): Ana
       vFormat: net >= 0 ? "money-pos" : "money",
       delta: sr !== null ? `${sr >= 0 ? "+" : ""}${sr.toFixed(1)}% норма` : "—",
       deltaTone: sr !== null ? (sr > 20 ? "pos" : sr > 0 ? "mut" : "neg") : "mut",
-      s: sr !== null ? `норма накоплений ${Math.max(0, sr).toFixed(1)}%` : "нет данных",
+      s: sr !== null ? `норма накоплений ${sr.toFixed(1)}%` : "нет данных",
     },
     {
       c: "warn",

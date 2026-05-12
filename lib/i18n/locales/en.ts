@@ -1084,17 +1084,17 @@ export const enDict: RuDictShape = {
       reserve: "resilience — {n}/10",
       alert_level: "alert level — {score}/10",
       matches: "corresponds to «{label}»",
-      formula: "Weather is calculated from savings rate and income/expense balance over the last 3 months.",
+      formula: "Weather is calculated from savings rate and income/expense balance for the selected period.",
       reason_prefix: "Assessment reason: {hint}.",
       reason: {
-        outflow_gt_inflow_3_months: "expenses exceed income for three months in a row",
+        outflow_gt_inflow_period: "expenses exceed income for the selected period",
         savings_rate_lt_5pct: "savings rate below 5%",
         savings_rate_5_to_20pct: "savings rate 5–20%",
         savings_rate_gt_20pct: "savings rate above 20%",
       },
       savings_rate: {
-        line: "savings rate {value}% last month",
-        no_data: "insufficient data for last month",
+        line: "savings rate {value}% for the selected period",
+        no_data: "insufficient data for the selected period",
       },
       classification: {
         sun: "full resilience",
@@ -1104,7 +1104,7 @@ export const enDict: RuDictShape = {
         sun_threshold: "rate > 20%",
         cloud_threshold: "5–20%",
         rain_threshold: "< 5%",
-        storm_threshold: "expenses > income 3 months",
+        storm_threshold: "expenses > income for the period",
       },
     },
     category_pie: {

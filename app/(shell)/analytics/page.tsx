@@ -82,7 +82,7 @@ export default async function AnalyticsPage({
     getCategoryPie(userId, currentRange, DEFAULT_CURRENCY),
     getPeriodCompare(userId, currentRange, DEFAULT_CURRENCY, compareRange),
     getForecastMonth(userId, DEFAULT_CURRENCY),
-    getWeather(userId, DEFAULT_CURRENCY, tz),
+    getWeather(userId, DEFAULT_CURRENCY, tz, currentRange),
     db.budgetSettings.findUnique({ where: { userId } }),
     getRunwayByMode(userId, DEFAULT_CURRENCY, tz),
     getTrendPoints(userId, currentRange, DEFAULT_CURRENCY, granularity, tz),

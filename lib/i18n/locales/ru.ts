@@ -1092,17 +1092,17 @@ export const ruDict = {
       reserve: "запас прочности — {n}/10",
       alert_level: "уровень тревоги — {score}/10",
       matches: "соответствует «{label}»",
-      formula: "Погода считается из нормы накоплений и баланса доходов/расходов за последние 3 месяца.",
+      formula: "Погода считается из нормы накоплений и баланса доходов/расходов за выбранный период.",
       reason_prefix: "Причина оценки: {hint}.",
       reason: {
-        outflow_gt_inflow_3_months: "расход превышает доход три месяца подряд",
+        outflow_gt_inflow_period: "расход превышает доход за выбранный период",
         savings_rate_lt_5pct: "норма накоплений ниже 5%",
         savings_rate_5_to_20pct: "норма накоплений 5–20%",
         savings_rate_gt_20pct: "норма накоплений выше 20%",
       },
       savings_rate: {
-        line: "норма накоплений {value}% за прошлый месяц",
-        no_data: "недостаточно данных за последний месяц",
+        line: "норма накоплений {value}% за выбранный период",
+        no_data: "недостаточно данных за выбранный период",
       },
       classification: {
         sun: "полный запас",
@@ -1112,7 +1112,7 @@ export const ruDict = {
         sun_threshold: "норма > 20%",
         cloud_threshold: "5–20%",
         rain_threshold: "< 5%",
-        storm_threshold: "расход > доход 3 мес",
+        storm_threshold: "расход > доход за период",
       },
     },
     category_pie: {

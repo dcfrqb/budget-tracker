@@ -74,7 +74,7 @@ const KIND_CONFIG: Record<WeatherKind, KindConfig> = {
 };
 
 const REASON_KEYS: Record<string, string> = {
-  outflow_gt_inflow_3_months: "analytics.weather.reason.outflow_gt_inflow_3_months",
+  outflow_gt_inflow_period: "analytics.weather.reason.outflow_gt_inflow_period",
   savings_rate_lt_5pct: "analytics.weather.reason.savings_rate_lt_5pct",
   savings_rate_5_to_20pct: "analytics.weather.reason.savings_rate_5_to_20pct",
   savings_rate_gt_20pct: "analytics.weather.reason.savings_rate_gt_20pct",

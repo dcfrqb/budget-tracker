@@ -45,7 +45,7 @@ export default async function AnalyticsSummary({
   const [kpis, compareRows, weather] = await Promise.all([
     getPeriodKpis(userId, currentRange, DEFAULT_CURRENCY),
     getPeriodCompare(userId, currentRange, DEFAULT_CURRENCY, compareRange),
-    getWeather(userId, DEFAULT_CURRENCY, tz),
+    getWeather(userId, DEFAULT_CURRENCY, tz, currentRange),
   ]);
 
   const net = new Prisma.Decimal(kpis.netBase);

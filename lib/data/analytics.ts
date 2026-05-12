@@ -480,90 +480,41 @@ export const getWeather = cache(async (
   userId: string,
   baseCcy: string,
   tz: string = DEFAULT_TZ,
+  range: DateRange,
 ): Promise<WeatherResult> => {
-  const now = new Date();
-
-  // Последний месяц для savingsRate
-  const lastMonthStart = startOfMonth(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)));
-  const lastMonthEnd = endOfMonth(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)));
-
-  // Последние 3 месяца для storm-check
-  const threeMonthsAgo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 3, 1));
-
   const [proj, rates] = await Promise.all([
     getCompensationProjection(userId),
     getLatestRatesMap(),
   ]);
 
-  const [lastMonthRows, last3MonthsRows] = await Promise.all([
-    db.transaction.findMany({
-      where: {
-        userId,
-        deletedAt: null,
-        occurredAt: { gte: lastMonthStart, lte: lastMonthEnd },
-        kind: { in: [TransactionKind.INCOME, TransactionKind.EXPENSE] },
-        transferId: null,
-        status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
-        ...proj.whereExcludeNonMain,
-      },
-      select: {
-        id: true,
-        kind: true,
-        status: true,
-        amount: true,
-        currencyCode: true,
-        facts: { select: { amount: true } },
-      },
-    }),
-    db.transaction.findMany({
-      where: {
-        userId,
-        deletedAt: null,
-        occurredAt: { gte: threeMonthsAgo, lte: lastMonthEnd },
-        kind: { in: [TransactionKind.INCOME, TransactionKind.EXPENSE] },
-        transferId: null,
-        status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
-        ...proj.whereExcludeNonMain,
-      },
-      select: {
-        id: true,
-        kind: true,
-        status: true,
-        amount: true,
-        currencyCode: true,
-        occurredAt: true,
-        facts: { select: { amount: true } },
-      },
-    }),
-  ]);
+  const rows = await db.transaction.findMany({
+    where: {
+      userId,
+      deletedAt: null,
+      occurredAt: { gte: range.from, lte: range.to },
+      kind: { in: [TransactionKind.INCOME, TransactionKind.EXPENSE] },
+      transferId: null,
+      status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
+      ...proj.whereExcludeNonMain,
+    },
+    select: {
+      id: true,
+      kind: true,
+      status: true,
+      amount: true,
+      currencyCode: true,
+      occurredAt: true,
+      facts: { select: { amount: true } },
+    },
+  });
 
-  // savingsRate по последнему месяцу
-  let lastMonthInflow = new Prisma.Decimal(0);
-  let lastMonthOutflow = new Prisma.Decimal(0);
-  for (const t of lastMonthRows) {
-    const override = proj.rewriteAmount(t.id);
-    if (override) {
-      if (override.sign === 1) lastMonthInflow = lastMonthInflow.plus(override.netBase);
-      else lastMonthOutflow = lastMonthOutflow.plus(override.netBase);
-    } else {
-      const actual = confirmedAmt(t as Parameters<typeof confirmedAmt>[0]);
-      const inBase = convertToBase(actual, t.currencyCode, baseCcy, rates);
-      if (!inBase) continue;
-      if (t.kind === TransactionKind.INCOME) lastMonthInflow = lastMonthInflow.plus(inBase);
-      else lastMonthOutflow = lastMonthOutflow.plus(inBase);
-    }
-  }
-
-  const lastMonthNet = lastMonthInflow.minus(lastMonthOutflow);
-  const savingsRatePct = lastMonthInflow.isZero()
-    ? null
-    : lastMonthNet.div(lastMonthInflow).times(100).toNumber();
-
-  // Storm check: outflow > inflow в 3-х последних месяцах подряд
+  // Single pass: bucket by month for storm check, accumulate totals for savingsRate
   type MonthlyBucket = { inflow: Prisma.Decimal; outflow: Prisma.Decimal };
   const monthlyBuckets = new Map<string, MonthlyBucket>();
+  let totalInflow = new Prisma.Decimal(0);
+  let totalOutflow = new Prisma.Decimal(0);
 
-  for (const t of last3MonthsRows) {
+  for (const t of rows) {
     const key = monthKeyInTz(t.occurredAt, tz);
     if (!monthlyBuckets.has(key)) {
       monthlyBuckets.set(key, { inflow: new Prisma.Decimal(0), outflow: new Prisma.Decimal(0) });
@@ -571,33 +522,58 @@ export const getWeather = cache(async (
     const bucket = monthlyBuckets.get(key)!;
     const override = proj.rewriteAmount(t.id);
     if (override) {
-      if (override.sign === 1) bucket.inflow = bucket.inflow.plus(override.netBase);
-      else bucket.outflow = bucket.outflow.plus(override.netBase);
+      if (override.sign === 1) {
+        bucket.inflow = bucket.inflow.plus(override.netBase);
+        totalInflow = totalInflow.plus(override.netBase);
+      } else {
+        bucket.outflow = bucket.outflow.plus(override.netBase);
+        totalOutflow = totalOutflow.plus(override.netBase);
+      }
     } else {
       const actual = confirmedAmt(t as Parameters<typeof confirmedAmt>[0]);
       const inBase = convertToBase(actual, t.currencyCode, baseCcy, rates);
       if (!inBase) continue;
-      if (t.kind === TransactionKind.INCOME) bucket.inflow = bucket.inflow.plus(inBase);
-      else bucket.outflow = bucket.outflow.plus(inBase);
+      if (t.kind === TransactionKind.INCOME) {
+        bucket.inflow = bucket.inflow.plus(inBase);
+        totalInflow = totalInflow.plus(inBase);
+      } else {
+        bucket.outflow = bucket.outflow.plus(inBase);
+        totalOutflow = totalOutflow.plus(inBase);
+      }
     }
   }
 
-  // Берём последние 3 месяца в правильном порядке
+  const totalNet = totalInflow.minus(totalOutflow);
+  const savingsRatePct = totalInflow.isZero()
+    ? null
+    : totalNet.div(totalInflow).times(100).toNumber();
+
+  // Storm check: generalized for range length
   const sortedMonths = [...monthlyBuckets.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .slice(-3);
+    .sort(([a], [b]) => a.localeCompare(b));
 
-  const isStorm =
-    sortedMonths.length === 3 &&
-    sortedMonths.every(([, b]) => b.outflow.gt(b.inflow));
+  let isStorm: boolean;
+  if (sortedMonths.length >= 3) {
+    // Original semantics: trailing 3 months all have outflow > inflow
+    const trailing3 = sortedMonths.slice(-3);
+    isStorm = trailing3.every(([, b]) => b.outflow.gt(b.inflow));
+  } else if (sortedMonths.length === 2) {
+    isStorm = sortedMonths.every(([, b]) => b.outflow.gt(b.inflow));
+  } else {
+    // Single-month range: storm only when clearly negative
+    isStorm =
+      totalOutflow.gt(totalInflow) &&
+      savingsRatePct !== null &&
+      savingsRatePct < -10;
+  }
 
-  // Определяем погоду
+  // Determine weather
   let kind: WeatherKind;
   let reason: string;
 
   if (isStorm) {
     kind = "storm";
-    reason = "outflow_gt_inflow_3_months";
+    reason = "outflow_gt_inflow_period";
   } else if (savingsRatePct === null || savingsRatePct < 5) {
     kind = "rain";
     reason = "savings_rate_lt_5pct";

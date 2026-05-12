@@ -2,8 +2,6 @@ import { getT } from "@/lib/i18n/server";
 import { CountUp } from "@/components/count-up";
 import type { HomePlanFactCell } from "@/lib/view/home";
 import type { TKey } from "@/lib/i18n/t";
-import type { HomePeriod } from "@/lib/data/dashboard";
-
 const BAR_COLOR = {
   pos:  "var(--pos)",
   neg:  "var(--neg)",
@@ -28,24 +26,13 @@ const MONTH_KEYS: TKey[] = [
 
 export async function PlanFact({
   cells,
-  period = "30d",
 }: {
   cells: HomePlanFactCell[];
-  period?: HomePeriod;
 }) {
   const t = await getT();
-  // 30d ≈ calendar month: keep the familiar "АПР 2026" label for parity with prior UX.
-  // Other periods get an explicit "посл. Nд / посл. год" label so they don't lie.
-  let dimLabel: string;
-  let metaKey: TKey;
-  if (period === "30d") {
-    const now = new Date();
-    dimLabel = `${t(MONTH_KEYS[now.getMonth()])} ${now.getFullYear()}`;
-    metaKey = "home.plan_fact.meta";
-  } else {
-    dimLabel = t(`home.plan_fact.period_label.${period}` as TKey);
-    metaKey = `home.plan_fact.period_meta.${period}` as TKey;
-  }
+  const now = new Date();
+  const dimLabel = `${t(MONTH_KEYS[now.getMonth()])} ${now.getFullYear()}`;
+  const metaKey: TKey = "home.plan_fact.meta";
   return (
     <div className="section fade-in" style={{ animationDelay: "120ms" }}>
       <div className="section-hd">

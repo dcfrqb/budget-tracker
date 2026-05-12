@@ -166,13 +166,14 @@ export const getHomeDashboard = cache(async (
     getCompensationProjection(userId),
   ]);
 
-  // monthTxns and last30TxnsRaw fetched after proj so whereExcludeNonMain is available
-  const [monthTxns, last30TxnsRaw] = await Promise.all([
+  // currentMonthTxns and last30TxnsRaw fetched after proj so whereExcludeNonMain is available
+  // planFactMonth is ALWAYS current calendar month; period selector does not affect it.
+  const [currentMonthTxns, last30TxnsRaw] = await Promise.all([
     db.transaction.findMany({
       where: {
         userId,
         deletedAt: null,
-        occurredAt: { gte: periodStart, lte: periodEnd },
+        occurredAt: { gte: monthStart, lte: monthEnd },
         kind: { in: [TransactionKind.INCOME, TransactionKind.EXPENSE] },
         transferId: null,
         ...proj.whereExcludeNonMain,
@@ -435,7 +436,7 @@ export const getHomeDashboard = cache(async (
   let outflowPlanBase = new Prisma.Decimal(0);
   let outflowFactBase = new Prisma.Decimal(0);
 
-  for (const t of monthTxns) {
+  for (const t of currentMonthTxns) {
     const override = proj.rewriteAmount(t.id);
 
     if (t.kind === TransactionKind.INCOME) {
