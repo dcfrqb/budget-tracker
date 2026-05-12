@@ -628,6 +628,12 @@ export const enDict: RuDictShape = {
       add: "+ Add source",
       empty: "No sources yet — add a job or freelance source",
     },
+    sources: {
+      comparison: {
+        title: "Source comparison",
+        empty: "Less than two sources — nothing to compare",
+      },
+    },
     work: {
       kind_label: {
         employment: "Job",
@@ -701,6 +707,10 @@ export const enDict: RuDictShape = {
             completed: "Completed",
             cancelled: "Cancelled",
           },
+        },
+        status_breakdown: {
+          title: "Order statuses",
+          empty: "No orders in period",
         },
         status: {
           done: "Done",

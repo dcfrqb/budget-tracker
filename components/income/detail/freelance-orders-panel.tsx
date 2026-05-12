@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import type { WorkSourceFreelanceOrder } from "@/lib/data/work-sources";
 import { FreelanceOrdersPanelAdd } from "./freelance-orders-panel-add";
 import type { CurrencyOption } from "@/components/forms/currency-select";
+import { STATUS_COLOR } from "./order-status-colors";
 
 interface Props {
   orders: WorkSourceFreelanceOrder[];
@@ -11,14 +12,6 @@ interface Props {
   workSourceCurrency?: string;
   currencies?: CurrencyOption[];
 }
-
-const STATUS_COLOR: Record<string, string> = {
-  PLANNED: "var(--info)",
-  ACTIVE: "var(--accent)",
-  AWAITING_PAYMENT: "var(--warn)",
-  COMPLETED: "var(--pos)",
-  CANCELLED: "var(--muted)",
-};
 
 export async function FreelanceOrdersPanel({ orders, workSourceId, workSourceCurrency, currencies }: Props) {
   const t = await getT();

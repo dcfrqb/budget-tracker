@@ -636,6 +636,12 @@ export const ruDict = {
       add: "+ Добавить источник",
       empty: "Нет источников дохода — добавь работу или фриланс",
     },
+    sources: {
+      comparison: {
+        title: "Сравнение источников",
+        empty: "Источников меньше двух — сравнивать нечего",
+      },
+    },
     work: {
       kind_label: {
         employment: "Работа",
@@ -709,6 +715,10 @@ export const ruDict = {
             completed: "Завершён",
             cancelled: "Отменён",
           },
+        },
+        status_breakdown: {
+          title: "Статусы заказов",
+          empty: "Нет заказов в периоде",
         },
         status: {
           done: "Подтверждена",

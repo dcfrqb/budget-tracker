@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { db } from "@/lib/db";
-import { Prisma, TransactionKind, TransactionStatus, FreelanceOrderStatus } from "@prisma/client";
+import { Prisma, TransactionKind, TransactionStatus, FreelanceOrderStatus, WorkKind } from "@prisma/client";
 import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
 import { startOfMonthUtcInTz, periodBounds } from "@/lib/data/_period";
 import type { PeriodCode } from "@/lib/data/_period";
@@ -634,5 +634,154 @@ export const getSyntheticForecast = cache(
   },
 );
 
+// ─────────────────────────────────────────────────────────────
+// Order status breakdown (for freelance detail page chart)
+// ─────────────────────────────────────────────────────────────
+
+export type OrderStatusBreakdownRow = {
+  status: FreelanceOrderStatus;
+  count: number;
+  total: Prisma.Decimal;
+};
+
+const FREELANCE_STATUS_ORDER: FreelanceOrderStatus[] = [
+  FreelanceOrderStatus.PLANNED,
+  FreelanceOrderStatus.ACTIVE,
+  FreelanceOrderStatus.AWAITING_PAYMENT,
+  FreelanceOrderStatus.COMPLETED,
+  FreelanceOrderStatus.CANCELLED,
+];
+
+export const getFreelanceOrderStatusBreakdown = cache(
+  async (
+    userId: string,
+    workSourceId: string,
+    bounds: { from: Date; to: Date },
+  ): Promise<OrderStatusBreakdownRow[]> => {
+    const orders = await db.freelanceOrder.findMany({
+      where: {
+        userId,
+        workSourceId,
+        OR: [
+          { performedAt: { gte: bounds.from, lte: bounds.to } },
+          { paidAt: { gte: bounds.from, lte: bounds.to } },
+        ],
+      },
+      select: { status: true, amount: true },
+    });
+
+    const map = new Map<FreelanceOrderStatus, { count: number; total: Prisma.Decimal }>();
+    for (const status of FREELANCE_STATUS_ORDER) {
+      map.set(status, { count: 0, total: new Prisma.Decimal(0) });
+    }
+
+    for (const o of orders) {
+      const entry = map.get(o.status)!;
+      entry.count += 1;
+      entry.total = entry.total.plus(o.amount);
+    }
+
+    return FREELANCE_STATUS_ORDER.map((status) => {
+      const { count, total } = map.get(status)!;
+      return { status, count, total };
+    });
+  },
+);
+
+// ─────────────────────────────────────────────────────────────
+// Source comparison rows (for income index page chart)
+// ─────────────────────────────────────────────────────────────
+
+export type SourceComparisonRow = {
+  id: string;
+  name: string;
+  kind: WorkKind;
+  currencyCode: string;
+  totalNative: Prisma.Decimal;
+  totalBase: Prisma.Decimal;
+};
+
+export const getSourceComparisonRows = cache(
+  async (
+    userId: string,
+    bounds: { from: Date; to: Date },
+    baseCurrency: string,
+  ): Promise<SourceComparisonRow[]> => {
+    const [sources, rates] = await Promise.all([
+      db.workSource.findMany({
+        where: { userId, isActive: true },
+        orderBy: { createdAt: "asc" },
+      }),
+      getLatestRatesMap(),
+    ]);
+
+    if (sources.length === 0) return [];
+
+    const sourceIds = sources.map((s) => s.id);
+
+    const txns = await db.transaction.findMany({
+      where: {
+        userId,
+        workSourceId: { in: sourceIds },
+        deletedAt: null,
+        kind: TransactionKind.INCOME,
+        status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
+        occurredAt: { gte: bounds.from, lte: bounds.to },
+      },
+      select: {
+        workSourceId: true,
+        amount: true,
+        currencyCode: true,
+        status: true,
+        facts: { select: { amount: true } },
+      },
+    });
+
+    const nativeBySource = new Map<string, Prisma.Decimal>();
+    const baseBySource = new Map<string, Prisma.Decimal>();
+
+    for (const txn of txns) {
+      if (!txn.workSourceId) continue;
+
+      const native =
+        txn.status === TransactionStatus.DONE
+          ? new Prisma.Decimal(txn.amount)
+          : txn.facts.reduce(
+              (s, f) => s.plus(f.amount),
+              new Prisma.Decimal(0),
+            );
+
+      nativeBySource.set(
+        txn.workSourceId,
+        (nativeBySource.get(txn.workSourceId) ?? new Prisma.Decimal(0)).plus(native),
+      );
+
+      // Sources whose currency has no rate get totalBase=0 and sort to the bottom;
+      // native total stays accurate via nativeBySource.
+      const inBase = convertToBase(native, txn.currencyCode, baseCurrency, rates);
+      if (inBase) {
+        baseBySource.set(
+          txn.workSourceId,
+          (baseBySource.get(txn.workSourceId) ?? new Prisma.Decimal(0)).plus(inBase),
+        );
+      }
+    }
+
+    const rows: SourceComparisonRow[] = sources.map((ws) => ({
+      id: ws.id,
+      name: ws.name,
+      kind: ws.kind,
+      currencyCode: ws.currencyCode,
+      totalNative: nativeBySource.get(ws.id) ?? new Prisma.Decimal(0),
+      totalBase: baseBySource.get(ws.id) ?? new Prisma.Decimal(0),
+    }));
+
+    return rows.sort((a, b) =>
+      b.totalBase.comparedTo(a.totalBase),
+    );
+  },
+);
+
 // Re-export for backward compat with income/page.tsx imports
 export { periodBounds, startOfMonthUtcInTz };
+

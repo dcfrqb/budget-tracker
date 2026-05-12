@@ -13,6 +13,7 @@ import {
   getEmploymentMonthlyPlanFact,
   getFreelanceLatencyKpis,
   getSyntheticForecast,
+  getFreelanceOrderStatusBreakdown,
 } from "@/lib/data/work-sources";
 import { TransactionStatus } from "@prisma/client";
 import { listAllCurrencies } from "@/lib/data/currencies";
@@ -26,6 +27,7 @@ import { FreelanceOrdersPanel } from "@/components/income/detail/freelance-order
 import { EmploymentPlanGrid } from "@/components/income/detail/employment-plan-grid";
 import { FreelanceLatencyKpisBlock } from "@/components/income/detail/freelance-latency-kpis";
 import { SyntheticForecastBlock } from "@/components/income/detail/synthetic-forecast-block";
+import { OrderStatusBreakdown } from "@/components/income/detail/order-status-breakdown";
 
 export const dynamic = "force-dynamic";
 
@@ -74,7 +76,7 @@ export default async function WorkSourceDetailPage({ params, searchParams }: Pro
   const isFreelance = source.kind === "FREELANCE";
   const isEmployment = source.kind === "EMPLOYMENT";
 
-  const [freelanceOrders, planRows, freelanceLatency, syntheticForecast, currencies] =
+  const [freelanceOrders, planRows, freelanceLatency, syntheticForecast, currencies, orderStatusBreakdown] =
     await Promise.all([
       isFreelance ? getWorkSourceFreelanceOrders(userId, id, bounds) : Promise.resolve([]),
       isEmployment ? getEmploymentMonthlyPlanFact(userId, id, bounds) : Promise.resolve([]),
@@ -86,6 +88,9 @@ export default async function WorkSourceDetailPage({ params, searchParams }: Pro
         : Promise.resolve([]),
       isFreelance
         ? listAllCurrencies()
+        : Promise.resolve([]),
+      isFreelance
+        ? getFreelanceOrderStatusBreakdown(userId, id, bounds)
         : Promise.resolve([]),
     ]);
 
@@ -113,6 +118,12 @@ export default async function WorkSourceDetailPage({ params, searchParams }: Pro
           workSourceId={id}
           workSourceCurrency={source.currencyCode}
           currencies={currencyOptions}
+        />
+      )}
+      {isFreelance && (
+        <OrderStatusBreakdown
+          rows={orderStatusBreakdown}
+          sourceCcy={source.currencyCode}
         />
       )}
       {isFreelance && freelanceLatency && (

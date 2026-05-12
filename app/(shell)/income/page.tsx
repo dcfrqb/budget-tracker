@@ -8,13 +8,14 @@ import type { WorkSourceCardView } from "@/components/income/work-sources";
 import { DEFAULT_CURRENCY, HOURS_PER_MONTH_DEFAULT } from "@/lib/constants";
 import { getCurrentUserId } from "@/lib/api/auth";
 import { db } from "@/lib/db";
-import { getActiveWorkSources, getWorkSourceCardSummaries } from "@/lib/data/work-sources";
+import { getActiveWorkSources, getWorkSourceCardSummaries, getSourceComparisonRows } from "@/lib/data/work-sources";
 import { getLatestRatesMap, convertToBase } from "@/lib/data/wallet";
 import { getT } from "@/lib/i18n/server";
 import { Prisma, TransactionKind, TransactionStatus } from "@prisma/client";
 import { formatMoney } from "@/lib/format/money";
 import type { ExpectedRow } from "@/components/income/expected";
 import type { OtherIncomeRow } from "@/components/income/other-income";
+import { SourceComparison } from "@/components/income/source-comparison";
 
 function fmtWorkMoney(amount: Prisma.Decimal, ccy: string): string {
   return formatMoney(amount, ccy);
@@ -131,6 +132,8 @@ export default async function IncomePage({
       kpiWindow = { from: now, to: now };
     }
   }
+
+  const sourceComparisonRows = await getSourceComparisonRows(userId, kpiWindow, DEFAULT_CURRENCY);
 
   // Inflow KPI — DONE+PARTIAL income within the selected period window
   const inflowRows = await db.transaction.findMany({
@@ -340,6 +343,7 @@ export default async function IncomePage({
     <>
       <IncomeStatusStrip />
       <IncomeKpiRow kpi={kpi} hasNoSources={hasNoSources} hasIncomeTxns={!inflowTotal.isZero()} />
+      {(activeTab === "sources") && <SourceComparison rows={sourceComparisonRows} baseCcy={DEFAULT_CURRENCY} />}
       {(activeTab === "sources") && <WorkSourcesSection items={workSourceViews} />}
       {(activeTab === "expected") && <ExpectedIncome rows={expectedRows} />}
       {(activeTab === "other") && <OtherIncome rows={otherIncomeRows} />}
