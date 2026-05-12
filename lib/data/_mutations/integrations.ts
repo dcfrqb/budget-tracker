@@ -575,9 +575,9 @@ export async function syncCredential(
                             externalId: row.externalId,
                             kind,
                             amount: row.amount,
-                            name,
                             occurredAt: new Date(row.occurredAt),
                             ...(row.note !== undefined ? { note: row.note } : {}),
+                            // do not update name — preserve manual rename
                             // do not update categoryId — preserve manual re-categorization
                           },
                         });
@@ -597,10 +597,10 @@ export async function syncCredential(
                       update: {
                         kind,
                         amount: row.amount,
-                        name,
                         occurredAt: new Date(row.occurredAt),
                         ...(row.note !== undefined ? { note: row.note } : {}),
                         deletedAt: null,  // resurrect ghosts intentionally — see fix for unique-constraint crash on tinkoff-retail sync
+                        // do not update name — preserve manual rename (T-bank "Пополнение через Альфа-Банк" → "Arcadia — лендинг")
                         // do not update categoryId — preserve manual re-categorization
                       },
                       create: {
@@ -787,9 +787,9 @@ export async function syncCredential(
                           externalId: row.externalId,
                           kind,
                           amount: row.amount,
-                          name,
                           occurredAt: new Date(row.occurredAt),
                           ...(row.note !== undefined ? { note: row.note } : {}),
+                          // do not update name — preserve manual rename
                           // do not update categoryId — preserve manual re-categorization
                         },
                       });
@@ -809,9 +809,9 @@ export async function syncCredential(
                     update: {
                       kind,
                       amount: row.amount,
-                      name,
                       occurredAt: new Date(row.occurredAt),
                       deletedAt: null,  // resurrect ghosts intentionally — see fix for unique-constraint crash on tinkoff-retail sync
+                      // do not update name — preserve manual rename (mirrors bucket-A behavior)
                     },
                     create: {
                       userId,
