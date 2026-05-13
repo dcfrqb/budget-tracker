@@ -109,8 +109,8 @@ export default async function WorkSourceDetailPage({ params, searchParams }: Pro
         baseCcy={DEFAULT_CURRENCY}
       />
       <div className="ws-chart-row">
-        <MonthlyBarChart series={monthlySeries} sourceCcy={source.currencyCode} />
         <CumulativeLineChart series={monthlySeries} sourceCcy={source.currencyCode} />
+        <MonthlyBarChart series={monthlySeries} sourceCcy={source.currencyCode} />
       </div>
       {isFreelance && (
         <FreelanceOrdersPanel
@@ -118,6 +118,7 @@ export default async function WorkSourceDetailPage({ params, searchParams }: Pro
           workSourceId={id}
           workSourceCurrency={source.currencyCode}
           currencies={currencyOptions}
+          userId={userId}
         />
       )}
       {isFreelance && (

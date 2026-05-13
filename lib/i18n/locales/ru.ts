@@ -708,6 +708,10 @@ export const ruDict = {
           paid_prefix: "Оплачено",
           tips_suffix: "чаевые",
           add: "Добавить заказ",
+          paid_sum_line: "Получено {paid} / {total} · {count} платежей",
+          payments_toggle: "Платежи",
+          payments_empty: "Нет привязанных транзакций",
+          different_ccy_excluded: "{count} платёж(ей) в другой валюте — не учтены",
           status: {
             planned: "Запланирован",
             active: "В работе",
@@ -757,6 +761,12 @@ export const ruDict = {
       section_title: "Заказы",
       empty: "Заказов пока нет",
       add: "+ Заказ",
+      link_txn: "Привязать транзакцию",
+      unlink_txn: "Отвязать",
+      link_picker: {
+        title: "Доступные транзакции",
+        empty: "Нет неприсоединённых транзакций по этому источнику",
+      },
     },
     today: "сегодня",
     in_days: "+{n}д",
@@ -1782,8 +1792,9 @@ export const ruDict = {
         completed: "Оплачен",
         cancelled: "Отменён",
       },
-      error: {
-        hours_rate_required: "Заполни часы и ставку",
+      hint: {
+        hours_info: "Часы — справочно, не влияют на сумму",
+        rate_info: "Часовая ставка — справочно",
       },
     },
     work: {

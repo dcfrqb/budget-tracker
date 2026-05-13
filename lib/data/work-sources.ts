@@ -385,6 +385,29 @@ export const getWorkSourceKpis = cache(
         effectiveHourlyRate = new Prisma.Decimal(ws.rateAmount).div(hoursPerMonth);
       } else if (ws.rateType === "DAILY" && ws.rateAmount) {
         effectiveHourlyRate = new Prisma.Decimal(ws.rateAmount).div(8);
+      } else if (ws.kind === WorkKind.FREELANCE) {
+        // Fallback: derive from orders where both amount and hours are recorded
+        const orders = await db.freelanceOrder.findMany({
+          where: {
+            workSourceId,
+            userId,
+            amount: { gt: 0 },
+            hours: { not: null },
+            performedAt: { gte: bounds.from, lte: bounds.to },
+          },
+          select: { amount: true, hours: true },
+        });
+        let sumAmount = new Prisma.Decimal(0);
+        let sumHours = new Prisma.Decimal(0);
+        for (const o of orders) {
+          if (o.hours && !new Prisma.Decimal(o.hours).isZero()) {
+            sumAmount = sumAmount.plus(o.amount);
+            sumHours = sumHours.plus(o.hours);
+          }
+        }
+        if (!sumHours.isZero()) {
+          effectiveHourlyRate = sumAmount.div(sumHours);
+        }
       }
     }
 
@@ -443,7 +466,7 @@ export const getWorkSourceFreelanceOrders = cache(
     workSourceId: string,
     bounds: { from: Date; to: Date },
   ) => {
-    return db.freelanceOrder.findMany({
+    const orders = await db.freelanceOrder.findMany({
       where: {
         userId,
         workSourceId,
@@ -457,6 +480,98 @@ export const getWorkSourceFreelanceOrders = cache(
         { createdAt: "desc" },
       ],
     });
+
+    if (orders.length === 0) return orders.map((o) => ({ ...o, paidSum: new Prisma.Decimal(0), paidCount: 0, paidCountOtherCcy: 0 }));
+
+    const orderIds = orders.map((o) => o.id);
+    const linkedTxns = await db.transaction.findMany({
+      where: {
+        freelanceOrderId: { in: orderIds },
+        userId,
+        deletedAt: null,
+        kind: TransactionKind.INCOME,
+        status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
+      },
+      select: {
+        freelanceOrderId: true,
+        amount: true,
+        status: true,
+        currencyCode: true,
+        facts: { select: { amount: true } },
+      },
+    });
+
+    type TxnAgg = { paidSum: Prisma.Decimal; paidCount: number; paidCountOtherCcy: number };
+    const aggMap = new Map<string, TxnAgg>();
+    for (const orderId of orderIds) {
+      aggMap.set(orderId, { paidSum: new Prisma.Decimal(0), paidCount: 0, paidCountOtherCcy: 0 });
+    }
+
+    const orderCcyMap = new Map(orders.map((o) => [o.id, o.currencyCode]));
+
+    for (const txn of linkedTxns) {
+      if (!txn.freelanceOrderId) continue;
+      const agg = aggMap.get(txn.freelanceOrderId);
+      if (!agg) continue;
+
+      const orderCcy = orderCcyMap.get(txn.freelanceOrderId);
+      if (txn.currencyCode !== orderCcy) {
+        agg.paidCountOtherCcy += 1;
+        continue;
+      }
+
+      const effectiveAmt =
+        txn.status === TransactionStatus.DONE
+          ? new Prisma.Decimal(txn.amount)
+          : txn.facts.reduce((s, f) => s.plus(f.amount), new Prisma.Decimal(0));
+
+      agg.paidSum = agg.paidSum.plus(effectiveAmt);
+      agg.paidCount += 1;
+    }
+
+    return orders.map((o) => {
+      const agg = aggMap.get(o.id) ?? { paidSum: new Prisma.Decimal(0), paidCount: 0, paidCountOtherCcy: 0 };
+      return { ...o, ...agg };
+    });
+  },
+);
+
+export type CandidateTxnForOrder = {
+  id: string;
+  occurredAt: Date;
+  amount: Prisma.Decimal;
+  name: string;
+  currencyCode: string;
+  accountId: string | null;
+};
+
+export const getCandidateTxnsForOrder = cache(
+  async (
+    userId: string,
+    workSourceId: string,
+    bounds: { from: Date; to: Date },
+  ): Promise<CandidateTxnForOrder[]> => {
+    const rows = await db.transaction.findMany({
+      where: {
+        userId,
+        workSourceId,
+        freelanceOrderId: null,
+        deletedAt: null,
+        kind: TransactionKind.INCOME,
+        status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
+        occurredAt: { gte: bounds.from, lte: bounds.to },
+      },
+      orderBy: { occurredAt: "desc" },
+      select: {
+        id: true,
+        occurredAt: true,
+        amount: true,
+        name: true,
+        currencyCode: true,
+        accountId: true,
+      },
+    });
+    return rows.map((r) => ({ ...r, amount: new Prisma.Decimal(r.amount) }));
   },
 );
 

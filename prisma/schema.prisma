@@ -349,6 +349,7 @@ model Transaction {
   longProjectId       String?
   fundId              String?
   workSourceId        String?
+  freelanceOrderId    String?
   personalDebtId      String?
   plannedEventId      String?
   // Compensation group: never updated by sync adapters — only by createCompensationGroup / breakCompensationGroup server actions
@@ -373,6 +374,7 @@ model Transaction {
   longProject        LongProject?       @relation(fields: [longProjectId], references: [id], onDelete: SetNull)
   fund               Fund?              @relation(fields: [fundId], references: [id], onDelete: SetNull)
   workSource         WorkSource?        @relation(fields: [workSourceId], references: [id], onDelete: SetNull)
+  freelanceOrder     FreelanceOrder?    @relation(fields: [freelanceOrderId], references: [id], onDelete: SetNull)
   personalDebt       PersonalDebt?      @relation(fields: [personalDebtId], references: [id], onDelete: SetNull)
   plannedEvent       PlannedEvent?      @relation(fields: [plannedEventId], references: [id], onDelete: SetNull)
   compensationGroup  CompensationGroup? @relation("CompensationMembers", fields: [compensationGroupId], references: [id], onDelete: SetNull)
@@ -389,6 +391,7 @@ model Transaction {
   @@index([categoryId])
   @@index([status])
   @@index([compensationGroupId])
+  @@index([freelanceOrderId])
   @@index([tripId])
 }
 
@@ -593,6 +596,8 @@ model FreelanceOrder {
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   workSource WorkSource @relation(fields: [workSourceId], references: [id], onDelete: Cascade)
   currency   Currency   @relation(fields: [currencyCode], references: [code])
+
+  transactions Transaction[]
 
   @@index([userId])
   @@index([workSourceId])

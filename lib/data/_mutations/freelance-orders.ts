@@ -55,7 +55,7 @@ export async function updateFreelanceOrder(
     where: { id },
     data: {
       ...(input.client !== undefined && { client: input.client ?? null }),
-      ...(input.amount !== undefined && { amount: new Prisma.Decimal(input.amount) }),
+      ...(input.amount !== undefined && input.amount !== null && { amount: new Prisma.Decimal(input.amount) }),
       ...(input.currencyCode !== undefined && { currencyCode: input.currencyCode }),
       ...(input.hours !== undefined && { hours: toDecimalOrNull(input.hours ?? null) }),
       ...(input.hourlyRate !== undefined && { hourlyRate: toDecimalOrNull(input.hourlyRate ?? null) }),

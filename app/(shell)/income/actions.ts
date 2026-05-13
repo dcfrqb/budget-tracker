@@ -17,12 +17,15 @@ import {
 import {
   freelanceOrderCreateSchema,
   freelanceOrderUpdateSchema,
+  linkTxnToOrderSchema,
+  unlinkTxnFromOrderSchema,
 } from "@/lib/validation/freelance-order";
 import {
   createFreelanceOrder,
   updateFreelanceOrder,
   deleteFreelanceOrder,
 } from "@/lib/data/_mutations/freelance-orders";
+import { db } from "@/lib/db";
 
 // ─────────────────────────────────────────────────────────────
 // Create
@@ -157,4 +160,63 @@ export async function deleteFreelanceOrderAction(id: string) {
     if (err.code === "NOT_FOUND") return actionError("not_found");
     return actionError("internal_error");
   }
+}
+
+// ─────────────────────────────────────────────────────────────
+// FreelanceOrder — Link / Unlink Transaction
+// ─────────────────────────────────────────────────────────────
+
+export async function linkTxnToFreelanceOrderAction(rawInput: unknown) {
+  const userId = await getCurrentUserId();
+  const parsed = linkTxnToOrderSchema.safeParse(rawInput);
+  if (!parsed.success) return actionError("validation_error");
+
+  const { orderId, txnId } = parsed.data;
+
+  const [txn, order] = await Promise.all([
+    db.transaction.findFirst({ where: { id: txnId, userId, deletedAt: null } }),
+    db.freelanceOrder.findFirst({ where: { id: orderId, userId } }),
+  ]);
+
+  if (!txn || !order) return actionError("not_found");
+
+  // Require explicit workSourceId match: transaction must already belong to the same
+  // source as the order. Don't auto-assign — keeps link/unlink symmetric (unlinking
+  // would otherwise need to remember whether workSourceId was implicitly set).
+  if (txn.workSourceId !== order.workSourceId) {
+    return actionError("validation_error");
+  }
+
+  await db.transaction.update({
+    where: { id: txnId },
+    data: { freelanceOrderId: orderId },
+  });
+
+  revalidatePath(`/income/work-sources/${order.workSourceId}`, "page");
+  revalidatePath(`/income/work-sources/${order.workSourceId}/edit`, "page");
+  return actionOk(true);
+}
+
+export async function unlinkTxnFromFreelanceOrderAction(rawInput: unknown) {
+  const userId = await getCurrentUserId();
+  const parsed = unlinkTxnFromOrderSchema.safeParse(rawInput);
+  if (!parsed.success) return actionError("validation_error");
+
+  const { txnId } = parsed.data;
+
+  const txn = await db.transaction.findFirst({ where: { id: txnId, userId, deletedAt: null } });
+  if (!txn) return actionError("not_found");
+
+  const workSourceId = txn.workSourceId;
+
+  await db.transaction.update({
+    where: { id: txnId },
+    data: { freelanceOrderId: null },
+  });
+
+  if (workSourceId) {
+    revalidatePath(`/income/work-sources/${workSourceId}`, "page");
+    revalidatePath(`/income/work-sources/${workSourceId}/edit`, "page");
+  }
+  return actionOk(true);
 }

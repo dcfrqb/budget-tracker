@@ -20,3 +20,15 @@ export const freelanceOrderUpdateSchema = freelanceOrderCreateSchema.partial();
 
 export type FreelanceOrderCreateInput = z.infer<typeof freelanceOrderCreateSchema>;
 export type FreelanceOrderUpdateInput = z.infer<typeof freelanceOrderUpdateSchema>;
+
+export const linkTxnToOrderSchema = z.object({
+  orderId: zCuid,
+  txnId: zCuid,
+});
+
+export const unlinkTxnFromOrderSchema = z.object({
+  txnId: zCuid,
+});
+
+export type LinkTxnToOrderInput = z.infer<typeof linkTxnToOrderSchema>;
+export type UnlinkTxnFromOrderInput = z.infer<typeof unlinkTxnFromOrderSchema>;

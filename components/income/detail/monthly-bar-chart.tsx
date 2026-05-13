@@ -81,7 +81,7 @@ export function MonthlyBarChart({ series, sourceCcy }: Props) {
             const x = i * barW;
             const y = SVG_H - PAD_BOTTOM - barH;
 
-            const isNarrow = n > 8;
+            const isNarrow = n > 4;
             const label = shortMonthLabel(bucket.monthKey, isNarrow);
 
             return (

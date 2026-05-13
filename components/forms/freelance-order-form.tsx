@@ -55,11 +55,6 @@ export function FreelanceOrderForm({
   const [isDeleting, startDelete] = useTransition();
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const [rateMode, setRateMode] = useState<"hourly" | "fixed">(() => {
-    if (initialValues?.hours != null || initialValues?.hourlyRate != null) return "hourly";
-    return "fixed";
-  });
-
   type UpdateInput = z.infer<typeof freelanceOrderUpdateSchema>;
 
   const action = React.useMemo(() => {
@@ -101,31 +96,8 @@ export function FreelanceOrderForm({
 
   const {
     register,
-    watch,
-    setValue,
     formState: { errors },
   } = form;
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const watchedHours = watch("hours" as never) as any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const watchedHourlyRate = watch("hourlyRate" as never) as any;
-
-  function handleSubmitWithCompute(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (rateMode === "hourly") {
-      const h = parseFloat(String(watchedHours ?? "0")) || 0;
-      const r = parseFloat(String(watchedHourlyRate ?? "0")) || 0;
-      if (h <= 0 || r <= 0) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (form.setError as any)("hours", { message: t("forms.freelance_order.error.hours_rate_required") });
-        return;
-      }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (setValue as any)("amount", String((h * r).toFixed(2)));
-    }
-    rawSubmit(e);
-  }
 
   const statusOptions = [
     { value: FreelanceOrderStatus.PLANNED, label: t("forms.freelance_order.status.planned") },
@@ -144,78 +116,41 @@ export function FreelanceOrderForm({
 
   return (
     <>
-      <form onSubmit={handleSubmitWithCompute} className="form-grid">
+      <form onSubmit={rawSubmit} className="form-grid">
         <input type="hidden" {...register("workSourceId" as never)} />
         <input type="hidden" {...register("currencyCode" as never)} />
 
-        {/* Rate mode segmented control */}
-        <div className="field">
-          <div className="form-label">{t("forms.freelance_order.field.rate_mode")}</div>
-          <div role="radiogroup" style={{ display: "flex", gap: "var(--sp-2)" }}>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={rateMode === "hourly"}
-              className={`seg-btn${rateMode === "hourly" ? " active" : ""}`}
-              onClick={() => {
-                setRateMode("hourly");
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (setValue as any)("amount", undefined);
-              }}
-            >
-              {t("forms.freelance_order.rate_mode.hourly")}
-            </button>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={rateMode === "fixed"}
-              className={`seg-btn${rateMode === "fixed" ? " active" : ""}`}
-              onClick={() => {
-                setRateMode("fixed");
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (setValue as any)("hours", null);
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (setValue as any)("hourlyRate", null);
-              }}
-            >
-              {t("forms.freelance_order.rate_mode.fixed")}
-            </button>
-          </div>
-        </div>
+        {/* Amount */}
+        <MoneyInput
+          register={register("amount" as never, {
+            setValueAs: (v) => (v === "" || v == null ? null : String(Number(v))),
+          })}
+          label={t("forms.freelance_order.field.amount")}
+          error={errMsg(errors["amount" as keyof typeof errors])}
+          currencyCode={workSourceCurrency}
+        />
 
-        {/* Hourly mode */}
-        {rateMode === "hourly" && (
-          <>
-            <MoneyInput
-              register={register("hours" as never, {
-                setValueAs: (v) => (v === "" || v == null ? null : String(Number(v))),
-              })}
-              label={t("forms.freelance_order.field.hours")}
-              error={errMsg(errors["hours" as keyof typeof errors])}
-              currencyCode="h"
-            />
-            <MoneyInput
-              register={register("hourlyRate" as never, {
-                setValueAs: (v) => (v === "" || v == null ? null : String(Number(v))),
-              })}
-              label={t("forms.freelance_order.field.hourly_rate")}
-              error={errMsg(errors["hourlyRate" as keyof typeof errors])}
-              currencyCode={workSourceCurrency}
-            />
-          </>
-        )}
+        {/* Hours — informational */}
+        <MoneyInput
+          register={register("hours" as never, {
+            setValueAs: (v) => (v === "" || v == null ? null : String(Number(v))),
+          })}
+          label={t("forms.freelance_order.field.hours")}
+          error={errMsg(errors["hours" as keyof typeof errors])}
+          hint={t("forms.freelance_order.hint.hours_info")}
+          currencyCode="h"
+        />
 
-        {/* Fixed mode */}
-        {rateMode === "fixed" && (
-          <MoneyInput
-            register={register("amount" as never, {
-              setValueAs: (v) => (v === "" || v == null ? null : String(Number(v))),
-            })}
-            label={t("forms.freelance_order.field.amount")}
-            error={errMsg(errors["amount" as keyof typeof errors])}
-            currencyCode={workSourceCurrency}
-          />
-        )}
+        {/* Hourly rate — informational */}
+        <MoneyInput
+          register={register("hourlyRate" as never, {
+            setValueAs: (v) => (v === "" || v == null ? null : String(Number(v))),
+          })}
+          label={t("forms.freelance_order.field.hourly_rate")}
+          error={errMsg(errors["hourlyRate" as keyof typeof errors])}
+          hint={t("forms.freelance_order.hint.rate_info")}
+          currencyCode={workSourceCurrency}
+        />
 
         {/* Client */}
         <TextField

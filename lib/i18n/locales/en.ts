@@ -700,6 +700,10 @@ export const enDict: RuDictShape = {
           paid_prefix: "Paid",
           tips_suffix: "tips",
           add: "Add order",
+          paid_sum_line: "Received {paid} / {total} · {count} payments",
+          payments_toggle: "Payments",
+          payments_empty: "No linked transactions",
+          different_ccy_excluded: "{count} payment(s) in another currency — not counted",
           status: {
             planned: "Planned",
             active: "Active",
@@ -749,6 +753,12 @@ export const enDict: RuDictShape = {
       section_title: "Orders",
       empty: "No orders yet",
       add: "+ Order",
+      link_txn: "Link transaction",
+      unlink_txn: "Unlink",
+      link_picker: {
+        title: "Available transactions",
+        empty: "No unlinked transactions for this source",
+      },
     },
     today: "today",
     in_days: "+{n}d",
@@ -1774,8 +1784,9 @@ export const enDict: RuDictShape = {
         completed: "Completed",
         cancelled: "Cancelled",
       },
-      error: {
-        hours_rate_required: "Fill in hours and rate",
+      hint: {
+        hours_info: "Hours — informational, do not affect amount",
+        rate_info: "Hourly rate — informational",
       },
     },
     work: {

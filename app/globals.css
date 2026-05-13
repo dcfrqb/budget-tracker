@@ -1131,6 +1131,18 @@ a { color: inherit; text-decoration: none; }
   .skeleton-block { animation: skeleton-pulse 1.6s ease-in-out infinite; }
 }
 
+/* Work-source detail: chart row side-by-side layout */
+.ws-chart-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: var(--sp-3);
+}
+@media (max-width: 900px) {
+  .ws-chart-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Work-source detail: staggered fade-in */
 @media (prefers-reduced-motion: no-preference) {
   @keyframes ws-fade-in {
