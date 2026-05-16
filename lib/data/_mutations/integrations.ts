@@ -535,6 +535,8 @@ export async function syncCredential(
                     // Fingerprint check: Tinkoff rotates externalId when auth→settled.
                     // Find a row with identical (accountId, source, occurredAt, amount, currencyCode, kind)
                     // but a DIFFERENT externalId — that's the same physical op under a new id.
+                    // name is intentionally excluded: update path preserves manual renames, so
+                    // requiring name equality here would miss any user-renamed row and create a duplicate.
                     const existingByFingerprint = await tx.transaction.findFirst({
                       where: {
                         accountId,
@@ -543,7 +545,6 @@ export async function syncCredential(
                         amount: row.amount,
                         currencyCode: row.currencyCode,
                         kind,
-                        name,
                         deletedAt: null,
                         externalId: { not: row.externalId },
                       },
@@ -747,6 +748,7 @@ export async function syncCredential(
 
                 if (row.externalId) {
                   // Fingerprint check: Tinkoff rotates externalId when auth→settled.
+                  // name excluded — see bucket=A comment above.
                   const existingByFingerprintB = await tx.transaction.findFirst({
                     where: {
                       accountId,
@@ -755,7 +757,6 @@ export async function syncCredential(
                       amount: row.amount,
                       currencyCode: row.currencyCode,
                       kind,
-                      name,
                       deletedAt: null,
                       externalId: { not: row.externalId },
                     },
