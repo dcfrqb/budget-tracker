@@ -2132,6 +2132,7 @@ export const enDict: RuDictShape = {
     subtitle: "hints, not actions",
     active_count: "{n} active",
     empty: "no active signals",
+    empty_hint: "they'll appear on spending anomalies and upcoming charges",
   },
 
   home: {

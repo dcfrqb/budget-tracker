@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { getCurrentUserId } from "@/lib/api/auth";
 import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
-import { getT } from "@/lib/i18n/server";
+import { getT, getLocale } from "@/lib/i18n/server";
+import { pluralRu, pluralEn } from "@/lib/i18n/plural";
+import { ruPluralForms } from "@/lib/i18n/locales/ru";
+import { enPluralForms } from "@/lib/i18n/locales/en";
 import { getPlanningTimeline } from "@/lib/data/planning-timeline";
 import { getPlannedEvents } from "@/lib/data/planned-events";
 import { formatMoney } from "@/lib/format/money";
@@ -50,10 +53,11 @@ export default async function PlanningCalendarPage({
 
   const horizonDays = HORIZON_DAYS[horizon];
 
-  const [userId, t, tz] = await Promise.all([
+  const [userId, t, tz, locale] = await Promise.all([
     getCurrentUserId(),
     getT(),
     getCurrentUserTz(),
+    getLocale(),
   ]);
 
   const now = new Date();
@@ -146,10 +150,14 @@ export default async function PlanningCalendarPage({
     };
   });
 
+  const upcomingWord = locale === "ru"
+    ? pluralRu(upcomingItems.length, ruPluralForms.events)
+    : pluralEn(upcomingItems.length, ...enPluralForms.events);
+
   const upcomingDatesLabels: UpcomingDatesLabels = {
     title:    t("planning.upcoming_dates.title"),
     subtitle: t("planning.upcoming_dates.subtitle"),
-    meta:     t("planning.upcoming_dates.meta", { vars: { count: String(upcomingItems.length), word: "" } }),
+    meta:     t("planning.upcoming_dates.meta", { vars: { count: String(upcomingItems.length), word: upcomingWord } }),
     empty:    t("planning.upcoming_dates.empty"),
   };
 

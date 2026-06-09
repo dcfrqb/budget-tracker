@@ -1,5 +1,8 @@
 import Link from "next/link";
-import { getT } from "@/lib/i18n/server";
+import { getT, getLocale } from "@/lib/i18n/server";
+import { pluralRu, pluralEn } from "@/lib/i18n/plural";
+import { ruPluralForms } from "@/lib/i18n/locales/ru";
+import { enPluralForms } from "@/lib/i18n/locales/en";
 
 export type ExpectedRow = {
   id: string;
@@ -17,14 +20,17 @@ export type ExpectedRow = {
 const STATUS_CLASS = { confirmed: "st-confirmed", expected: "st-expected", await: "st-await" } as const;
 
 export async function ExpectedIncome({ rows }: { rows: ExpectedRow[] }) {
-  const t = await getT();
+  const [t, locale] = await Promise.all([getT(), getLocale()]);
+  const eventsWord = locale === "ru"
+    ? pluralRu(rows.length, ruPluralForms.events)
+    : pluralEn(rows.length, ...enPluralForms.events);
 
   return (
     <div className="section fade-in" style={{ animationDelay: "180ms" }}>
       <div className="section-hd">
         <div className="ttl mono">
           <b>{t("income.expected.status_label").toLowerCase()}</b>{" "}
-          <span className="dim">· {t("income.expected.events_count", { vars: { count: String(rows.length) } })}</span>
+          <span className="dim">· {t("income.expected.events_count", { vars: { count: String(rows.length), word: eventsWord } })}</span>
         </div>
         <div className="meta mono">
           <Link
