@@ -104,7 +104,7 @@ export default async function ExpensesPage({
   }
 
   // ── Subs monthly total ──────────────────────────────────────
-  const subsMonthly = subscriptionsGrouped.totals.monthlyBase;
+  const subsMonthly = subscriptionsGrouped.totals.mineMonthlyBase;
 
   // ── Long projects ───────────────────────────────────────────
   const projectTxnsMap = new Map<string, Prisma.Decimal>();

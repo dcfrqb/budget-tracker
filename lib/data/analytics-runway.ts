@@ -3,18 +3,7 @@ import { Prisma, BudgetMode } from "@prisma/client";
 import { db } from "@/lib/db";
 import { dayKeyInTz } from "@/lib/format/date";
 import { DEFAULT_TZ } from "@/lib/constants";
-import {
-  getInstitutionsWithAccounts,
-  getCashStash,
-  getLatestRatesMap,
-  convertToBase,
-} from "@/lib/data/wallet";
-import { getLoans } from "@/lib/data/loans";
-import { getSubscriptions } from "@/lib/data/subscriptions";
-import { getFundsWithProgress } from "@/lib/data/funds";
-import { getPlannedEvents } from "@/lib/data/planned-events";
-import { computeAmortization } from "@/lib/amortization";
-import { computeReserved, computeFreeAmount } from "@/lib/forecast";
+import { getAvailableNow } from "@/lib/data/_shared/period-aggregates";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -61,9 +50,10 @@ function toISODate(d: Date, tz: string = DEFAULT_TZ): string {
 }
 
 // ─────────────────────────────────────────────────────────────
-// availableNow calculation
-// Mirrors the logic from getHomeDashboard in lib/data/dashboard.ts.
-// TODO: dedupe with getHomeDashboard once shared helper is extracted.
+// availableNow calculation — delegated to the canonical helper.
+// Fixes CREDIT bug (old code used acc.balance.negated() instead of
+// resolveCreditState). Uses freeBase (total - reserved) which matches
+// the RunwayByMode.availableNowBase semantic: "total balance - reserved".
 // ─────────────────────────────────────────────────────────────
 
 async function getAvailableNowBase(
@@ -71,98 +61,8 @@ async function getAvailableNowBase(
   baseCcy: string,
 ): Promise<Prisma.Decimal> {
   const now = new Date();
-  const window30End = addDays(now, 30);
-
-  const [institutions, cash, rates, loans, subs, funds, plannedEvents30d] =
-    await Promise.all([
-      getInstitutionsWithAccounts(userId),
-      getCashStash(userId),
-      getLatestRatesMap(),
-      getLoans(userId),
-      getSubscriptions(userId),
-      getFundsWithProgress(userId),
-      getPlannedEvents(userId, { from: now, to: window30End }),
-    ]);
-
-  // ── Total balance ─────────────────────────────────────────
-  const balanceMap = new Map<string, Prisma.Decimal>();
-  const addBalance = (ccy: string, amount: Prisma.Decimal) => {
-    balanceMap.set(ccy, (balanceMap.get(ccy) ?? new Prisma.Decimal(0)).plus(amount));
-  };
-
-  for (const inst of institutions) {
-    for (const acc of inst.accounts) {
-      if (acc.kind === "LOAN") continue;
-      if (!acc.includeInAnalytics) continue;
-      if (acc.kind === "CREDIT") {
-        addBalance(acc.currencyCode, new Prisma.Decimal(acc.balance).negated());
-      } else {
-        addBalance(acc.currencyCode, new Prisma.Decimal(acc.balance));
-      }
-    }
-  }
-  for (const acc of cash) {
-    if (!acc.includeInAnalytics) continue;
-    addBalance(acc.currencyCode, new Prisma.Decimal(acc.balance));
-  }
-
-  let totalBalanceBase = new Prisma.Decimal(0);
-  for (const [ccy, amount] of balanceMap.entries()) {
-    const inBase = convertToBase(amount, ccy, baseCcy, rates);
-    totalBalanceBase = totalBalanceBase.plus(inBase ?? new Prisma.Decimal(0));
-  }
-
-  // ── Reserved ─────────────────────────────────────────────
-  let subscriptions30dBase = new Prisma.Decimal(0);
-  for (const sub of subs) {
-    if (sub.nextPaymentDate <= window30End) {
-      const inBase = convertToBase(sub.price, sub.currencyCode, baseCcy, rates);
-      if (inBase) subscriptions30dBase = subscriptions30dBase.plus(inBase);
-    }
-  }
-
-  let loanPayments30dBase = new Prisma.Decimal(0);
-  for (const loan of loans) {
-    const paidCount = loan.payments.length;
-    const schedule = computeAmortization({
-      principal: new Prisma.Decimal(loan.principal),
-      annualRatePct: new Prisma.Decimal(loan.annualRatePct),
-      termMonths: loan.termMonths,
-      startDate: loan.startDate,
-    });
-    const nextRow = schedule.find(
-      (r) => r.n > paidCount && r.date >= now && r.date <= window30End,
-    );
-    if (nextRow) {
-      const inBase = convertToBase(nextRow.payment, loan.currencyCode, baseCcy, rates);
-      if (inBase) loanPayments30dBase = loanPayments30dBase.plus(inBase);
-    }
-  }
-
-  let plannedOutflows30dBase = new Prisma.Decimal(0);
-  for (const ev of plannedEvents30d) {
-    if (ev.expectedAmount && ev.currencyCode) {
-      const inBase = convertToBase(ev.expectedAmount, ev.currencyCode, baseCcy, rates);
-      if (inBase) plannedOutflows30dBase = plannedOutflows30dBase.plus(inBase);
-    }
-  }
-
-  let fundsContribTargets30dBase = new Prisma.Decimal(0);
-  for (const fund of funds) {
-    if (fund.monthlyContribution) {
-      const inBase = convertToBase(fund.monthlyContribution, fund.currencyCode, baseCcy, rates);
-      if (inBase) fundsContribTargets30dBase = fundsContribTargets30dBase.plus(inBase);
-    }
-  }
-
-  const reservedBase = computeReserved({
-    subscriptions30dBase,
-    loanPayments30dBase,
-    plannedOutflows30dBase,
-    fundsContribTargets30dBase,
-  });
-
-  return computeFreeAmount(totalBalanceBase, reservedBase);
+  const result = await getAvailableNow(userId, baseCcy, now);
+  return result.freeBase;
 }
 
 // ─────────────────────────────────────────────────────────────

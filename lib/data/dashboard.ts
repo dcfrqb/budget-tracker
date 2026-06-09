@@ -2,8 +2,6 @@ import { cache } from "react";
 import { Prisma, TransactionKind, TransactionStatus, BudgetMode } from "@prisma/client";
 import { db } from "@/lib/db";
 import {
-  getInstitutionsWithAccounts,
-  getCashStash,
   getLatestRatesMap,
   convertToBase,
 } from "@/lib/data/wallet";
@@ -12,12 +10,8 @@ import { getSubscriptions } from "@/lib/data/subscriptions";
 import { getFundsWithProgress } from "@/lib/data/funds";
 import { getPlannedEvents } from "@/lib/data/planned-events";
 import { computeAmortization } from "@/lib/amortization";
-import {
-  computeReserved,
-  computeSafeUntil,
-  computeFreeAmount,
-} from "@/lib/forecast";
-import { resolveCreditState } from "@/lib/data/wallet";
+import { computeSafeUntil } from "@/lib/forecast";
+import { getAvailableNow } from "@/lib/data/_shared/period-aggregates";
 import { getCompensationProjection } from "@/lib/data/_shared/compensation-projection";
 
 // ─────────────────────────────────────────────────────────────
@@ -134,28 +128,20 @@ export const getHomeDashboard = cache(async (
 
   // ── Параллельные запросы ──────────────────────────────────
   const [
-    institutions,
-    cash,
+    availableNow,
     rates,
     budgetSettings,
-    loans,
     subs,
-    funds,
-    plannedEvents30d,
     // Топ категорий: текущий и предыдущий месяц
     prevMonthStart,
     prevMonthEnd,
     categories,
     proj,
   ] = await Promise.all([
-    getInstitutionsWithAccounts(userId),
-    getCashStash(userId),
+    getAvailableNow(userId, baseCcy, now),
     getLatestRatesMap(),
     db.budgetSettings.findUnique({ where: { userId } }),
-    getLoans(userId),
     getSubscriptions(userId),
-    getFundsWithProgress(userId),
-    getPlannedEvents(userId, { from: now, to: window30End }),
     // prevMonthStart / prevMonthEnd — Date objects
     Promise.resolve(startOfMonth(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)))),
     Promise.resolve(endOfMonth(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)))),
@@ -164,6 +150,26 @@ export const getHomeDashboard = cache(async (
       select: { id: true, name: true, icon: true },
     }),
     getCompensationProjection(userId),
+  ]);
+
+  // Destructure from the canonical getAvailableNow helper (single source of truth)
+  const { totalBase: totalBalanceBase, reservedBase, freeBase, liquidBase, perCurrencyRows } = availableNow;
+
+  // Build balances array for display from per-currency rows
+  const balances: HomeDashboard["balances"] = perCurrencyRows.map(({ ccy, balance }) => {
+    const inBase = convertToBase(balance, ccy, baseCcy, rates);
+    return {
+      currencyCode: ccy,
+      amount: balance.toString(),
+      amountBase: (inBase ?? new Prisma.Decimal(0)).toString(),
+    };
+  });
+
+  // Fetch remaining data needed for obligations/avgDailySpend (cached — no duplicate I/O)
+  const [loans, funds, plannedEvents30d] = await Promise.all([
+    getLoans(userId),
+    getFundsWithProgress(userId),
+    getPlannedEvents(userId, { from: now, to: window30End }),
   ]);
 
   // currentMonthTxns and last30TxnsRaw fetched after proj so whereExcludeNonMain is available
@@ -208,64 +214,6 @@ export const getHomeDashboard = cache(async (
     }),
   ]);
 
-  // ── Balances ──────────────────────────────────────────────
-  const balanceMap = new Map<string, Prisma.Decimal>();
-  const addBalance = (ccy: string, amount: Prisma.Decimal) => {
-    balanceMap.set(ccy, (balanceMap.get(ccy) ?? new Prisma.Decimal(0)).plus(amount));
-  };
-  // Liquid = "доступно сейчас" — sum of spendable money across debit/credit-available/cash/crypto.
-  // Differs from balanceMap (net) in that CREDIT contributes ONLY `available`, not `available - debt`.
-  let liquidBase = new Prisma.Decimal(0);
-  const addLiquid = (ccy: string, amount: Prisma.Decimal) => {
-    const inBase = convertToBase(amount, ccy, baseCcy, rates);
-    if (inBase && inBase.greaterThan(0)) liquidBase = liquidBase.plus(inBase);
-  };
-
-  for (const inst of institutions) {
-    for (const acc of inst.accounts) {
-      // LOAN accounts represent liabilities — exclude from balance totals.
-      if (acc.kind === "LOAN") continue;
-      // Accounts excluded from analytics don't count towards safe-until / available
-      if (!acc.includeInAnalytics) continue;
-      // CREDIT accounts: net contribution = available - debt (per resolveCreditState).
-      // For T-Bank synced accounts, `balance` is "available to spend" and `debtBalance`
-      // is the actual liability — use the unified helper to avoid drift with
-      // getWalletTotals / getBalancesByCurrency / toAccountView.
-      if (acc.kind === "CREDIT") {
-        const state = resolveCreditState(acc);
-        // Net worth: subtract ONLY debt. Credit-available is potential borrowing
-        // capacity, not your money — counting it as a positive offset would
-        // misrepresent net worth (and disagrees with /wallet's "Чистая сумма").
-        addBalance(acc.currencyCode, state.debt.negated());
-        // Liquidity is separate: credit-available IS spendable right now.
-        addLiquid(acc.currencyCode, state.available);
-      } else {
-        const bal = new Prisma.Decimal(acc.balance);
-        addBalance(acc.currencyCode, bal);
-        addLiquid(acc.currencyCode, bal);
-      }
-    }
-  }
-  for (const acc of cash) {
-    // Cash accounts excluded from analytics (default for CASH per D8 spec)
-    if (!acc.includeInAnalytics) continue;
-    const bal = new Prisma.Decimal(acc.balance);
-    addBalance(acc.currencyCode, bal);
-    addLiquid(acc.currencyCode, bal);
-  }
-
-  let totalBalanceBase = new Prisma.Decimal(0);
-  const balances: HomeDashboard["balances"] = [];
-  for (const [ccy, amount] of balanceMap.entries()) {
-    const inBase = convertToBase(amount, ccy, baseCcy, rates);
-    const amountBase = inBase ?? new Prisma.Decimal(0);
-    totalBalanceBase = totalBalanceBase.plus(amountBase);
-    balances.push({
-      currencyCode: ccy,
-      amount: amount.toString(),
-      amountBase: amountBase.toString(),
-    });
-  }
 
   // ── avgDailySpend (последние 30д) ─────────────────────────
   // Non-main compensation members already excluded at DB level via whereExcludeNonMain
@@ -305,53 +253,9 @@ export const getHomeDashboard = cache(async (
     else upcomingOutflow30dBase = upcomingOutflow30dBase.plus(inBase);
   }
 
-  // ── Reserved ─────────────────────────────────────────────
-  // Subscriptions: сумма тех, у кого nextPaymentDate <= now+30d
-  let subscriptions30dBase = new Prisma.Decimal(0);
-  for (const sub of subs) {
-    if (sub.nextPaymentDate <= window30End) {
-      const inBase = convertToBase(sub.price, sub.currencyCode, baseCcy, rates);
-      if (inBase) subscriptions30dBase = subscriptions30dBase.plus(inBase);
-    }
-  }
+  // reservedBase, freeBase, liquidBase come from getAvailableNow (single source of truth).
 
-  // Loan payments: проходим по амортизации, берём первый незакрытый платёж в окне
-  let loanPayments30dBase = new Prisma.Decimal(0);
-  for (const loan of loans) {
-    const paidCount = loan.payments.length;
-    const schedule = computeAmortization({
-      principal: new Prisma.Decimal(loan.principal),
-      annualRatePct: new Prisma.Decimal(loan.annualRatePct),
-      termMonths: loan.termMonths,
-      startDate: loan.startDate,
-    });
-    const nextRow = schedule.find((r) => r.n > paidCount && r.date >= now && r.date <= window30End);
-    if (nextRow) {
-      const inBase = convertToBase(nextRow.payment, loan.currencyCode, baseCcy, rates);
-      if (inBase) loanPayments30dBase = loanPayments30dBase.plus(inBase);
-    }
-  }
-
-  // PlannedEvents: события с expectedAmount в окне
-  let plannedOutflows30dBase = new Prisma.Decimal(0);
-  for (const ev of plannedEvents30d) {
-    if (ev.expectedAmount && ev.currencyCode) {
-      const inBase = convertToBase(ev.expectedAmount, ev.currencyCode, baseCcy, rates);
-      if (inBase) plannedOutflows30dBase = plannedOutflows30dBase.plus(inBase);
-    }
-  }
-
-  // Funds monthly contributions
-  let fundsContribTargets30dBase = new Prisma.Decimal(0);
-  for (const fund of funds) {
-    if (fund.monthlyContribution) {
-      const inBase = convertToBase(fund.monthlyContribution, fund.currencyCode, baseCcy, rates);
-      if (inBase) fundsContribTargets30dBase = fundsContribTargets30dBase.plus(inBase);
-    }
-  }
-
-  // Credit card minimum payments — query here so it feeds both reservedBase and obligations
-  let creditCardPayments30dBase = new Prisma.Decimal(0);
+  // Credit card accounts — still needed for the obligations display list
   const creditAccounts = await db.account.findMany({
     where: {
       userId,
@@ -373,47 +277,6 @@ export const getHomeDashboard = cache(async (
       statementDay: true,
     },
   });
-
-  for (const card of creditAccounts) {
-    const fixed = card.minPaymentFixed ? new Prisma.Decimal(card.minPaymentFixed) : null;
-    const debt = card.debtBalance ? new Prisma.Decimal(card.debtBalance) : new Prisma.Decimal(0);
-    const pctAmount = card.minPaymentPercent ? debt.mul(card.minPaymentPercent).div(100) : null;
-
-    let effectiveAmount: Prisma.Decimal | null = null;
-    if (fixed !== null && pctAmount !== null) {
-      effectiveAmount = fixed.greaterThan(pctAmount) ? fixed : pctAmount;
-    } else if (fixed !== null) {
-      effectiveAmount = fixed;
-    } else if (pctAmount !== null) {
-      effectiveAmount = pctAmount;
-    }
-    if (!effectiveAmount || effectiveAmount.lte(0)) continue;
-
-    // Compute due date: paymentDueDay → statementDay+20 → skip
-    let nextDueDate: Date | null = null;
-    if (card.paymentDueDay) {
-      const day = card.paymentDueDay;
-      const candidate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), day));
-      nextDueDate = candidate >= now ? candidate : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, day));
-    } else if (card.statementDay) {
-      const candidate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), card.statementDay + 20));
-      nextDueDate = candidate >= now ? candidate : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, card.statementDay + 20));
-    }
-    if (!nextDueDate || nextDueDate > window30End) continue;
-
-    const inBase = convertToBase(effectiveAmount, card.currencyCode, baseCcy, rates);
-    if (inBase) creditCardPayments30dBase = creditCardPayments30dBase.plus(inBase);
-  }
-
-  const reservedBase = computeReserved({
-    subscriptions30dBase,
-    loanPayments30dBase,
-    plannedOutflows30dBase,
-    fundsContribTargets30dBase,
-    creditCardPayments30dBase,
-  });
-
-  const freeBase = computeFreeAmount(totalBalanceBase, reservedBase);
 
   const safeUntilDays = computeSafeUntil({
     totalBalanceBase,

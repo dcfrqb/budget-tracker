@@ -48,7 +48,7 @@ export const getSubscriptions = cache(async (
 
 export type SubscriptionTotals = {
   activeCount: number;
-  /** Monthly base cost, all converted to RUB */
+  /** Monthly base cost, all converted to RUB (full sticker price, all subs) */
   monthlyBase: Prisma.Decimal;
   /** My personal cost portion (PERSONAL subs) */
   personalBase: Prisma.Decimal;
@@ -56,6 +56,8 @@ export type SubscriptionTotals = {
   splitBase: Prisma.Decimal;
   /** PAID_FOR_OTHERS full price (I pay all) */
   paidForOthersBase: Prisma.Decimal;
+  /** My real monthly outflow = personalBase + splitBase (headline figure) */
+  mineMonthlyBase: Prisma.Decimal;
 };
 
 // ─── Grouped result type ──────────────────────────────────
@@ -138,6 +140,7 @@ export const getSubscriptionsGrouped = cache(async (
       personalBase,
       splitBase,
       paidForOthersBase,
+      mineMonthlyBase: personalBase.plus(splitBase),
     },
   };
 });

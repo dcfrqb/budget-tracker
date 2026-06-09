@@ -46,7 +46,7 @@ export default async function ExpensesSummary() {
     }
   }
 
-  const subsMonthly = subsGrouped.totals.monthlyBase;
+  const subsMonthly = subsGrouped.totals.mineMonthlyBase;
   const totalReserve = loanReserve.plus(subsMonthly);
 
   const reservedRows: ReservedRow[] = [
@@ -60,7 +60,7 @@ export default async function ExpensesSummary() {
     { k: t("summary.expenses.personal_key"), v: formatMoney(subsGrouped.totals.personalBase, "RUB"), tone: "text" as const },
     { k: t("summary.expenses.split_key"), v: formatMoney(subsGrouped.totals.splitBase, "RUB"), tone: "info" as const },
     { k: t("summary.expenses.paid_for_others_key"), v: formatMoney(subsGrouped.totals.paidForOthersBase, "RUB"), tone: "acc" as const },
-    { k: t("summary.expenses.total_key"), v: formatMoney(subsMonthly, "RUB"), tone: "text" as const },
+    { k: t("summary.expenses.total_key"), v: formatMoney(subsGrouped.totals.mineMonthlyBase, "RUB"), tone: "text" as const },
   ];
 
   return (

@@ -197,7 +197,7 @@ export function toSubscriptionsSummaryView(
       vars: { count: totals.activeCount },
     }),
     monthly: t("expenses.subscriptions.summary.monthly", {
-      vars: { amount: formatMoney(totals.monthlyBase, "RUB") },
+      vars: { amount: formatMoney(totals.mineMonthlyBase, "RUB") },
     }),
     personalLabel: t("expenses.subscriptions.summary.personalLabel"),
     personalAmount: formatMoney(totals.personalBase, "RUB"),
