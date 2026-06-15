@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n";
 import { Dialog } from "@/components/ui/dialog";
 import { ConfirmDialog } from "./confirm-dialog";
-import { ReimbursementDialog } from "./reimbursement-dialog";
 import {
   missTransactionAction,
   cancelTransactionAction,
@@ -89,7 +88,6 @@ export function TxnRowActions({ txn, accounts, tz }: TxnRowActionsProps) {
   const [isPending, startTransition] = useTransition();
 
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [reimbOpen, setReimbOpen] = useState(false);
   const [missOpen, setMissOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -132,7 +130,6 @@ export function TxnRowActions({ txn, accounts, tz }: TxnRowActionsProps) {
   const canCancel =
     txn.status === "planned" ||
     txn.status === "partial";
-  const isReimbursable = txn.reimbursable === true;
   const isInCompensationGroup = !!txn.compensationGroupId;
 
   return (
@@ -151,17 +148,6 @@ export function TxnRowActions({ txn, accounts, tz }: TxnRowActionsProps) {
             disabled={isPending}
           >
             {t("forms.tx_row.confirm")}
-          </button>
-        )}
-        {isReimbursable && (
-          <button
-            type="button"
-            className="btn"
-            style={{ fontSize: "10px", padding: "3px 8px" }}
-            onClick={() => setReimbOpen(true)}
-            disabled={isPending}
-          >
-            {t("forms.tx_row.reimburse")}
           </button>
         )}
         {canMiss && (
@@ -217,15 +203,6 @@ export function TxnRowActions({ txn, accounts, tz }: TxnRowActionsProps) {
         }}
         transactionId={txn.id}
         onDone={() => setOptimisticStatus("done")}
-        tz={tz}
-      />
-
-      {/* Reimbursement dialog */}
-      <ReimbursementDialog
-        open={reimbOpen}
-        onOpenChange={setReimbOpen}
-        transactionId={txn.id}
-        accounts={accounts}
         tz={tz}
       />
 

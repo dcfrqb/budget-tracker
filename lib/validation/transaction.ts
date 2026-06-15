@@ -16,10 +16,6 @@ const transactionCreateBaseSchema = z.object({
   scope: z.nativeEnum(Scope).optional(),
   familyId: zCuid.nullish(),
 
-  isReimbursable: z.boolean().optional(),
-  reimbursementFromName: z.string().max(120).nullish(),
-  expectedReimbursement: zMoney.nullish(),
-
   // transferId умышленно запрещён на create — переводы делаются через /api/transfers.
   loanId: zCuid.nullish(),
   loanPaymentId: zCuid.nullish(),
@@ -71,10 +67,6 @@ export const transactionListQuerySchema = z.object({
   status: csvEnum(TransactionStatus),
   accountId: zCuid.optional(),
   categoryId: zCuid.optional(),
-  reimbursable: z
-    .enum(["true", "false"])
-    .optional()
-    .transform((s) => (s === undefined ? undefined : s === "true")),
   q: z.string().optional(),
   groupBy: z.enum(["day"]).optional(),
   cursor: zCuid.optional(),

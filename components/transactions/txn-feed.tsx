@@ -30,17 +30,6 @@ const STATUS_CLASS: Record<TxnView["status"], string> = {
   cancel: "st-cancel",
 };
 
-function ReimbursableFlag() {
-  return (
-    <span className="txn-flag" aria-hidden="true">
-      <svg viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path d="M4 2v11M2 4l2-2 2 2" />
-        <path d="M11 13V2M9 11l2 2 2-2" />
-      </svg>
-    </span>
-  );
-}
-
 interface CompensationBadgeProps {
   groupId: string;
   membersCount: number;
@@ -104,7 +93,6 @@ function TxnRow({ t, accounts, expanded, onToggle, tz }: TxnRowProps) {
         <div className="txn-main">
           <div className="n">
             {t.name}
-            {t.reimbursable && <ReimbursableFlag />}
             {t.compensationMainBadge && t.compensationGroupId && t.compensationMembersCount != null && (
               <CompensationBadge
                 groupId={t.compensationGroupId}

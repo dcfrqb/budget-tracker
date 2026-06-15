@@ -130,7 +130,6 @@ export function TransactionForm({
 
   const watchedAccountId = watch("accountId");
   const watchedKind = watch("kind") as TransactionKind;
-  const watchedIsReimbursable = watch("isReimbursable");
 
   // Derive currency from selected account
   const selectedAccount = accounts.find((a) => a.id === watchedAccountId);
@@ -212,7 +211,6 @@ export function TransactionForm({
     watchedKind === TransactionKind.LOAN_PAYMENT;
   const isIncome =
     watchedKind === TransactionKind.INCOME ||
-    watchedKind === TransactionKind.REIMBURSEMENT ||
     watchedKind === TransactionKind.DEBT_IN;
 
   const kindOptions = [
@@ -222,7 +220,6 @@ export function TransactionForm({
     { value: TransactionKind.LOAN_PAYMENT, label: t("forms.common.kind.loan_payment") },
     { value: TransactionKind.DEBT_OUT, label: t("forms.common.kind.debt_out") },
     { value: TransactionKind.DEBT_IN, label: t("forms.common.kind.debt_in") },
-    { value: TransactionKind.REIMBURSEMENT, label: t("forms.common.kind.reimbursement") },
   ];
 
   const statusOptions = [
@@ -441,34 +438,6 @@ export function TransactionForm({
         error={errMsg(errors.note)}
         placeholder={t("forms.tx.placeholder.note")}
       />
-
-      {/* Reimbursable — only for expenses */}
-      {isExpense && (
-        <div className="field">
-          <label className="form-checkbox-label">
-            <input
-              type="checkbox"
-              {...register("isReimbursable")}
-            />
-            {t("forms.tx.field.is_reimbursable")}
-          </label>
-          {watchedIsReimbursable && (
-            <div className="form-indent">
-              <TextField
-                register={register("reimbursementFromName")}
-                label={t("forms.tx.field.reimbursement_from")}
-                error={errMsg(errors.reimbursementFromName)}
-              />
-              <MoneyInput
-                register={register("expectedReimbursement")}
-                label={t("forms.tx.field.expected_reimbursement")}
-                error={errMsg(errors.expectedReimbursement)}
-                currencyCode={accountCurrency}
-              />
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Optional linked entity selects */}
       {loans && loans.length > 0 && (

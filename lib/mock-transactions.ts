@@ -17,7 +17,6 @@ export type Txn = {
   amount: string;
   amountTone?: "pos" | "neg" | "info" | "warn" | "dim";
   amountStrike?: boolean;
-  reimbursable?: boolean;
 };
 
 export type TxnDay = {
@@ -51,7 +50,6 @@ export const TXN_DAYS: TxnDay[] = [
         account: "Сбер",
         status: "done", statusLabel: "Выполнено",
         amount: "−₽ 3 000", amountTone: "info",
-        reimbursable: true,
       },
     ],
   },
@@ -178,6 +176,5 @@ export const TXN_FILTER_SUMMARY = {
   inflow:      "+₽ 188 400",
   outflow:     "−₽ 142 310",
   transfers:   "₽ 48 000",
-  reimburse:   "₽ 3 000 в ожидании",
   avgPerDay:   "−₽ 4 743",
 };

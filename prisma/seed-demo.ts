@@ -484,7 +484,7 @@ async function seedSubscriptions() {
 }
 
 // ────────────────────────────────────────────────────────────────
-// 13. Transactions + transfers + reimbursements
+// 13. Transactions + transfers
 // ────────────────────────────────────────────────────────────────
 async function seedTransactions() {
   // 21.04 (пн · сегодня)
@@ -499,16 +499,7 @@ async function seedTransactions() {
     kind: TransactionKind.EXPENSE, status: TransactionStatus.DONE,
     amount: "3000", currencyCode: "RUB", occurredAt: d("2026-04-21T09:14:00Z"),
     name: "Яндекс Такси", note: "Сбер",
-    isReimbursable: true, reimbursementFromName: "Acme", expectedReimbursement: "3000",
   } });
-  // Частичный возврат компенсации — 1500 из 3000 (UI покажет "получ. 1500 из 3000").
-  await db.reimbursementFact.create({ data: {
-    transactionId: taxiTx.id, amount: "1500",
-    receivedAt: d("2026-04-22T09:00:00Z"),
-    accountId: ACCOUNT_IDS.sberSalary,
-    note: "перевод от Acme",
-  } });
-
   // 20.04 (вс)
   await db.transaction.create({ data: {
     userId: DEFAULT_USER_ID, accountId: ACCOUNT_IDS.tinkCard, categoryId: CATEGORY_IDS.cafe,

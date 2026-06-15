@@ -75,7 +75,7 @@ export async function getUserDataBundle(userId: string): Promise<UserDataBundle>
     db.category.findMany({ where: { userId } }),
     db.workSource.findMany({ where: { userId } }),
     db.freelanceOrder.findMany({ where: { userId } }),
-    db.transaction.findMany({ where: { userId }, include: { facts: true, reimbursements: true } }),
+    db.transaction.findMany({ where: { userId }, include: { facts: true } }),
     db.transfer.findMany({ where: { userId } }),
     db.loan.findMany({ where: { userId } }),
     db.loanPayment.findMany({ where: { loan: { userId } } }),

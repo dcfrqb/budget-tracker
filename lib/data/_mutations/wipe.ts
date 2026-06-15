@@ -10,10 +10,7 @@ export async function wipeAllUserData(userId: string): Promise<void> {
     // 0. IntegrationCredential references User (FK) — delete before user-scoped data
     await tx.integrationCredential.deleteMany({ where: { userId } });
 
-    // 1. ReimbursementFact and TransactionFact reference Transaction (Cascade, but explicit for safety)
-    await tx.reimbursementFact.deleteMany({
-      where: { transaction: { userId } },
-    });
+    // 1. TransactionFact references Transaction (Cascade, but explicit for safety)
     await tx.transactionFact.deleteMany({
       where: { transaction: { userId } },
     });

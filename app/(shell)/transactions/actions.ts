@@ -20,11 +20,6 @@ import {
   cancelTransaction,
   missTransaction,
 } from "@/lib/data/_mutations/transactions";
-import {
-  createReimbursement,
-  reimbursementCreateSchema,
-} from "@/lib/data/_mutations/reimbursements";
-
 // ─────────────────────────────────────────────────────────────
 // Create
 // ─────────────────────────────────────────────────────────────
@@ -154,38 +149,6 @@ export async function cancelTransactionAction(id: string) {
     revalidateTag("transactions", "default");
     revalidatePath("/", "layout");
     return actionOk(tx);
-  } catch (e) {
-    const err = e as { code?: string };
-    if (err.code === "NOT_FOUND") return actionError("not_found");
-    if (err.code === "CONFLICT") return actionError("conflict");
-    return actionError("internal_error");
-  }
-}
-
-// ─────────────────────────────────────────────────────────────
-// Reimbursement
-// ─────────────────────────────────────────────────────────────
-
-export async function createReimbursementAction(
-  transactionId: string,
-  rawData: unknown,
-) {
-  const userId = await getCurrentUserId();
-  const parsed = reimbursementCreateSchema.safeParse(rawData);
-  if (!parsed.success) {
-    const fieldErrors: Record<string, string[]> = {};
-    for (const issue of parsed.error.issues) {
-      const key = issue.path.join(".");
-      if (!fieldErrors[key]) fieldErrors[key] = [];
-      fieldErrors[key].push(issue.message);
-    }
-    return { ok: false as const, fieldErrors };
-  }
-  try {
-    const fact = await createReimbursement(userId, transactionId, parsed.data);
-    revalidateTag("transactions", "default");
-    revalidatePath("/", "layout");
-    return actionOk(fact);
   } catch (e) {
     const err = e as { code?: string };
     if (err.code === "NOT_FOUND") return actionError("not_found");

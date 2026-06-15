@@ -13,7 +13,6 @@ const DETAIL_INCLUDE = {
   category: true,
   currency: true,
   facts: { orderBy: { occurredAt: "desc" as const } },
-  reimbursements: { orderBy: { receivedAt: "desc" as const } },
   transfer: {
     include: {
       fromAccount: true,

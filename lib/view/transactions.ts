@@ -38,7 +38,6 @@ export type TxnView = {
   amount: string;
   amountTone?: Tone;
   amountStrike?: boolean;
-  reimbursable?: boolean;
   fxEquiv?: string;
 };
 
@@ -97,7 +96,6 @@ const WEEKDAY_KEYS: Record<number, TKey> = {
 function kindShort(k: TransactionKind): TxnKind {
   switch (k) {
     case "INCOME":
-    case "REIMBURSEMENT":
       return "inc";
     case "EXPENSE":
       return "exp";
@@ -178,7 +176,6 @@ function amountToneAndPrefix(
   }
   switch (t.kind) {
     case "INCOME":
-    case "REIMBURSEMENT":
     case "DEBT_IN":
       return { tone: "pos", sign: "+", strike: false };
     case "EXPENSE":
@@ -207,51 +204,7 @@ function resolveAccountLabel(t: TxnWithJoins): string {
 
 function resolveNote(
   txn: TxnWithJoins,
-  t: TFn,
 ): { note?: string; noteTone?: "acc" | "info" | "warn" } {
-  if (txn.isReimbursable && txn.reimbursementFromName) {
-    const received = txn.reimbursements.reduce(
-      (acc, r) => acc.plus(r.amount),
-      new Prisma.Decimal(0),
-    );
-    const expected = txn.expectedReimbursement
-      ? new Prisma.Decimal(txn.expectedReimbursement)
-      : null;
-
-    const prefix = t("transactions.reimbursement.prefix");
-
-    // Fully reimbursed → "acc" tone, "received" without "of".
-    if (expected && !received.isZero() && received.gte(expected)) {
-      const recStr = formatMoney(received, txn.currency.code);
-      return {
-        note: `${prefix} · ${txn.reimbursementFromName} · ${t("transactions.reimbursement.received")} ${recStr}`,
-        noteTone: "acc",
-      };
-    }
-    // Partially reimbursed → "warn" tone, "received X of Y".
-    if (!received.isZero()) {
-      const recStr = formatMoney(received, txn.currency.code);
-      if (expected) {
-        const expStr = formatMoney(expected, txn.currency.code);
-        return {
-          note: `${prefix} · ${txn.reimbursementFromName} · ${t("transactions.reimbursement.received_partial", { vars: { rec: recStr, exp: expStr } })}`,
-          noteTone: "warn",
-        };
-      }
-      return {
-        note: `${prefix} · ${txn.reimbursementFromName} · ${t("transactions.reimbursement.received_no_exp", { vars: { rec: recStr } })}`,
-        noteTone: "warn",
-      };
-    }
-    // Nothing received yet — show expected amount.
-    const expectedSuffix = expected
-      ? ` · ${t("transactions.reimbursement.expected", { vars: { amount: formatMoney(expected, txn.currency.code) } })}`
-      : "";
-    return {
-      note: `${prefix} · ${txn.reimbursementFromName}${expectedSuffix}`,
-      noteTone: "warn",
-    };
-  }
   if (txn.note) {
     if (txn.note.startsWith("import:")) return {};
     return { note: txn.note };
@@ -268,7 +221,7 @@ export function toTxnView(
   proj?: CompensationProjection,
 ): TxnView {
   const { tone, sign, strike } = amountToneAndPrefix(txn);
-  const { note, noteTone } = resolveNote(txn, t);
+  const { note, noteTone } = resolveNote(txn);
 
   // Compensation projection: for main rows, rewrite amount to netto in native ccy
   const groupInfo = proj?.groupByMainTxnId.get(txn.id) ?? null;
@@ -329,7 +282,6 @@ export function toTxnView(
     amount: signedAmount(displayAmount, txn.currency, displaySign),
     amountTone: tone,
     ...(strike ? { amountStrike: true } : {}),
-    ...(txn.isReimbursable ? { reimbursable: true } : {}),
     ...(fxEquiv ? { fxEquiv } : {}),
   };
 }
@@ -373,7 +325,6 @@ function dayTotalsFromTxns(
     const amt = new Prisma.Decimal(txn.amount);
     const isInflow =
       txn.kind === TransactionKind.INCOME ||
-      txn.kind === TransactionKind.REIMBURSEMENT ||
       txn.kind === TransactionKind.DEBT_IN;
     const isOutflow =
       txn.kind === TransactionKind.EXPENSE ||
@@ -403,7 +354,6 @@ function dayTotalsFromTxns(
       return false;
     const kindIsInflow =
       txn.kind === TransactionKind.INCOME ||
-      txn.kind === TransactionKind.REIMBURSEMENT ||
       txn.kind === TransactionKind.DEBT_IN;
     const kindIsOutflow =
       txn.kind === TransactionKind.EXPENSE ||

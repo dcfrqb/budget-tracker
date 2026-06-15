@@ -60,7 +60,7 @@ function parsePeriod(period: string | undefined): { from: Date; to: Date } {
 function parseKindFilter(type: string | undefined): TransactionKind[] | undefined {
   switch (type) {
     case "inc":
-      return [TransactionKind.INCOME, TransactionKind.REIMBURSEMENT, TransactionKind.DEBT_IN];
+      return [TransactionKind.INCOME, TransactionKind.DEBT_IN];
     case "exp":
       return [TransactionKind.EXPENSE, TransactionKind.LOAN_PAYMENT, TransactionKind.DEBT_OUT];
     case "xfr":

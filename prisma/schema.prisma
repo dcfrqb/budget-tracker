@@ -303,7 +303,6 @@ enum TransactionKind {
   LOAN_PAYMENT // платёж по кредиту (связан с Loan + LoanPayment)
   DEBT_OUT // выдал в долг (связан с PersonalDebt)
   DEBT_IN // возврат по моему займу или получение займа
-  REIMBURSEMENT // зачисление компенсации (обычно создаётся через ReimbursementFact, но как транзакция тоже)
 }
 
 enum TransactionStatus {
@@ -329,12 +328,6 @@ model Transaction {
   note         String?
   scope        Scope             @default(PERSONAL)
   familyId     String?
-
-  // Компенсация: храним expectedReimbursement отдельно, чтобы был план-факт
-  // до того как появятся ReimbursementFact'ы (ожидаемая сумма vs фактическая).
-  isReimbursable        Boolean  @default(false)
-  reimbursementFromName String?
-  expectedReimbursement Decimal? @db.Decimal(28, 10)
 
   // Import deduplication: внешний ID транзакции (из T-Bank, Sber, и т.д.)
   // и источник импорта для уникальной идентификации.
@@ -381,9 +374,8 @@ model Transaction {
   mainOfCompensation CompensationGroup? @relation("CompensationMain")
   trip               Trip?              @relation(fields: [tripId], references: [id], onDelete: SetNull)
 
-  facts          TransactionFact[]
-  reimbursements ReimbursementFact[]
-  tripBooking    TripBooking?
+  facts       TransactionFact[]
+  tripBooking TripBooking?
 
   @@unique([accountId, source, externalId], name: "importDedupe")
   @@index([userId, occurredAt])
@@ -412,20 +404,6 @@ model TransactionFact {
 // Факт возврата по компенсируемой транзакции — отдельно от TransactionFact,
 // потому что это деньги по другому направлению (не подтверждение исходной траты,
 // а отдельное поступление привязанное к ней).
-model ReimbursementFact {
-  id            String   @id @default(cuid())
-  transactionId String
-  amount        Decimal  @db.Decimal(28, 10)
-  receivedAt    DateTime
-  accountId     String?
-  note          String?
-  createdAt     DateTime @default(now())
-
-  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
-
-  @@index([transactionId])
-}
-
 model Transfer {
   id            String   @id @default(cuid())
   userId        String

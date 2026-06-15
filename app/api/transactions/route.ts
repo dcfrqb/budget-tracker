@@ -26,7 +26,6 @@ function buildWhere(q: ReturnType<typeof transactionListQuerySchema.parse>) {
   if (q.status && q.status.length) where.status = { in: q.status };
   if (q.accountId) where.accountId = q.accountId;
   if (q.categoryId) where.categoryId = q.categoryId;
-  if (q.reimbursable !== undefined) where.isReimbursable = q.reimbursable;
   if (q.q) {
     where.OR = [
       { name: { contains: q.q, mode: "insensitive" } },
@@ -53,7 +52,7 @@ export async function GET(req: Request) {
         db.transaction.findMany({
           where,
           orderBy: [{ occurredAt: "desc" }, { id: "desc" }],
-          include: { account: true, category: true, reimbursements: true },
+          include: { account: true, category: true },
         }),
         getCurrentUserTz(),
       ]);

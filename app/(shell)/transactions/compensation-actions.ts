@@ -44,7 +44,6 @@ function formatDate(d: Date): string {
 function kindShort(kind: string): "inc" | "exp" | "xfr" | "loan" {
   switch (kind) {
     case "INCOME":
-    case "REIMBURSEMENT":
       return "inc";
     case "EXPENSE":
       return "exp";

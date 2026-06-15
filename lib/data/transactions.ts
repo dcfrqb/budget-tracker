@@ -14,14 +14,11 @@ import { dayKeyInTz } from "@/lib/format/date";
 import { DEFAULT_TZ } from "@/lib/constants";
 import { getCompensationProjection } from "@/lib/data/_shared/compensation-projection";
 
-import type { ReimbursementFact } from "@prisma/client";
-
 export type TxnWithJoins = Transaction & {
   account: Account & { institution: Institution | null };
   category: Category | null;
   currency: Currency;
   facts: TransactionFact[];
-  reimbursements: ReimbursementFact[];
   transfer:
     | (Transfer & {
         fromAccount: Account & { institution: Institution | null };
@@ -42,7 +39,6 @@ export type ListFilters = {
   status?: TransactionStatus[];
   accountId?: string;
   categoryId?: string;
-  reimbursable?: boolean;
   q?: string;
 };
 
@@ -51,7 +47,6 @@ const TXN_INCLUDE = {
   category: true,
   currency: true,
   facts: { orderBy: { occurredAt: "desc" as const } },
-  reimbursements: { orderBy: { receivedAt: "desc" as const } },
   transfer: {
     include: {
       fromAccount: { include: { institution: true } },
@@ -74,7 +69,6 @@ function buildWhere(userId: string, f: ListFilters): Prisma.TransactionWhereInpu
   if (f.status && f.status.length) where.status = { in: f.status };
   if (f.accountId) where.accountId = f.accountId;
   if (f.categoryId) where.categoryId = f.categoryId;
-  if (f.reimbursable !== undefined) where.isReimbursable = f.reimbursable;
   if (f.q) {
     where.OR = [
       { name: { contains: f.q, mode: "insensitive" } },
@@ -124,7 +118,6 @@ export async function getTransactionsGroupedByDay(
 // Набор kind'ов, считающихся "входом" денег.
 const INFLOW_KINDS: TransactionKind[] = [
   TransactionKind.INCOME,
-  TransactionKind.REIMBURSEMENT,
   TransactionKind.DEBT_IN,
 ];
 const OUTFLOW_KINDS: TransactionKind[] = [
@@ -251,7 +244,6 @@ export type FilterSummary = {
   inflow: Prisma.Decimal;
   outflow: Prisma.Decimal;
   transfers: Prisma.Decimal;
-  reimburseExpectedTotal: Prisma.Decimal;
   avgPerDay: Prisma.Decimal | null;
 };
 
@@ -273,11 +265,8 @@ export async function getTransactionsFilterSummary(
   let inflow = zero;
   let outflow = zero;
   let transfers = zero;
-  const reimb = zero;
 
   for (const t of rows) {
-    // isReimbursable/expectedReimbursement model is superseded by CompensationGroup.
-    // Per locked decision #9: zero out reimburseExpectedTotal — stop summing here.
     if (t.kind === TransactionKind.TRANSFER) {
       if (t.transfer && t.accountId === t.transfer.fromAccountId) {
         const v = convertToBase(t.amount, t.currencyCode, baseCcy, rates);
@@ -313,7 +302,6 @@ export async function getTransactionsFilterSummary(
     inflow,
     outflow,
     transfers,
-    reimburseExpectedTotal: reimb,
     avgPerDay,
   };
 }
