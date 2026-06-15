@@ -237,9 +237,12 @@ async function pairCrossCurrency(
   let crossCcyPaired = 0;
   let ambiguousSkipped = 0;
 
-  // Only consider unclaimed rows with different currencies
+  // Only consider unclaimed rows with different currencies.
+  // bybit-p2p incomes are owned by pairP2p (exact/±5% order-amount match) — keep
+  // them out of this fuzzy 10%-FX pass so an unmatched P2P leg stays a plain
+  // INCOME instead of being loosely paired to the wrong expense.
   const unclaimedExpenses = expenses.filter((e) => !claimed.has(e.id));
-  const unclaimedIncomes = incomes.filter((i) => !claimed.has(i.id));
+  const unclaimedIncomes = incomes.filter((i) => !claimed.has(i.id) && i.source !== "bybit-p2p");
 
   if (unclaimedExpenses.length === 0 || unclaimedIncomes.length === 0) {
     return { crossCcyPaired: 0, ambiguousSkipped: 0 };
@@ -373,6 +376,11 @@ async function pairCrossCurrency(
 }
 
 const P2P_MATCH_WINDOW_MS = 60 * 60 * 1000; // 60 minutes
+// The order's fiat amount usually equals the T-bank payment exactly; a small
+// gap (~1%, seen once in history) can appear from P2P fee/rounding. ±5% catches
+// those while staying tight enough to avoid wrong pairs. Exact matches are
+// preferred over near ones (see the ambiguity guard).
+const P2P_MATCH_AMOUNT_TOLERANCE = 0.05;
 
 /**
  * P2P-specific pairing: matches bybit-p2p INCOME rows against T-bank RUB EXPENSE rows.
@@ -399,6 +407,7 @@ async function pairP2p(
     fiatAmount: Prisma.Decimal;
     fiatCcy: string;
     deltaMs: number;
+    amountDelta: Prisma.Decimal;
   };
 
   const candidates: P2pCandidate[] = [];
@@ -422,32 +431,42 @@ async function pairP2p(
       if (exp.accountId === inc.accountId) continue;
       if (exp.currencyCode !== fiatCcy) continue;
 
-      if (!new Prisma.Decimal(exp.amount).equals(fiatAmount)) continue;
+      const expAmount = new Prisma.Decimal(exp.amount);
+      const amountDelta = expAmount.minus(fiatAmount).abs();
+      if (amountDelta.gt(fiatAmount.mul(P2P_MATCH_AMOUNT_TOLERANCE))) continue;
 
       const deltaMs = Math.abs(exp.occurredAt.getTime() - inc.occurredAt.getTime());
       if (deltaMs > P2P_MATCH_WINDOW_MS) continue;
 
-      candidates.push({ income: inc, expense: exp, fiatAmount, fiatCcy, deltaMs });
+      candidates.push({ income: inc, expense: exp, fiatAmount, fiatCcy, deltaMs, amountDelta });
     }
   }
 
-  candidates.sort((a, b) => a.deltaMs - b.deltaMs);
+  // Closest amount first (exact beats a ±5% near-match), then closest in time.
+  candidates.sort((a, b) => {
+    const ad = a.amountDelta.comparedTo(b.amountDelta);
+    if (ad !== 0) return ad;
+    return a.deltaMs - b.deltaMs;
+  });
 
   const toPersist: Array<P2pCandidate> = [];
 
   for (const pc of candidates) {
     if (claimed.has(pc.income.id) || claimed.has(pc.expense.id)) continue;
 
-    const incUnclaimed = candidates.filter(
-      (x) => x.income.id === pc.income.id && !claimed.has(x.expense.id)
+    // Ambiguous only when another unclaimed candidate is EQUALLY close on amount
+    // (same delta) — an exact match is never blocked by a looser ±5% near-match,
+    // since exact candidates sort first and claim the row before the near one.
+    const incTies = candidates.filter(
+      (x) => x.income.id === pc.income.id && !claimed.has(x.expense.id) && x.amountDelta.equals(pc.amountDelta)
     ).length;
-    const expUnclaimed = candidates.filter(
-      (x) => x.expense.id === pc.expense.id && !claimed.has(x.income.id)
+    const expTies = candidates.filter(
+      (x) => x.expense.id === pc.expense.id && !claimed.has(x.income.id) && x.amountDelta.equals(pc.amountDelta)
     ).length;
 
-    if (incUnclaimed > 1 || expUnclaimed > 1) {
+    if (incTies > 1 || expTies > 1) {
       console.warn(
-        `[transfer-pairing] ambiguous p2p match income=${pc.income.id} (${incUnclaimed} unclaimed expense candidates) expense=${pc.expense.id} (${expUnclaimed} unclaimed income candidates) — skipping`
+        `[transfer-pairing] ambiguous p2p match income=${pc.income.id} (${incTies} equally-close expense candidates) expense=${pc.expense.id} (${expTies} equally-close income candidates) — skipping`
       );
       ambiguousSkipped++;
       continue;
