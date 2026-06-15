@@ -377,10 +377,10 @@ async function pairCrossCurrency(
 
 const P2P_MATCH_WINDOW_MS = 60 * 60 * 1000; // 60 minutes
 // The order's fiat amount usually equals the T-bank payment exactly; a small
-// gap (~1%, seen once in history) can appear from P2P fee/rounding. ±5% catches
-// those while staying tight enough to avoid wrong pairs. Exact matches are
-// preferred over near ones (see the ambiguity guard).
-const P2P_MATCH_AMOUNT_TOLERANCE = 0.05;
+// gap (~0.84% — the single occurrence in history) can appear from P2P
+// fee/rounding. ±2% covers that with margin while staying tight enough to avoid
+// wrong pairs. Exact matches are preferred over near ones (see ambiguity guard).
+const P2P_MATCH_AMOUNT_TOLERANCE = 0.02;
 
 /**
  * P2P-specific pairing: matches bybit-p2p INCOME rows against T-bank RUB EXPENSE rows.
