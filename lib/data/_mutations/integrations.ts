@@ -574,7 +574,7 @@ export async function syncCredential(
                           where: { id: existingByFingerprint.id },
                           data: {
                             externalId: row.externalId,
-                            kind,
+                            // do not update kind — set once at create; preserve pairing (kind=TRANSFER).
                             amount: row.amount,
                             occurredAt: new Date(row.occurredAt),
                             ...(row.note !== undefined ? { note: row.note } : {}),
@@ -596,7 +596,8 @@ export async function syncCredential(
                         },
                       },
                       update: {
-                        kind,
+                        // do not update kind — set once at create; preserve pairing (kind=TRANSFER set by autoPairTransfers).
+                        // Without this, re-sync clobbers a paired leg back to INCOME/EXPENSE while transferId stays → inconsistent.
                         amount: row.amount,
                         occurredAt: new Date(row.occurredAt),
                         ...(row.note !== undefined ? { note: row.note } : {}),
@@ -786,7 +787,7 @@ export async function syncCredential(
                         where: { id: existingByFingerprintB.id },
                         data: {
                           externalId: row.externalId,
-                          kind,
+                          // do not update kind — set once at create; preserve pairing (kind=TRANSFER).
                           amount: row.amount,
                           occurredAt: new Date(row.occurredAt),
                           ...(row.note !== undefined ? { note: row.note } : {}),
@@ -808,7 +809,7 @@ export async function syncCredential(
                       },
                     },
                     update: {
-                      kind,
+                      // do not update kind — set once at create; preserve pairing (kind=TRANSFER set by autoPairTransfers).
                       amount: row.amount,
                       occurredAt: new Date(row.occurredAt),
                       deletedAt: null,  // resurrect ghosts intentionally — see fix for unique-constraint crash on tinkoff-retail sync
