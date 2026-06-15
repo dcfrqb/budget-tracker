@@ -3,7 +3,10 @@ import { bybitP2pOrderListEnvelopeSchema } from "./zod";
 import type { BybitP2pOrderRecord } from "./types";
 
 const P2P_ORDER_LIST_PATH = "/v5/p2p/order/simplifyList";
-const PAGE_SIZE = 50;
+// Bybit's P2P simplifyList caps `size` at 30 — larger values return an empty
+// result set (no error), so 50 silently yielded zero orders. Verified live
+// 2026-06-15: size 10/20/30 return data, 40/50 return empty.
+const PAGE_SIZE = 30;
 
 // P2P completed buy order status
 const P2P_ORDER_COMPLETED_STATUS = 50;
