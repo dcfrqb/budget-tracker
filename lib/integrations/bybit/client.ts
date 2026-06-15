@@ -77,6 +77,7 @@ export type BybitFetchInput<TBody> = {
   method: "POST" | "GET";
   body?: TBody;
   schema: ZodSchema;
+  skipRetCodeGate?: boolean;
 };
 
 export async function bybitFetch<TBody, TResult>(
@@ -86,7 +87,7 @@ export async function bybitFetch<TBody, TResult>(
     await syncServerTime();
   }
 
-  const { apiKey, apiSecret, method, body, schema } = input;
+  const { apiKey, apiSecret, method, body, schema, skipRetCodeGate } = input;
 
   // For GET requests: params go in the URL query string, and the query string
   // is what gets signed (Bybit V5 GET signature: timestamp+apiKey+recvWindow+queryString).
@@ -174,11 +175,13 @@ export async function bybitFetch<TBody, TResult>(
       console.log("[bybit raw]", JSON.stringify(raw, null, 2));
     }
 
-    // Check retCode before schema validation to handle retry logic
+    // Check retCode before schema validation to handle retry logic.
+    // P2P responses have no retCode field — guard numeric checks accordingly.
     const envelope = raw as { retCode?: number; retMsg?: string };
-    const retCode = typeof envelope?.retCode === "number" ? envelope.retCode : -1;
+    const hasNumericRetCode = typeof envelope?.retCode === "number";
+    const retCode = hasNumericRetCode ? (envelope.retCode as number) : -1;
 
-    if (retCode === 10002) {
+    if (hasNumericRetCode && retCode === 10002) {
       // Timestamp drift — resync and retry once
       await syncServerTime();
       if (attempt >= MAX_ATTEMPTS) {
@@ -191,7 +194,7 @@ export async function bybitFetch<TBody, TResult>(
       continue;
     }
 
-    if (retCode === 10006) {
+    if (hasNumericRetCode && retCode === 10006) {
       // Rate limit — back off and retry
       if (attempt >= MAX_ATTEMPTS) {
         throw new BybitApiError({
@@ -205,7 +208,7 @@ export async function bybitFetch<TBody, TResult>(
       continue;
     }
 
-    if (retCode === 10003 || retCode === 10004) {
+    if (hasNumericRetCode && (retCode === 10003 || retCode === 10004)) {
       throw new BybitApiError({
         retCode,
         retMsg: envelope?.retMsg ?? "auth failed",
@@ -213,7 +216,7 @@ export async function bybitFetch<TBody, TResult>(
       });
     }
 
-    if (retCode === 10005) {
+    if (hasNumericRetCode && retCode === 10005) {
       throw new BybitApiError({
         retCode,
         retMsg: envelope?.retMsg ?? "invalid signature",
@@ -225,7 +228,9 @@ export async function bybitFetch<TBody, TResult>(
     // (e.g., 120110001 "param_illegal", IP not in allowlist, etc.). Throw with
     // "unknown" class so callers see retCode + retMsg verbatim instead of a
     // misleading schema-validation error.
-    if (retCode !== 0) {
+    // When skipRetCodeGate is true (e.g. P2P endpoints), skip this throw —
+    // the endpoint legitimately returns no retCode field.
+    if (!skipRetCodeGate && hasNumericRetCode && retCode !== 0) {
       throw new BybitApiError({
         retCode,
         retMsg: envelope?.retMsg ?? "Bybit API error",

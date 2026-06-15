@@ -275,6 +275,46 @@ export const bybitInternalTransferListEnvelopeSchema = makeEnvelopeSchema(
   bybitInternalTransferListResultSchema,
 );
 
+// ── P2P order schemas ─────────────────────────────────────────────────────────
+//
+// Schema for /v5/p2p/order/simplifyList items.
+// P2P responses have NO top-level retCode — use bybitP2pOrderListEnvelopeSchema
+// (non-throwing) paired with skipRetCodeGate:true in bybitFetch.
+
+export const bybitP2pOrderItemSchema = z
+  .object({
+    id: z.string(),
+    side: z.coerce.number(),
+    tokenId: z.string().optional().default(""),
+    notifyTokenId: z.string().optional().default(""),
+    amount: z.string().optional().default(""),
+    currencyId: z.string().optional().default(""),
+    price: z.string().optional().default(""),
+    notifyTokenQuantity: z.string().optional().default(""),
+    targetNickName: z.string().optional(),
+    sellerRealName: z.string().optional(),
+    status: z.coerce.number(),
+    createDate: z.union([z.string(), z.number()]).transform(String),
+  })
+  .passthrough();
+
+const bybitP2pOrderListResultSchema = z
+  .object({
+    count: z.coerce.number().optional().default(0),
+    items: z.array(bybitP2pOrderItemSchema).optional().default([]),
+  })
+  .passthrough();
+
+export const bybitP2pOrderListEnvelopeSchema = z
+  .object({
+    result: bybitP2pOrderListResultSchema,
+    retCode: z.number().optional(),
+    retMsg: z.string().optional(),
+  })
+  .passthrough();
+
+export type BybitP2pOrderItemOutput = z.output<typeof bybitP2pOrderItemSchema>;
+
 export const bybitServerTimeSchema = z
   .object({
     retCode: z.number(),

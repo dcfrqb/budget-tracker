@@ -22,6 +22,8 @@ type CandidateTxn = {
   occurredAt: Date;
   name: string;
   kind: TransactionKind;
+  source: string | null;
+  note: string | null;
 };
 
 type PairingResult = {
@@ -370,6 +372,136 @@ async function pairCrossCurrency(
   return { crossCcyPaired, ambiguousSkipped };
 }
 
+const P2P_MATCH_WINDOW_MS = 60 * 60 * 1000; // 60 minutes
+
+/**
+ * P2P-specific pairing: matches bybit-p2p INCOME rows against T-bank RUB EXPENSE rows.
+ * Uses exact fiat-amount from the order's note JSON rather than FX-rate tolerance.
+ * Skips the isTransferName name filter (P2P seller names never match it).
+ * Runs before generic cross-ccy to claim P2P pairs first.
+ */
+async function pairP2p(
+  userId: string,
+  expenses: CandidateTxn[],
+  incomes: CandidateTxn[],
+  claimed: Set<string>,
+): Promise<{ p2pPaired: number; ambiguousSkipped: number }> {
+  let p2pPaired = 0;
+  let ambiguousSkipped = 0;
+
+  // Only consider unclaimed bybit-p2p income rows
+  const p2pIncomes = incomes.filter((i) => !claimed.has(i.id) && i.source === "bybit-p2p");
+  if (p2pIncomes.length === 0) return { p2pPaired: 0, ambiguousSkipped: 0 };
+
+  type P2pCandidate = {
+    income: CandidateTxn;
+    expense: CandidateTxn;
+    fiatAmount: Prisma.Decimal;
+    fiatCcy: string;
+    deltaMs: number;
+  };
+
+  const candidates: P2pCandidate[] = [];
+
+  for (const inc of p2pIncomes) {
+    let fiatAmount: Prisma.Decimal;
+    let fiatCcy: string;
+
+    try {
+      const noteObj = JSON.parse(inc.note ?? "{}") as Record<string, unknown>;
+      const rawFiatAmount = typeof noteObj.fiatAmount === "string" ? noteObj.fiatAmount : "";
+      fiatCcy = typeof noteObj.fiatCcy === "string" ? noteObj.fiatCcy : "";
+      if (!rawFiatAmount || !fiatCcy) continue;
+      fiatAmount = new Prisma.Decimal(rawFiatAmount);
+    } catch {
+      continue;
+    }
+
+    for (const exp of expenses) {
+      if (claimed.has(exp.id)) continue;
+      if (exp.accountId === inc.accountId) continue;
+      if (exp.currencyCode !== fiatCcy) continue;
+
+      if (!new Prisma.Decimal(exp.amount).equals(fiatAmount)) continue;
+
+      const deltaMs = Math.abs(exp.occurredAt.getTime() - inc.occurredAt.getTime());
+      if (deltaMs > P2P_MATCH_WINDOW_MS) continue;
+
+      candidates.push({ income: inc, expense: exp, fiatAmount, fiatCcy, deltaMs });
+    }
+  }
+
+  candidates.sort((a, b) => a.deltaMs - b.deltaMs);
+
+  const toPersist: Array<P2pCandidate> = [];
+
+  for (const pc of candidates) {
+    if (claimed.has(pc.income.id) || claimed.has(pc.expense.id)) continue;
+
+    const incUnclaimed = candidates.filter(
+      (x) => x.income.id === pc.income.id && !claimed.has(x.expense.id)
+    ).length;
+    const expUnclaimed = candidates.filter(
+      (x) => x.expense.id === pc.expense.id && !claimed.has(x.income.id)
+    ).length;
+
+    if (incUnclaimed > 1 || expUnclaimed > 1) {
+      console.warn(
+        `[transfer-pairing] ambiguous p2p match income=${pc.income.id} (${incUnclaimed} unclaimed expense candidates) expense=${pc.expense.id} (${expUnclaimed} unclaimed income candidates) — skipping`
+      );
+      ambiguousSkipped++;
+      continue;
+    }
+
+    claimed.add(pc.income.id);
+    claimed.add(pc.expense.id);
+    toPersist.push(pc);
+  }
+
+  for (const pc of toPersist) {
+    const { income, expense, fiatAmount } = pc;
+
+    // rate = USDT received / RUB spent (toCcy per fromCcy, matching pairCrossCurrency convention)
+    const rate = !fiatAmount.isZero()
+      ? income.amount.div(fiatAmount)
+      : new Prisma.Decimal(0);
+
+    try {
+      await db.$transaction(async (tx) => {
+        const created = await tx.transfer.create({
+          data: {
+            userId,
+            fromAccountId: expense.accountId,
+            toAccountId: income.accountId,
+            fromAmount: expense.amount,
+            toAmount: income.amount,
+            fromCcy: expense.currencyCode,
+            toCcy: income.currencyCode,
+            rate,
+            occurredAt:
+              expense.occurredAt < income.occurredAt
+                ? expense.occurredAt
+                : income.occurredAt,
+            note: "auto-paired:p2p",
+          },
+        });
+        await tx.transaction.updateMany({
+          where: { id: { in: [expense.id, income.id] } },
+          data: { kind: TransactionKind.TRANSFER, transferId: created.id },
+        });
+      });
+      p2pPaired++;
+    } catch (err) {
+      console.error(
+        `[transfer-pairing] failed to persist p2p pair income=${income.id} expense=${expense.id}:`,
+        err
+      );
+    }
+  }
+
+  return { p2pPaired, ambiguousSkipped };
+}
+
 export async function autoPairTransfers(opts: {
   userId: string;
   windowFrom?: Date;
@@ -397,6 +529,8 @@ export async function autoPairTransfers(opts: {
       occurredAt: true,
       name: true,
       kind: true,
+      source: true,
+      note: true,
     },
     orderBy: { occurredAt: "asc" },
   });
@@ -405,18 +539,20 @@ export async function autoPairTransfers(opts: {
   const incomes = candidates.filter((r) => r.kind === TransactionKind.INCOME);
   const orphanTransfers = candidates.filter((r) => r.kind === TransactionKind.TRANSFER);
 
-  // Shared claimed set: same-ccy runs first to claim its pairs before cross-ccy
+  // Shared claimed set across all passes.
+  // Order: same-ccy → p2p (exact-amount cross-ccy) → generic cross-ccy (FX-tolerance)
   const claimed = new Set<string>();
 
   const sameCcyResult = await pairSameCurrency(userId, expenses, incomes, orphanTransfers, claimed);
+  const p2pResult = await pairP2p(userId, expenses, incomes, claimed);
   const crossCcyResult = await pairCrossCurrency(userId, expenses, incomes, claimed);
 
   const paired = sameCcyResult.paired;
-  const crossCcyPaired = crossCcyResult.crossCcyPaired;
-  const ambiguousSkipped = sameCcyResult.ambiguousSkipped + crossCcyResult.ambiguousSkipped;
+  const crossCcyPaired = crossCcyResult.crossCcyPaired + p2pResult.p2pPaired;
+  const ambiguousSkipped = sameCcyResult.ambiguousSkipped + p2pResult.ambiguousSkipped + crossCcyResult.ambiguousSkipped;
 
   console.log(
-    `[transfer-pairing] done: sameCcy=${paired} crossCcy=${crossCcyPaired} ambiguousSkipped=${ambiguousSkipped}`
+    `[transfer-pairing] done: sameCcy=${paired} p2p=${p2pResult.p2pPaired} crossCcy=${crossCcyResult.crossCcyPaired} ambiguousSkipped=${ambiguousSkipped}`
   );
 
   return { paired, ambiguousSkipped, crossCcyPaired };

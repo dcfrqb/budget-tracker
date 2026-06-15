@@ -5,6 +5,7 @@ import { listCardTransactions } from "@/lib/integrations/bybit/card-records";
 import { listDeposits } from "@/lib/integrations/bybit/deposits";
 import { listWithdrawals } from "@/lib/integrations/bybit/withdrawals";
 import { listInternalTransfers } from "@/lib/integrations/bybit/internal-transfers";
+import { listP2pOrders } from "@/lib/integrations/bybit/p2p-orders";
 import { fetchCardSpendingPower } from "@/lib/integrations/bybit/balance";
 import { BybitApiError } from "@/lib/integrations/bybit/types";
 import { listAccountLinks } from "@/lib/data/_queries/integrations";
@@ -368,6 +369,60 @@ export const bybitCardAdapter: BankAdapter = {
       rows.push(wdrRow);
     }
 
+    // ── P2P orders ────────────────────────────────────────────────────────────
+    let p2pResult: Awaited<ReturnType<typeof listP2pOrders>> = { rows: [], rawCount: 0, truncated: false };
+    try {
+      p2pResult = await listP2pOrders({
+        apiKey,
+        apiSecret,
+        startTime: from.getTime(),
+        endTime: to.getTime(),
+      });
+    } catch (err) {
+      log(`runSync: p2p fetch failed class=${classifyBybitError(err)}`);
+    }
+
+    if (p2pResult.truncated) {
+      log(`runSync: WARNING — p2p response truncated`);
+    }
+
+    for (const order of p2pResult.rows) {
+      if (!order.id || !order.notifyTokenQuantity) {
+        log(`runSync: WARNING — p2p order missing id or notifyTokenQuantity, skipping (createDate=${order.createDate})`);
+        continue;
+      }
+
+      const occurredAt = new Date(Number(order.createDate)).toISOString();
+      const counterparty = order.sellerRealName || order.targetNickName;
+      const note = JSON.stringify({
+        fiatAmount: order.amount,
+        fiatCcy: order.currencyId,
+        price: order.price,
+        counterparty: counterparty ?? "",
+        orderId: order.id,
+      });
+
+      const p2pRow: ImportRow = {
+        externalId: `p2p:${order.id}`,
+        occurredAt,
+        amount: order.notifyTokenQuantity,
+        currencyCode: order.notifyTokenId || "USDT",
+        kind: "INCOME",
+        direction: "in",
+        description: "Bybit P2P buy",
+        source: "bybit-p2p",
+        note,
+        accountId: firstLinkedAccountId,
+        raw: {
+          orderId: order.id,
+          fiatAmount: order.amount,
+          fiatCcy: order.currencyId,
+          price: order.price,
+        },
+      };
+      rows.push(p2pRow);
+    }
+
     // ── Internal transfers (log only, not persisted) ───────────────────────────
     let internalTransferCount = 0;
     try {
@@ -383,7 +438,7 @@ export const bybitCardAdapter: BankAdapter = {
     }
 
     log(
-      `runSync: cardSpends=${result.rows.length} deposits=${depositResult.rows.length} withdrawals=${withdrawResult.rows.length} internalTransfers=${internalTransferCount}`,
+      `runSync: cardSpends=${result.rows.length} deposits=${depositResult.rows.length} withdrawals=${withdrawResult.rows.length} p2pOrders=${p2pResult.rows.length} internalTransfers=${internalTransferCount}`,
     );
 
     const unlinkedCount = rows.filter((r) => !r.accountId).length;

@@ -158,6 +158,36 @@ export type BybitWithdrawRecord = {
   [key: string]: unknown;
 };
 
+// ── P2P Order type ───────────────────────────────────────────────────────────
+
+export type BybitP2pOrderRecord = {
+  /** Unique order ID (used as idempotency key, prefixed with "p2p:"). */
+  id: string;
+  /** 0 = BUY, 1 = SELL. */
+  side: number;
+  /** Crypto token being received (e.g. "USDT"). */
+  tokenId: string;
+  /** Notify token id — same as tokenId in practice. */
+  notifyTokenId: string;
+  /** Fiat amount paid (string-encoded decimal). */
+  amount: string;
+  /** Fiat currency code (e.g. "RUB"). */
+  currencyId: string;
+  /** Exchange rate (fiat per 1 USDT). */
+  price: string;
+  /** USDT quantity received (string-encoded decimal). */
+  notifyTokenQuantity: string;
+  /** Counterparty nickname. */
+  targetNickName?: string;
+  /** Counterparty real name. */
+  sellerRealName?: string;
+  /** Order status integer: 50 = completed. */
+  status: number;
+  /** Order creation timestamp, ms epoch (string). */
+  createDate: string;
+  [key: string]: unknown;
+};
+
 /** Narrowed variant: guaranteed to represent a real card spend (non-empty transactionId, merchName, transactionAmount, transactionDate). */
 export type BybitPointRecordFiltered = BybitPointRecord & {
   transactionId: string;
