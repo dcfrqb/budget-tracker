@@ -1359,6 +1359,28 @@ export const ruDict = {
         transfer_label: "Перевод",
       },
     },
+    merge: {
+      action_label: "Объединить",
+      group_noun: "Объединение",
+      badge: "объед · {n}",
+      tooltip: {
+        need_same_sign: "выделите транзакции одного знака",
+      },
+      error: {
+        need_same_sign: "Объединять можно только расходы или только доходы",
+        failed: "Не удалось объединить",
+      },
+      success: {
+        merged: "Объединено",
+        broken: "Объединение разорвано",
+      },
+      dialog: {
+        title: "Объединение",
+        sum_label: "сумма",
+        members_count: "участников: {n}",
+        break_button: "Разъединить",
+      },
+    },
   },
 
   wallet: {

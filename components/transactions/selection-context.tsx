@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useTransition, useCallback 
 import { useT } from "@/lib/i18n";
 import { markPairAsTransfer, breakTransfer } from "@/lib/data/_mutations/transfer-manual";
 import { createCompensationGroup, breakCompensationGroup } from "@/lib/data/_mutations/compensations";
+import { makeMergeAction } from "@/app/(shell)/transactions/compensation-actions";
 import type { TxnView } from "@/lib/view/transactions";
 
 type SelectionContextValue = {
@@ -99,6 +100,26 @@ export function TransactionsSelectionProvider({
     return null;
   })();
 
+  // ── Merge eligibility ────────────────────────────────────
+  // Use direction (in/out) to match server-side INFLOW_KINDS/OUTFLOW_KINDS check.
+  // This allows same-direction DEBT_IN, DEBT_OUT, LOAN_PAYMENT merges too.
+  const allInflow = selectedRows.every((r) => r.direction === "in");
+  const allOutflow = selectedRows.every((r) => r.direction === "out");
+  const allSameSign = allInflow || allOutflow;
+
+  const canMerge =
+    count >= 2 &&
+    allUnlinked &&
+    allSameSign;
+
+  const mergeDisabledReason: string | null = (() => {
+    if (count < 2) return t("transactions.selection.tooltip.need_two");
+    if (selectedRows.some((r) => r.transferId !== null)) return t("transactions.selection.tooltip.already_transfer");
+    if (selectedRows.some((r) => r.compensationGroupId !== null)) return t("transactions.selection.tooltip.already_grouped");
+    if (!allSameSign) return t("transactions.merge.tooltip.need_same_sign");
+    return null;
+  })();
+
   // ── Break eligibility ─────────────────────────────────────
   const allHaveTransfer = count >= 1 && selectedRows.every((r) => r.transferId !== null);
   const allHaveCompensation = count >= 1 && selectedRows.every((r) => r.compensationGroupId !== null);
@@ -142,6 +163,20 @@ export function TransactionsSelectionProvider({
       const result = await createCompensationGroup({ txnIds: ids });
       if (result.ok) {
         setActionState({ kind: "success", msgKey: "transactions.selection.success.compensation_made" });
+        setSelected(new Set());
+        setRowsMap(new Map());
+      } else {
+        setActionState({ kind: "error", msgKey: result.error });
+      }
+    });
+  }
+
+  function handleMakeMerge() {
+    const ids = Array.from(selected);
+    startTransition(async () => {
+      const result = await makeMergeAction({ txnIds: ids });
+      if (result.ok) {
+        setActionState({ kind: "success", msgKey: "transactions.merge.success.merged" });
         setSelected(new Set());
         setRowsMap(new Map());
       } else {
@@ -205,6 +240,16 @@ export function TransactionsSelectionProvider({
             onClick={handleMarkAsCompensation}
           >
             {t("transactions.selection.mark_as_compensation")}
+          </button>
+
+          <button
+            type="button"
+            className="btn"
+            disabled={!canMerge || isPending}
+            title={mergeDisabledReason ?? ""}
+            onClick={handleMakeMerge}
+          >
+            {t("transactions.merge.action_label")}
           </button>
 
           <button

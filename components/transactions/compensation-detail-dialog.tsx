@@ -12,6 +12,7 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   groupId: string;
+  kind?: "COMPENSATION" | "MERGE";
 };
 
 const KIND_LETTER: Record<string, string> = {
@@ -21,7 +22,7 @@ const KIND_LETTER: Record<string, string> = {
   loan: "L",
 };
 
-export function CompensationDetailDialog({ open, onOpenChange, groupId }: Props) {
+export function CompensationDetailDialog({ open, onOpenChange, groupId, kind: kindProp }: Props) {
   const t = useT();
   const [isPending, startTransition] = useTransition();
   const [msgKey, setMsgKey] = useState<{ kind: "success" | "error"; key: string } | null>(null);
@@ -40,6 +41,9 @@ export function CompensationDetailDialog({ open, onOpenChange, groupId }: Props)
     });
   }, [open, groupId]);
 
+  // Derive kind from loaded detail (authoritative) or fall back to prop
+  const isMerge = (detail?.kind ?? kindProp) === "MERGE";
+
   function handleBreak() {
     startTransition(async () => {
       const result = await breakCompensationGroup({ groupId });
@@ -55,7 +59,7 @@ export function CompensationDetailDialog({ open, onOpenChange, groupId }: Props)
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title={t("transactions.compensation.dialog.title")}
+      title={isMerge ? t("transactions.merge.dialog.title") : t("transactions.compensation.dialog.title")}
       size="lg"
       footer={
         <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flexWrap: "wrap" }}>
@@ -83,7 +87,7 @@ export function CompensationDetailDialog({ open, onOpenChange, groupId }: Props)
               onClick={handleBreak}
               disabled={isPending || loading}
             >
-              {t("transactions.compensation.dialog.break_button")}
+              {isMerge ? t("transactions.merge.dialog.break_button") : t("transactions.compensation.dialog.break_button")}
             </button>
           </div>
         </div>
@@ -95,7 +99,7 @@ export function CompensationDetailDialog({ open, onOpenChange, groupId }: Props)
         )}
         {detail && (
           <>
-            {/* Netto summary */}
+            {/* Summary row */}
             <div
               style={{
                 display: "flex",
@@ -106,7 +110,7 @@ export function CompensationDetailDialog({ open, onOpenChange, groupId }: Props)
                 borderBottom: "1px solid var(--border)",
               }}
             >
-              <span style={{ color: "var(--dim)" }}>{t("transactions.compensation.dialog.netto_label")}</span>
+              <span style={{ color: "var(--dim)" }}>{isMerge ? t("transactions.merge.dialog.sum_label") : t("transactions.compensation.dialog.netto_label")}</span>
               <span style={{ fontWeight: "600" }}>{detail.nettoAmount}</span>
               {detail.nettoFxEquiv && <span style={{ color: "var(--dim)" }}>{detail.nettoFxEquiv}</span>}
               <span style={{ color: "var(--dim)", marginLeft: "auto" }}>

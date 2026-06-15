@@ -5,11 +5,13 @@ import { getCurrentUserId } from "@/lib/api/auth";
 import { getLatestRatesMap } from "@/lib/data/wallet";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { formatMoney } from "@/lib/format/money";
-import { Prisma } from "@prisma/client";
+import { GroupKind, Prisma } from "@prisma/client";
 import { breakCompensationSchema } from "@/lib/validation/compensations";
+import { createMergeGroup } from "@/lib/data/_mutations/compensations";
 
 export type CompensationGroupDetail = {
   groupId: string;
+  kind: GroupKind;
   nettoAmount: string;
   nettoFxEquiv?: string;
   membersCount: number;
@@ -68,6 +70,7 @@ export async function getCompensationGroupDetail(
     where: { id: groupId, userId },
     select: {
       id: true,
+      kind: true,
       nettoBase: true,
       nettoSign: true,
       baseCcy: true,
@@ -164,10 +167,17 @@ export async function getCompensationGroupDetail(
     ok: true,
     data: {
       groupId: group.id,
+      kind: group.kind,
       nettoAmount,
       nettoFxEquiv,
       membersCount: group.transactions.length,
       members,
     },
   };
+}
+
+export async function makeMergeAction(args: {
+  txnIds: string[];
+}): Promise<{ ok: true; groupId: string } | { ok: false; error: string }> {
+  return createMergeGroup(args);
 }

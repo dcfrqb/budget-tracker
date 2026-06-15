@@ -1,7 +1,13 @@
 import { z } from "zod";
 
+const zCuid = z.string().min(1);
+
 export const createCompensationSchema = z.object({
-  txnIds: z.array(z.string().min(1)).min(2, "at least 2 transactions required"),
+  txnIds: z.array(zCuid).min(2, "at least 2 transactions required"),
+});
+
+export const createMergeSchema = z.object({
+  txnIds: z.array(zCuid).min(2, "at least 2 transactions required"),
 });
 
 export const breakCompensationSchema = z.object({
@@ -9,4 +15,5 @@ export const breakCompensationSchema = z.object({
 });
 
 export type CreateCompensationInput = z.infer<typeof createCompensationSchema>;
+export type CreateMergeInput = z.infer<typeof createMergeSchema>;
 export type BreakCompensationInput = z.infer<typeof breakCompensationSchema>;

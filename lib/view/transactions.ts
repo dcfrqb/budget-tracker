@@ -1,4 +1,4 @@
-import { Prisma, TransactionKind, TransactionStatus } from "@prisma/client";
+import { GroupKind, Prisma, TransactionKind, TransactionStatus } from "@prisma/client";
 import { formatMoney } from "@/lib/format/money";
 import { convertToBase } from "@/lib/data/wallet";
 import { DEFAULT_TZ } from "@/lib/constants";
@@ -22,6 +22,7 @@ export type Tone = "pos" | "neg" | "info" | "warn" | "dim";
 export type TxnView = {
   id: string;
   kind: TxnKind;
+  direction: "in" | "out" | "neutral";
   time: string;
   name: string;
   cat: string;
@@ -33,6 +34,8 @@ export type TxnView = {
   compensationGroupId: string | null;
   compensationMainBadge: boolean;
   compensationMembersCount: number | null;
+  mergeMainBadge: boolean;
+  mergeMembersCount: number | null;
   status: TxnShortStatus;
   statusLabel: string;
   amount: string;
@@ -105,6 +108,20 @@ function kindShort(k: TransactionKind): TxnKind {
     case "DEBT_OUT":
     case "DEBT_IN":
       return "loan";
+  }
+}
+
+function kindDirection(k: TransactionKind): "in" | "out" | "neutral" {
+  switch (k) {
+    case "INCOME":
+    case "DEBT_IN":
+      return "in";
+    case "EXPENSE":
+    case "LOAN_PAYMENT":
+    case "DEBT_OUT":
+      return "out";
+    case "TRANSFER":
+      return "neutral";
   }
 }
 
@@ -223,38 +240,52 @@ export function toTxnView(
   const { tone, sign, strike } = amountToneAndPrefix(txn);
   const { note, noteTone } = resolveNote(txn);
 
-  // Compensation projection: for main rows, rewrite amount to netto in native ccy
+  // Compensation/Merge projection: check if this txn is a group main
   const groupInfo = proj?.groupByMainTxnId.get(txn.id) ?? null;
-  const isCompensationMain = groupInfo !== null;
+  const isGroupMain = groupInfo !== null;
+  const isCompensationMain = isGroupMain && groupInfo?.kind === GroupKind.COMPENSATION;
+  const isMergeMain = isGroupMain && groupInfo?.kind === GroupKind.MERGE;
 
   let displayAmount = txn.amount;
   let displaySign = sign;
   let fxEquiv: string | undefined;
 
   if (isCompensationMain && groupInfo && rates && baseCcy) {
-    // nettoBase is in baseCcy; inverse-convert to native ccy
+    // For COMPENSATION mains: rewrite amount to netto in native ccy
     const { netBase, sign: netSign } = { netBase: groupInfo.nettoBase, sign: groupInfo.nettoSign };
     if (txn.currencyCode === baseCcy) {
       displayAmount = netBase;
     } else {
-      // Inverse-convert: nettoBase / rate(native→base) = native amount
-      const fwdRate = rates.get(`${txn.currencyCode}-${baseCcy}`) ?? rates.get(`${baseCcy}-${txn.currencyCode}`);
-      if (fwdRate && !fwdRate.isZero()) {
-        const rateToBase = rates.get(`${txn.currencyCode}-${baseCcy}`);
-        if (rateToBase) {
-          displayAmount = netBase.div(rateToBase);
-        } else {
-          // inverse key exists: base→native = 1/rate
-          const inverseRate = rates.get(`${baseCcy}-${txn.currencyCode}`);
-          if (inverseRate) {
-            displayAmount = netBase.mul(inverseRate);
-          }
+      const rateToBase = rates.get(`${txn.currencyCode}-${baseCcy}`);
+      if (rateToBase) {
+        displayAmount = netBase.div(rateToBase);
+      } else {
+        const inverseRate = rates.get(`${baseCcy}-${txn.currencyCode}`);
+        if (inverseRate) {
+          displayAmount = netBase.mul(inverseRate);
         }
       }
-      // Also show baseCcy equiv
       fxEquiv = formatMoney(new Prisma.Decimal(netBase.toFixed(0)), baseCcy, { approx: true });
     }
-    // Sign based on netto: +1 = income side, -1 = expense side
+    displaySign = netSign === 1 ? "+" : "-";
+  } else if (isMergeMain && groupInfo && rates && baseCcy) {
+    // For MERGE mains: display the cached representative sum (Σ members) in native ccy
+    const netBase = groupInfo.nettoBase;
+    const netSign = groupInfo.nettoSign;
+    if (txn.currencyCode === baseCcy) {
+      displayAmount = netBase;
+    } else {
+      const rateToBase = rates.get(`${txn.currencyCode}-${baseCcy}`);
+      if (rateToBase) {
+        displayAmount = netBase.div(rateToBase);
+      } else {
+        const inverseRate = rates.get(`${baseCcy}-${txn.currencyCode}`);
+        if (inverseRate) {
+          displayAmount = netBase.mul(inverseRate);
+        }
+      }
+      fxEquiv = formatMoney(new Prisma.Decimal(netBase.toFixed(0)), baseCcy, { approx: true });
+    }
     displaySign = netSign === 1 ? "+" : "-";
   } else if (rates && baseCcy && txn.currencyCode !== baseCcy) {
     const inBase = convertToBase(txn.amount, txn.currencyCode, baseCcy, rates);
@@ -266,6 +297,7 @@ export function toTxnView(
   return {
     id: txn.id,
     kind: kindShort(txn.kind),
+    direction: kindDirection(txn.kind),
     time: formatTime(txn.occurredAt),
     name: txn.name,
     cat: txn.category?.name ?? "—",
@@ -277,6 +309,8 @@ export function toTxnView(
     compensationGroupId: txn.compensationGroupId ?? null,
     compensationMainBadge: isCompensationMain,
     compensationMembersCount: isCompensationMain && groupInfo ? groupInfo.memberCount : null,
+    mergeMainBadge: isMergeMain,
+    mergeMembersCount: isMergeMain && groupInfo ? groupInfo.memberCount : null,
     status: STATUS_SHORT[txn.status],
     statusLabel: t(`transactions.status.${STATUS_SHORT[txn.status]}` as TKey),
     amount: signedAmount(displayAmount, txn.currency, displaySign),
@@ -319,6 +353,15 @@ function dayTotalsFromTxns(
     if (override) {
       if (override.sign === 1) inflowTotal = inflowTotal.plus(override.netBase);
       else outflowTotal = outflowTotal.plus(override.netBase);
+      continue;
+    }
+
+    // For MERGE mains: nettoBase is the cached Σ of all members (already in baseCcy).
+    // Non-main members were folded out of the feed, so we must use the group sum here.
+    const mergeGroupInfo = proj?.groupByMainTxnId.get(txn.id);
+    if (mergeGroupInfo?.kind === GroupKind.MERGE) {
+      if (mergeGroupInfo.nettoSign === 1) inflowTotal = inflowTotal.plus(mergeGroupInfo.nettoBase);
+      else outflowTotal = outflowTotal.plus(mergeGroupInfo.nettoBase);
       continue;
     }
 

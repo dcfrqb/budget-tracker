@@ -12,7 +12,7 @@ import { db } from "@/lib/db";
 import { convertToBase, getLatestRatesMap } from "./wallet";
 import { dayKeyInTz } from "@/lib/format/date";
 import { DEFAULT_TZ } from "@/lib/constants";
-import { getCompensationProjection } from "@/lib/data/_shared/compensation-projection";
+import { getCompensationProjection, INFLOW_KINDS, OUTFLOW_KINDS } from "@/lib/data/_shared/compensation-projection";
 
 export type TxnWithJoins = Transaction & {
   account: Account & { institution: Institution | null };
@@ -98,10 +98,14 @@ export async function getTransactionsGroupedByDay(
   // check is sufficient (no transferId-dedup needed). Orphan TRANSFER rows without
   // a Transfer record (transferId IS NULL) pass through as-is.
   const foldTransfers = !filters.accountId;
+  // Fold MERGE non-main members out of the feed (keep only the main representative row).
+  // COMPENSATION non-mains are already excluded at DB level via whereExcludeNonMain.
+  const mergeNonMainIds = proj.mergeNonMainIds;
   const filtered = rows.filter((t) => {
     if (foldTransfers && t.kind === "TRANSFER" && t.transferId && t.transfer) {
       return t.accountId === t.transfer.fromAccountId;
     }
+    if (mergeNonMainIds.has(t.id)) return false;
     return true;
   });
 
@@ -114,17 +118,6 @@ export async function getTransactionsGroupedByDay(
   }
   return [...byDay.entries()].map(([date, txns]) => ({ date, txns }));
 }
-
-// Набор kind'ов, считающихся "входом" денег.
-const INFLOW_KINDS: TransactionKind[] = [
-  TransactionKind.INCOME,
-  TransactionKind.DEBT_IN,
-];
-const OUTFLOW_KINDS: TransactionKind[] = [
-  TransactionKind.EXPENSE,
-  TransactionKind.LOAN_PAYMENT,
-  TransactionKind.DEBT_OUT,
-];
 
 // Фактическая подтверждённая сумма транзакции:
 // DONE → amount, PARTIAL → Σ(TransactionFact.amount), иначе → 0.

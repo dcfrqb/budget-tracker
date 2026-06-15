@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { Prisma, TransactionKind } from "@prisma/client";
+import { GroupKind, Prisma, TransactionKind } from "@prisma/client";
 import { db } from "@/lib/db";
 import { convertToBase } from "@/lib/data/wallet";
 
@@ -82,11 +82,77 @@ export function pickMainAndNetto(
 }
 
 // ─────────────────────────────────────────────────────────────
+// Canonical direction sets — single source of truth.
+// Used by pickMergeMain, createMergeGroup, and kindDirection.
+// ─────────────────────────────────────────────────────────────
+
+export const INFLOW_KINDS: TransactionKind[] = [
+  TransactionKind.INCOME,
+  TransactionKind.DEBT_IN,
+];
+
+export const OUTFLOW_KINDS: TransactionKind[] = [
+  TransactionKind.EXPENSE,
+  TransactionKind.LOAN_PAYMENT,
+  TransactionKind.DEBT_OUT,
+];
+
+// ─────────────────────────────────────────────────────────────
+// pickMergeMain
+//
+// Given same-direction legs, determines:
+//   - mainTxnId: leg with max |base| amount
+//   - nettoBase: Σ|base| (cached representative sum)
+//   - nettoSign: +1 for inflow legs, -1 for outflow legs
+//
+// Throws "merge_needs_same_sign" if legs are mixed direction.
+// Throws "fx_rate_missing" if any leg can't convert to baseCcy.
+// ─────────────────────────────────────────────────────────────
+
+export function pickMergeMain(
+  txns: LegInput[],
+  rates: Map<string, Prisma.Decimal>,
+  baseCcy: string,
+): PickMainResult {
+  const hasInflow = txns.some((t) => INFLOW_KINDS.includes(t.kind));
+  const hasOutflow = txns.some((t) => OUTFLOW_KINDS.includes(t.kind));
+  if (hasInflow && hasOutflow) throw new Error("merge_needs_same_sign");
+
+  type LegWithBase = LegInput & { baseAmt: Prisma.Decimal };
+
+  function toBase(leg: LegInput): LegWithBase {
+    const amt = new Prisma.Decimal(leg.amount).abs();
+    const inBase = convertToBase(amt, leg.currencyCode, baseCcy, rates);
+    if (!inBase) throw new Error("fx_rate_missing");
+    return { ...leg, baseAmt: inBase };
+  }
+
+  const withBase = txns.map(toBase);
+  const zero = new Prisma.Decimal(0);
+  const nettoBase = withBase.reduce((acc, l) => acc.plus(l.baseAmt), zero);
+  const nettoSign = hasInflow ? 1 : -1;
+  const mainLeg = withBase.reduce((max, leg) =>
+    leg.baseAmt.greaterThan(max.baseAmt) ? leg : max,
+  );
+
+  return {
+    mainTxnId: mainLeg.id,
+    nettoBase,
+    nettoSign,
+    categoryIdForAggregation: null,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────
 // CompensationProjection
 //
 // Loaded once per request. Exposes:
 //   - whereExcludeNonMain: adds compensationGroupId IS NULL OR id = mainTxnId
-//   - rewriteAmount(txnId): returns { netBase, sign } for main rows, null for others
+//     (COMPENSATION non-mains only; MERGE non-mains stay visible for aggregators)
+//   - rewriteAmount(txnId): returns { netBase, sign } for COMPENSATION mains only;
+//     returns null for MERGE mains (no rewrite — aggregators count at own amount)
+//   - groupByMainTxnId: info per main txn, includes `kind` for branching in view layer
+//   - mergeNonMainIds: set of MERGE non-main txn ids (for in-memory feed folding)
 // ─────────────────────────────────────────────────────────────
 
 export type CompensationProjection = {
@@ -94,11 +160,13 @@ export type CompensationProjection = {
   rewriteAmount: (txnId: string) => { netBase: Prisma.Decimal; sign: number } | null;
   groupByMainTxnId: Map<string, {
     groupId: string;
+    kind: GroupKind;
     nettoBase: Prisma.Decimal;
     nettoSign: number;
     categoryIdForAggregation: string | null;
     memberCount: number;
   }>;
+  mergeNonMainIds: Set<string>;
 };
 
 export const getCompensationProjection = cache(async (
@@ -108,6 +176,7 @@ export const getCompensationProjection = cache(async (
     where: { userId },
     select: {
       id: true,
+      kind: true,
       mainTxnId: true,
       nettoBase: true,
       nettoSign: true,
@@ -117,9 +186,14 @@ export const getCompensationProjection = cache(async (
   });
 
   const mainTxnIds = new Set(groups.map((g) => g.mainTxnId));
-  const nonMainGrouped = new Set<string>();
+  // Only COMPENSATION non-mains are excluded at DB query level
+  const compensationNonMainIds = new Set<string>();
+  // MERGE non-mains are folded in-memory in the feed only
+  const mergeNonMainIds = new Set<string>();
+
   const groupByMainTxnId = new Map<string, {
     groupId: string;
+    kind: GroupKind;
     nettoBase: Prisma.Decimal;
     nettoSign: number;
     categoryIdForAggregation: string | null;
@@ -129,6 +203,7 @@ export const getCompensationProjection = cache(async (
   for (const g of groups) {
     groupByMainTxnId.set(g.mainTxnId, {
       groupId: g.id,
+      kind: g.kind,
       nettoBase: new Prisma.Decimal(g.nettoBase),
       nettoSign: g.nettoSign,
       categoryIdForAggregation: g.categoryIdForAggregation,
@@ -136,28 +211,40 @@ export const getCompensationProjection = cache(async (
     });
     for (const m of g.transactions) {
       if (m.id !== g.mainTxnId) {
-        nonMainGrouped.add(m.id);
+        if (g.kind === GroupKind.COMPENSATION) {
+          compensationNonMainIds.add(m.id);
+        } else {
+          mergeNonMainIds.add(m.id);
+        }
       }
     }
   }
 
-  // Exclude rows that are non-main members of a compensation group:
-  // keep rows where compensationGroupId IS NULL OR row is a main txn.
+  // Exclude only COMPENSATION non-main rows at DB level.
+  // MERGE non-mains pass through (no DB exclusion) so aggregators count them individually.
+  // The feed later folds MERGE non-mains in-memory using mergeNonMainIds.
   const whereExcludeNonMain: Prisma.TransactionWhereInput =
-    nonMainGrouped.size === 0
+    compensationNonMainIds.size === 0
       ? {}
       : {
           OR: [
+            // Keep ungrouped rows
             { compensationGroupId: null },
+            // Keep all mains (both COMPENSATION and MERGE)
             { id: { in: Array.from(mainTxnIds) } },
+            // Keep MERGE non-mains (they need to reach aggregators)
+            ...(mergeNonMainIds.size > 0 ? [{ id: { in: Array.from(mergeNonMainIds) } }] : []),
           ],
         };
 
+  // rewriteAmount: only for COMPENSATION mains — returns netto override.
+  // MERGE mains return null: aggregators use each member's own amount.
   const rewriteAmount = (txnId: string) => {
     const g = groupByMainTxnId.get(txnId);
     if (!g) return null;
+    if (g.kind !== GroupKind.COMPENSATION) return null;
     return { netBase: g.nettoBase, sign: g.nettoSign };
   };
 
-  return { whereExcludeNonMain, rewriteAmount, groupByMainTxnId };
+  return { whereExcludeNonMain, rewriteAmount, groupByMainTxnId, mergeNonMainIds };
 });

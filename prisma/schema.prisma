@@ -313,6 +313,11 @@ enum TransactionStatus {
   CANCELLED
 }
 
+enum GroupKind {
+  COMPENSATION
+  MERGE
+}
+
 model Transaction {
   id           String            @id @default(cuid())
   userId       String
@@ -436,19 +441,20 @@ model Transfer {
 // ─────────────────────────────────────────────────────────────
 
 model CompensationGroup {
-  id                       String   @id @default(cuid())
+  id                       String    @id @default(cuid())
+  kind                     GroupKind @default(COMPENSATION)
   userId                   String
   // Pre-computed at create time, treated as immutable until the group is broken.
   // Aggregators read these instead of re-running FX on every query.
-  mainTxnId                String   @unique
-  nettoBase                Decimal  @db.Decimal(28, 10)
+  mainTxnId                String    @unique
+  nettoBase                Decimal   @db.Decimal(28, 10)
   nettoSign                Int // +1 if winning side = INCOME, −1 if EXPENSE
   baseCcy                  String // ccy used for nettoBase (BudgetSettings.primaryCurrencyCode at create time)
   categoryIdForAggregation String? // category from biggest-|amount| EXPENSE leg; immutable after create
   occurredAt               DateTime // copied from main leg for sorted feeds
   note                     String?
-  createdAt                DateTime @default(now())
-  updatedAt                DateTime @updatedAt
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
 
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   mainTxn      Transaction   @relation("CompensationMain", fields: [mainTxnId], references: [id], onDelete: Restrict)

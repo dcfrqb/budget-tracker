@@ -58,6 +58,40 @@ function CompensationBadge({ groupId, membersCount }: CompensationBadgeProps) {
         open={open}
         onOpenChange={setOpen}
         groupId={groupId}
+        kind="COMPENSATION"
+      />
+    </>
+  );
+}
+
+interface MergeBadgeProps {
+  groupId: string;
+  membersCount: number;
+}
+
+function MergeBadge({ groupId, membersCount }: MergeBadgeProps) {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <button
+        type="button"
+        className="txn-comp-badge"
+        title={t("transactions.merge.badge", { vars: { n: String(membersCount) } })}
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen(true);
+        }}
+        aria-label={t("transactions.merge.badge", { vars: { n: String(membersCount) } })}
+      >
+        ⊕
+      </button>
+      <CompensationDetailDialog
+        open={open}
+        onOpenChange={setOpen}
+        groupId={groupId}
+        kind="MERGE"
       />
     </>
   );
@@ -97,6 +131,12 @@ function TxnRow({ t, accounts, expanded, onToggle, tz }: TxnRowProps) {
               <CompensationBadge
                 groupId={t.compensationGroupId}
                 membersCount={t.compensationMembersCount}
+              />
+            )}
+            {t.mergeMainBadge && t.compensationGroupId && t.mergeMembersCount != null && (
+              <MergeBadge
+                groupId={t.compensationGroupId}
+                membersCount={t.mergeMembersCount}
               />
             )}
           </div>

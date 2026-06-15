@@ -1351,6 +1351,28 @@ export const enDict: RuDictShape = {
         transfer_label: "Transfer",
       },
     },
+    merge: {
+      action_label: "Merge",
+      group_noun: "Merged",
+      badge: "merged · {n}",
+      tooltip: {
+        need_same_sign: "select same-sign transactions",
+      },
+      error: {
+        need_same_sign: "Merge requires all expenses or all incomes",
+        failed: "Could not merge",
+      },
+      success: {
+        merged: "Merged",
+        broken: "Merge removed",
+      },
+      dialog: {
+        title: "Merged group",
+        sum_label: "sum",
+        members_count: "members: {n}",
+        break_button: "Split",
+      },
+    },
   },
 
   wallet: {
