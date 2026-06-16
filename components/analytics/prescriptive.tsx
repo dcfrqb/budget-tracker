@@ -125,14 +125,14 @@ export function Prescriptive({ burn, shrinkable, labels, burnFormatted, shrinkFo
 
         {/* Shrinkable categories block */}
         <div style={{ marginTop: "var(--space-3)" }}>
-          <div className="ttl mono" style={{ fontSize: 11, marginBottom: "var(--space-2)" }}>
+          <div className="ttl mono" style={{ fontSize: "var(--text-xs)", marginBottom: "var(--space-2)" }}>
             {labels.shrink.title}{" "}
             <span className="dim">&middot; {labels.shrink.subtitle}</span>
           </div>
           {shrinkFormatted.length === 0 ? (
             <div
               className="mono"
-              style={{ fontSize: 12, color: "var(--muted)", padding: "8px 0" }}
+              style={{ fontSize: "var(--text-sm)", color: "var(--muted)", padding: "8px 0" }}
             >
               {labels.shrink.empty}
             </div>
@@ -150,7 +150,7 @@ export function Prescriptive({ burn, shrinkable, labels, burnFormatted, shrinkFo
                     <span
                       className="neg"
                       style={{
-                        fontSize: 11,
+                        fontSize: "var(--text-xs)",
                         padding: "1px 4px",
                         border: "1px solid var(--neg)",
                         borderRadius: 2,
@@ -167,14 +167,14 @@ export function Prescriptive({ burn, shrinkable, labels, burnFormatted, shrinkFo
 
         {/* Obligatory vs discretionary split block */}
         <div style={{ marginTop: "var(--space-3)" }}>
-          <div className="ttl mono" style={{ fontSize: 11, marginBottom: "var(--space-2)" }}>
+          <div className="ttl mono" style={{ fontSize: "var(--text-xs)", marginBottom: "var(--space-2)" }}>
             {labels.split.title}{" "}
             <span className="dim">&middot; {labels.split.subtitle}</span>
           </div>
           {splitFormatted.discretionaryPct === 0 && splitFormatted.total === "0" ? (
             <div
               className="mono"
-              style={{ fontSize: 12, color: "var(--muted)", padding: "8px 0" }}
+              style={{ fontSize: "var(--text-sm)", color: "var(--muted)", padding: "8px 0" }}
             >
               {labels.split.empty}
             </div>
@@ -225,7 +225,7 @@ export function Prescriptive({ burn, shrinkable, labels, burnFormatted, shrinkFo
                   <span
                     className="v warn mono"
                     style={{
-                      fontSize: 13,
+                      fontSize: "var(--text-md)",
                       fontWeight: 700,
                     }}
                   >
@@ -239,22 +239,22 @@ export function Prescriptive({ burn, shrinkable, labels, burnFormatted, shrinkFo
 
         {/* Economy exit scenario block */}
         <div style={{ marginTop: "var(--space-3)" }}>
-          <div className="ttl mono" style={{ fontSize: 11, marginBottom: "var(--space-2)" }}>
+          <div className="ttl mono" style={{ fontSize: "var(--text-xs)", marginBottom: "var(--space-2)" }}>
             {labels.economy_exit.title}{" "}
             <span className="dim">&middot; {labels.economy_exit.subtitle}</span>
           </div>
           {economyExit.state === "no_deficit" ? (
-            <div className="mono" style={{ fontSize: 12, color: "var(--pos)", padding: "8px 0" }}>
+            <div className="mono" style={{ fontSize: "var(--text-sm)", color: "var(--pos)", padding: "8px 0" }}>
               {labels.economy_exit.no_deficit}
             </div>
           ) : economyExit.state === "no_surplus" ? (
-            <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "8px 0" }}>
+            <div className="mono" style={{ fontSize: "var(--text-sm)", color: "var(--muted)", padding: "8px 0" }}>
               {labels.economy_exit.no_surplus}
             </div>
           ) : (
             <div className="period-stats">
               <div className="r">
-                <span className="k mono" style={{ fontSize: 13, fontWeight: 700, color: "var(--warn)" }}>
+                <span className="k mono" style={{ fontSize: "var(--text-md)", fontWeight: 700, color: "var(--warn)" }}>
                   {labels.economy_exit.months.replace("{n}", String(economyExit.monthsToRecover))}
                 </span>
               </div>

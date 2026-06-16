@@ -100,7 +100,7 @@ export function FundContributeDialog({
       <button
         type="button"
         className="btn"
-        style={{ fontSize: 11 }}
+        style={{ fontSize: "var(--text-xs)" }}
         onClick={() => setOpen(true)}
         data-current-amount={optimisticAmount}
       >
@@ -134,7 +134,7 @@ export function FundContributeDialog({
         }
       >
         <div className="form-grid" style={{ gap: "var(--space-4)" }}>
-          <div className="mono" style={{ fontSize: 11, color: "var(--muted)" }}>{fundName}</div>
+          <div className="mono" style={{ fontSize: "var(--text-xs)", color: "var(--muted)" }}>{fundName}</div>
 
           {/* Amount */}
           <div className="field">

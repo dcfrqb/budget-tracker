@@ -76,7 +76,7 @@ export function AutosyncCadence({ current }: Props) {
                 color: active ? "var(--text)" : "var(--muted)",
                 fontWeight: active ? 600 : 400,
                 padding: "4px 12px",
-                fontSize: 11,
+                fontSize: "var(--text-xs)",
                 minWidth: 44,
               }}
             >
@@ -87,7 +87,7 @@ export function AutosyncCadence({ current }: Props) {
       </div>
       <div
         className="mono"
-        style={{ marginTop: 6, fontSize: 10, color: "var(--dim)" }}
+        style={{ marginTop: 6, fontSize: "var(--text-2xs)", color: "var(--dim)" }}
       >
         {t("settings.autosync.hint")}
       </div>

@@ -18,7 +18,7 @@ export function SettingsContent() {
       <div className="section-body">
         <div
           className="mono"
-          style={{ color: "var(--muted)", fontSize: 12, lineHeight: 1.7, marginBottom: 20 }}
+          style={{ color: "var(--muted)", fontSize: "var(--text-sm)", lineHeight: 1.7, marginBottom: 20 }}
         >
           {t("settings.description")}
         </div>
@@ -28,7 +28,7 @@ export function SettingsContent() {
         >
           <div
             className="mono"
-            style={{ color: "var(--dim)", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}
+            style={{ color: "var(--dim)", fontSize: "var(--text-2xs)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}
           >
             {t("settings.locale.sectionTitle")}
           </div>

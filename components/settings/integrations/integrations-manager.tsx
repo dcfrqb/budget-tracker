@@ -128,7 +128,7 @@ function StatusBadge({ status }: { status: IntegrationStatus }) {
     <span
       className="mono"
       style={{
-        fontSize: 10,
+        fontSize: "var(--text-2xs)",
         color,
         border: `1px solid ${color}`,
         borderRadius: 2,
@@ -253,19 +253,19 @@ function ConnectDialog({
           gap: 14,
         }}
       >
-        <div className="mono" style={{ fontSize: 12, fontWeight: 700, color: "var(--text)" }}>
+        <div className="mono" style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: "var(--text)" }}>
           {title}
         </div>
 
         {isRelogin && (
-          <div className="mono" style={{ fontSize: 10, color: "var(--dim)" }}>
+          <div className="mono" style={{ fontSize: "var(--text-2xs)", color: "var(--dim)" }}>
             {t("settings.integrations.tinkoff_retail.relogin.password_only_hint")}
           </div>
         )}
 
         {!isRelogin && (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>
+            <label className="mono" style={{ fontSize: "var(--text-2xs)", color: "var(--muted)" }}>
               {t("settings.integrations.form.display_label")}
             </label>
             <input
@@ -290,7 +290,7 @@ function ConnectDialog({
             )}
 
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <label className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>
+              <label className="mono" style={{ fontSize: "var(--text-2xs)", color: "var(--muted)" }}>
                 {usernameLabel}
               </label>
               <input
@@ -308,7 +308,7 @@ function ConnectDialog({
             </div>
             {adapter.id === "tinkoff-retail" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <label className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>
+                <label className="mono" style={{ fontSize: "var(--text-2xs)", color: "var(--muted)" }}>
                   {t("settings.integrations.form.lk_password")}
                 </label>
                 <input
@@ -319,14 +319,14 @@ function ConnectDialog({
                   autoComplete="current-password"
                   placeholder={t("settings.integrations.form.lk_password_placeholder")}
                 />
-                <div className="mono" style={{ fontSize: 10, color: "var(--dim)" }}>
+                <div className="mono" style={{ fontSize: "var(--text-2xs)", color: "var(--dim)" }}>
                   {t("settings.integrations.form.lk_password_hint")}
                 </div>
               </div>
             )}
             {adapter.category !== "email-forward" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <label className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>
+                <label className="mono" style={{ fontSize: "var(--text-2xs)", color: "var(--muted)" }}>
                   {adapter.id === "tinkoff-retail"
                     ? t("settings.integrations.form.pin")
                     : t("settings.integrations.form.password")}
@@ -347,7 +347,7 @@ function ConnectDialog({
                     : { autoComplete: "current-password" })}
                 />
                 {adapter.id === "tinkoff-retail" && (
-                  <div className="mono" style={{ fontSize: 10, color: "var(--dim)" }}>
+                  <div className="mono" style={{ fontSize: "var(--text-2xs)", color: "var(--dim)" }}>
                     {t("settings.integrations.form.pin_hint")}
                   </div>
                 )}
@@ -358,7 +358,7 @@ function ConnectDialog({
 
         {errorMsg && (
           <div className="sig warn">
-            <div className="m mono" style={{ fontSize: 11 }}>{errorMsg}</div>
+            <div className="m mono" style={{ fontSize: "var(--text-xs)" }}>{errorMsg}</div>
           </div>
         )}
 
@@ -450,12 +450,12 @@ function OtpDialog({
           gap: 14,
         }}
       >
-        <div className="mono" style={{ fontSize: 12, fontWeight: 700, color: "var(--text)" }}>
+        <div className="mono" style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: "var(--text)" }}>
           {t("settings.integrations.action.submit_otp")}
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>
+          <label className="mono" style={{ fontSize: "var(--text-2xs)", color: "var(--muted)" }}>
             {t("settings.integrations.form.otp_code")}
           </label>
           <input
@@ -471,7 +471,7 @@ function OtpDialog({
 
         {errorMsg && (
           <div className="sig warn">
-            <div className="m mono" style={{ fontSize: 11 }}>{errorMsg}</div>
+            <div className="m mono" style={{ fontSize: "var(--text-xs)" }}>{errorMsg}</div>
           </div>
         )}
 
@@ -598,12 +598,12 @@ function CredentialCard({
       >
         {/* Header row */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <span className="mono" style={{ fontSize: 12, color: "var(--text)", fontWeight: 600 }}>
+          <span className="mono" style={{ fontSize: "var(--text-sm)", color: "var(--text)", fontWeight: 600 }}>
             {label}
           </span>
           <StatusBadge status={cred.status} />
           {adapter && (
-            <span className="mono" style={{ fontSize: 10, color: "var(--dim)" }}>
+            <span className="mono" style={{ fontSize: "var(--text-2xs)", color: "var(--dim)" }}>
               {t(`settings.integrations.category.${adapter.category === "api-reverse" ? "api_reverse" : adapter.category === "email-forward" ? "email" : "csv"}` as Parameters<typeof t>[0])}
             </span>
           )}
@@ -611,21 +611,21 @@ function CredentialCard({
 
         {/* Error message */}
         {cred.status === "ERROR" && cred.lastErrorMessage && (
-          <div className="mono" style={{ fontSize: 10, color: "var(--neg)", opacity: 0.8 }}>
+          <div className="mono" style={{ fontSize: "var(--text-2xs)", color: "var(--neg)", opacity: 0.8 }}>
             {t(mapAdapterError(cred.lastErrorMessage))}
           </div>
         )}
 
         {/* Last sync */}
         {cred.lastSyncAt && (
-          <div className="mono" style={{ fontSize: 10, color: "var(--dim)" }}>
+          <div className="mono" style={{ fontSize: "var(--text-2xs)", color: "var(--dim)" }}>
             {t("settings.integrations.sync.last_sync")} {new Date(cred.lastSyncAt).toLocaleString()}
           </div>
         )}
 
         {/* Feedback */}
         {feedback && (
-          <div className="mono" style={{ fontSize: 10, color: "var(--info)" }}>
+          <div className="mono" style={{ fontSize: "var(--text-2xs)", color: "var(--info)" }}>
             {feedback}
           </div>
         )}
@@ -633,7 +633,7 @@ function CredentialCard({
         {/* Linked accounts sub-list */}
         {supportsLinking && accountLinks.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 2 }}>
-            <div className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>
+            <div className="mono" style={{ fontSize: "var(--text-2xs)", color: "var(--muted)" }}>
               {t("settings.integrations.tinkoff_retail.link.linked_count", {
                 vars: { count: String(accountLinks.length) },
               })}
@@ -642,7 +642,7 @@ function CredentialCard({
               <div
                 key={link.id}
                 className="mono"
-                style={{ fontSize: 10, color: "var(--dim)", paddingLeft: 8 }}
+                style={{ fontSize: "var(--text-2xs)", color: "var(--dim)", paddingLeft: 8 }}
               >
                 {link.label ?? link.externalAccountId} → {link.accountName}
               </div>
@@ -792,7 +792,7 @@ export function IntegrationsManager({ adapters, credentials: initialCredentials 
         <div className="k mono" style={{ fontSize: 10 }}>
           {t("settings.integrations.warning_title")}
         </div>
-        <div className="m mono" style={{ fontSize: 11 }}>
+        <div className="m mono" style={{ fontSize: "var(--text-xs)" }}>
           {t("settings.integrations.warning_body")}
         </div>
       </div>
@@ -828,10 +828,10 @@ export function IntegrationsManager({ adapters, credentials: initialCredentials 
                 }}
               >
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <span className="mono" style={{ fontSize: 12, color: "var(--text)", fontWeight: 600 }}>
+                  <span className="mono" style={{ fontSize: "var(--text-sm)", color: "var(--text)", fontWeight: 600 }}>
                     {displayName}
                   </span>
-                  <span className="mono" style={{ fontSize: 10, color: "var(--dim)" }}>
+                  <span className="mono" style={{ fontSize: "var(--text-2xs)", color: "var(--dim)" }}>
                     {t(catKey as Parameters<typeof t>[0])}
                   </span>
                 </div>
@@ -854,7 +854,7 @@ export function IntegrationsManager({ adapters, credentials: initialCredentials 
           {t("settings.integrations.connected")}
         </div>
         {credentials.length === 0 ? (
-          <div className="mono" style={{ fontSize: 11, color: "var(--dim)" }}>
+          <div className="mono" style={{ fontSize: "var(--text-xs)", color: "var(--dim)" }}>
             {t("settings.integrations.no_credentials")}
           </div>
         ) : (

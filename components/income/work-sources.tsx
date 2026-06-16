@@ -42,8 +42,7 @@ export async function WorkSourcesSection({ items }: WorkSourcesSectionProps) {
           <div className="meta mono">
             <Link
               href="/income/work-sources/new"
-              className="btn primary"
-              style={{ padding: "3px 9px", fontSize: 10 }}
+              className="btn primary btn-xs"
             >
               {t("income.work_sources.add")}
             </Link>
@@ -56,13 +55,12 @@ export async function WorkSourcesSection({ items }: WorkSourcesSectionProps) {
             <article className="ws-card add" tabIndex={0} style={{ gridColumn: "1 / -1" }}>
               <div style={{ textAlign: "center" }}>
                 <div className="plus">+</div>
-                <div className="mono" style={{ fontSize: 12, color: "var(--muted)", marginBottom: 8 }}>
+                <div className="mono" style={{ fontSize: "var(--text-sm)", color: "var(--muted)", marginBottom: 8 }}>
                   {t("income.work_sources.empty")}
                 </div>
                 <Link
                   href="/income/work-sources/new"
-                  className="btn primary"
-                  style={{ fontSize: 11, padding: "5px 14px" }}
+                  className="btn primary btn-sm"
                 >
                   {t("income.work_sources.add")}
                 </Link>
@@ -85,7 +83,7 @@ export async function WorkSourcesSection({ items }: WorkSourcesSectionProps) {
                   <div className="ws-top" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span className={KIND_TAG_CLASS[src.kind]}>{src.kindLabel}</span>
                     {src.payDay != null && (
-                      <span className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>
+                      <span className="mono" style={{ fontSize: "var(--text-2xs)", color: "var(--muted)" }}>
                         {src.payDay}
                       </span>
                     )}
@@ -111,7 +109,7 @@ export async function WorkSourcesSection({ items }: WorkSourcesSectionProps) {
 
                   {/* Payment summary rows */}
                   {!hasPaymentSummary ? (
-                    <div className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>
+                    <div className="mono" style={{ fontSize: "var(--text-2xs)", color: "var(--muted)" }}>
                       {t("income.work.card.no_payments")}
                     </div>
                   ) : (

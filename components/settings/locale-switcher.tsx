@@ -29,7 +29,7 @@ export function LocaleSwitcher() {
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-      <span className="mono" style={{ color: "var(--muted)", fontSize: 11, minWidth: 80 }}>
+      <span className="mono" style={{ color: "var(--muted)", fontSize: "var(--text-xs)", minWidth: 80 }}>
         {t("settings.locale.label")}
       </span>
       <div className="seg" ref={segRef}>

@@ -56,8 +56,7 @@ export function FxRates({ rates, currencies, cbrAvailableCodes, latestRecordedAt
         <div className="meta mono">
           <button
             type="button"
-            className="btn"
-            style={{ padding: "3px 9px", fontSize: 10 }}
+            className="btn btn-xs"
             onClick={handleRefresh}
             disabled={isPendingRefresh}
             title={t("wallet.fx.refresh")}
@@ -89,7 +88,7 @@ export function FxRates({ rates, currencies, cbrAvailableCodes, latestRecordedAt
                   disabled={isPendingRemove}
                   style={{
                     padding: "0 4px",
-                    fontSize: 10,
+                    fontSize: "var(--text-2xs)",
                     lineHeight: 1,
                     opacity: 0.5,
                     marginLeft: "var(--sp-1)",
@@ -104,8 +103,7 @@ export function FxRates({ rates, currencies, cbrAvailableCodes, latestRecordedAt
           <div className="rate rate--add">
             <button
               type="button"
-              className="btn"
-              style={{ padding: "3px 9px", fontSize: 10 }}
+              className="btn btn-xs"
               onClick={() => setShowAddDialog(true)}
             >
               {t("wallet.fx.add_pair.button")}

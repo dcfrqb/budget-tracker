@@ -16,7 +16,7 @@ export function SpaceSwitch() {
         <button type="button" className={active === "shared" ? "on" : undefined} onClick={() => setActive("shared")}>{t("summary.family.space_shared")}</button>
         <button type="button" className={active === "personal" ? "on" : undefined} onClick={() => setActive("personal")}>{t("summary.family.space_personal")}</button>
       </div>
-      <div className="mono" style={{ fontSize: 11, color: "var(--muted)", lineHeight: 1.6 }}>
+      <div className="mono" style={{ fontSize: "var(--text-xs)", color: "var(--muted)", lineHeight: 1.6 }}>
         {t("summary.family.space_hint")}
       </div>
     </div>
@@ -31,7 +31,7 @@ export function NoGroupBlock() {
         <span>{t("summary.family.no_group_label")}</span>
         <span className="tiny mono">{t("summary.family.no_group_meta")}</span>
       </div>
-      <div className="mono" style={{ fontSize: 11, color: "var(--muted)", lineHeight: 1.6 }}>
+      <div className="mono" style={{ fontSize: "var(--text-xs)", color: "var(--muted)", lineHeight: 1.6 }}>
         {t("summary.family.no_group_hint")}
       </div>
     </div>

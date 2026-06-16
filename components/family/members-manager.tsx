@@ -45,8 +45,7 @@ export function MembersManager({ familyId, members }: MembersManagerProps) {
         <div className="meta mono">
           <button
             type="button"
-            className="btn primary"
-            style={{ padding: "3px 9px", fontSize: 10 }}
+            className="btn primary btn-xs"
             onClick={() => { setShowAddForm(true); setEditingMemberId(null); }}
           >
             {t("buttons.add_member")}
@@ -55,7 +54,7 @@ export function MembersManager({ familyId, members }: MembersManagerProps) {
       </div>
 
       {error && (
-        <div className="mono" style={{ fontSize: 11, color: "var(--neg)", padding: "4px 20px" }}>
+        <div className="mono" style={{ fontSize: "var(--text-xs)", color: "var(--neg)", padding: "4px 20px" }}>
           {error}
         </div>
       )}
@@ -68,7 +67,7 @@ export function MembersManager({ familyId, members }: MembersManagerProps) {
             onSuccess={() => setShowAddForm(false)}
             onCancel={() => setShowAddForm(false)}
           />
-          <div className="mono" style={{ fontSize: 10, color: "var(--muted)", marginTop: 8 }}>
+          <div className="mono" style={{ fontSize: "var(--text-2xs)", color: "var(--muted)", marginTop: 8 }}>
             {t("forms.family_member.guest_hint")}
           </div>
         </div>
@@ -113,8 +112,7 @@ export function MembersManager({ familyId, members }: MembersManagerProps) {
                   <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
                     <button
                       type="button"
-                      className="btn-ghost"
-                      style={{ fontSize: 10, padding: "2px 6px" }}
+                      className="btn-ghost btn-xs"
                       onClick={() => { setEditingMemberId(m.id); setShowAddForm(false); }}
                     >
                       {t("buttons.edit")}
@@ -124,8 +122,8 @@ export function MembersManager({ familyId, members }: MembersManagerProps) {
                         <>
                           <button
                             type="button"
-                            className="btn-ghost"
-                            style={{ fontSize: 10, padding: "2px 6px", color: "var(--neg)" }}
+                            className="btn-ghost btn-xs"
+                            style={{ color: "var(--neg)" }}
                             disabled={removingId === m.id}
                             onClick={() => handleRemove(m.id)}
                           >
@@ -133,8 +131,7 @@ export function MembersManager({ familyId, members }: MembersManagerProps) {
                           </button>
                           <button
                             type="button"
-                            className="btn-ghost"
-                            style={{ fontSize: 10, padding: "2px 6px" }}
+                            className="btn-ghost btn-xs"
                             onClick={() => setConfirmRemoveId(null)}
                           >
                             {t("forms.common.cancel")}
@@ -143,8 +140,7 @@ export function MembersManager({ familyId, members }: MembersManagerProps) {
                       ) : (
                         <button
                           type="button"
-                          className="btn-ghost"
-                          style={{ fontSize: 10, padding: "2px 6px" }}
+                          className="btn-ghost btn-xs"
                           onClick={() => setConfirmRemoveId(m.id)}
                         >
                           {t("buttons.remove_member")}
@@ -157,7 +153,7 @@ export function MembersManager({ familyId, members }: MembersManagerProps) {
             </div>
           ))}
           {members.length === 0 && (
-            <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
+            <div className="mono" style={{ fontSize: "var(--text-sm)", color: "var(--muted)", padding: "12px 20px" }}>
               {t("common.no_data")}
             </div>
           )}

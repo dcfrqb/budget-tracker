@@ -174,8 +174,7 @@ export default async function FamilyPage() {
       <div className="section-hd" style={{ padding: "8px 20px" }}>
         <Link
           href={`/family/${family.id}/edit`}
-          className="btn-ghost"
-          style={{ fontSize: 11, padding: "3px 8px" }}
+          className="btn-ghost btn-xs"
         >
           {t("buttons.edit")}
         </Link>

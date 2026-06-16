@@ -36,8 +36,7 @@ export function DetailPeriodTabs({ active }: Props) {
       {PERIODS.map((p) => (
         <button
           key={p}
-          className={`btn mono${active === p ? " primary" : ""}`}
-          style={{ fontSize: "var(--text-xs)", padding: "3px 10px" }}
+          className={`btn btn-xs mono${active === p ? " primary" : ""}`}
           onClick={() => handleClick(p)}
         >
           {t(`income.work.detail.period.${p}` as Parameters<typeof t>[0])}

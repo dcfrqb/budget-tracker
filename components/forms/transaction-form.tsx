@@ -514,7 +514,7 @@ export function TransactionForm({
             <div className="mono" style={{ fontWeight: 600, marginBottom: "var(--sp-2)" }}>
               {t("forms.tx.work_source.empty_cta_title")}
             </div>
-            <p className="mono" style={{ fontSize: 12, color: "var(--muted)", marginBottom: "var(--sp-3)" }}>
+            <p className="mono" style={{ fontSize: "var(--text-sm)", color: "var(--muted)", marginBottom: "var(--sp-3)" }}>
               {t("forms.tx.work_source.empty_cta_body")}
             </p>
             <Link href="/income/work-sources/new" className="btn primary" style={{ fontSize: 12 }}>

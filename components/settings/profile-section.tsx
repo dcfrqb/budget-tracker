@@ -101,12 +101,12 @@ export function ProfileSection({ name, gender }: Props) {
 
         <div style={{ display: "flex", alignItems: "center", gap: 12, minHeight: 20 }}>
           {saved && (
-            <span className="mono" style={{ fontSize: 11, color: "var(--pos)" }}>
+            <span className="mono" style={{ fontSize: "var(--text-xs)", color: "var(--pos)" }}>
               {t("settings.profile.saved")}
             </span>
           )}
           {error && (
-            <span className="mono" style={{ fontSize: 11, color: "var(--neg)" }}>
+            <span className="mono" style={{ fontSize: "var(--text-xs)", color: "var(--neg)" }}>
               {error}
             </span>
           )}

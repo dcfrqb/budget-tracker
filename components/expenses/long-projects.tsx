@@ -44,13 +44,13 @@ export function LongProjects({ projects }: { projects: LongProjectView[] }) {
           <b>{t("expenses.kpi.projects")}</b>
         </div>
         <div className="meta mono">
-          <Link href="/expenses/long-projects/new" className="btn primary" style={{ padding: "3px 9px", fontSize: 10 }}>
+          <Link href="/expenses/long-projects/new" className="btn primary btn-xs">
             {t("buttons.add_project")}
           </Link>
         </div>
       </div>
       {error && (
-        <div className="mono" style={{ fontSize: 11, color: "var(--neg)", padding: "4px 20px" }}>
+        <div className="mono" style={{ fontSize: "var(--text-xs)", color: "var(--neg)", padding: "4px 20px" }}>
           {error}
         </div>
       )}
@@ -86,8 +86,7 @@ export function LongProjects({ projects }: { projects: LongProjectView[] }) {
               <div className="proj-actions" style={{ display: "flex", gap: 4, marginLeft: 8 }}>
                 <Link
                   href={`/expenses/long-projects/${p.id}/edit`}
-                  className="btn-ghost"
-                  style={{ fontSize: 10, padding: "2px 6px" }}
+                  className="btn-ghost btn-xs"
                 >
                   {t("buttons.edit")}
                 </Link>
@@ -95,8 +94,8 @@ export function LongProjects({ projects }: { projects: LongProjectView[] }) {
                   <>
                     <button
                       type="button"
-                      className="btn-ghost"
-                      style={{ fontSize: 10, padding: "2px 6px", color: "var(--neg)" }}
+                      className="btn-ghost btn-xs"
+                      style={{ color: "var(--neg)" }}
                       disabled={deletingId === p.id}
                       onClick={() => handleDelete(p.id)}
                     >
@@ -104,8 +103,7 @@ export function LongProjects({ projects }: { projects: LongProjectView[] }) {
                     </button>
                     <button
                       type="button"
-                      className="btn-ghost"
-                      style={{ fontSize: 10, padding: "2px 6px" }}
+                      className="btn-ghost btn-xs"
                       onClick={() => setConfirmId(null)}
                     >
                       {t("forms.common.cancel")}
@@ -114,8 +112,7 @@ export function LongProjects({ projects }: { projects: LongProjectView[] }) {
                 ) : (
                   <button
                     type="button"
-                    className="btn-ghost"
-                    style={{ fontSize: 10, padding: "2px 6px" }}
+                    className="btn-ghost btn-xs"
                     onClick={() => setConfirmId(p.id)}
                   >
                     {t("buttons.delete")}
@@ -125,7 +122,7 @@ export function LongProjects({ projects }: { projects: LongProjectView[] }) {
             </div>
           ))}
           {projects.length === 0 && (
-            <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
+            <div className="mono" style={{ fontSize: "var(--text-sm)", color: "var(--muted)", padding: "12px 20px" }}>
               {t("common.no_data")}
             </div>
           )}

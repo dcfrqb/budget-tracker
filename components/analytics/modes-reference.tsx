@@ -69,7 +69,7 @@ export function ModesReference({
             </div>
           ))}
           {modes.length === 0 && (
-            <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 0" }}>
+            <div className="mono" style={{ fontSize: "var(--text-sm)", color: "var(--muted)", padding: "12px 0" }}>
               {labels.empty}
             </div>
           )}

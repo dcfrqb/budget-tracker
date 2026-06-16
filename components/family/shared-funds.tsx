@@ -38,7 +38,7 @@ export function SharedFunds({ funds, labels }: { funds: SharedFundCard[]; labels
             <article key={f.id} className="sfund-card" tabIndex={0}>
               <div className="sfund-top">
                 <span className="sfund-kind">{f.kindLabel}</span>
-                <span className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>{f.due}</span>
+                <span className="mono" style={{ fontSize: "var(--text-2xs)", color: "var(--muted)" }}>{f.due}</span>
               </div>
               <div className="sfund-name">
                 {f.name}
@@ -67,7 +67,7 @@ export function SharedFunds({ funds, labels }: { funds: SharedFundCard[]; labels
             </article>
           ))}
           {funds.length === 0 && (
-            <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
+            <div className="mono" style={{ fontSize: "var(--text-sm)", color: "var(--muted)", padding: "12px 20px" }}>
               {labels.empty}
             </div>
           )}

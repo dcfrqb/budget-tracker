@@ -51,7 +51,7 @@ export function AnalyticsKpiRow({
             </div>
           ))}
           {items.length === 0 && (
-            <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 0" }}>
+            <div className="mono" style={{ fontSize: "var(--text-sm)", color: "var(--muted)", padding: "12px 0" }}>
               {t("analytics.kpi.no_data")}
             </div>
           )}

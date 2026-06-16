@@ -115,12 +115,12 @@ export function BudgetSection({ activeMode, primaryCurrencyCode }: Props) {
 
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           {saved && (
-            <span className="mono" style={{ fontSize: 11, color: "var(--pos)" }}>
+            <span className="mono" style={{ fontSize: "var(--text-xs)", color: "var(--pos)" }}>
               {t("settings.budget.saved")}
             </span>
           )}
           {error && (
-            <span className="mono" style={{ fontSize: 11, color: "var(--neg)" }}>
+            <span className="mono" style={{ fontSize: "var(--text-xs)", color: "var(--neg)" }}>
               {error}
             </span>
           )}

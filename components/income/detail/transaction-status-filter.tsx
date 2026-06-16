@@ -45,8 +45,7 @@ export function TransactionStatusFilter({ active, basePath }: Props) {
       {filters.map((f) => (
         <button
           key={f}
-          className={`btn mono${activeFilter === f ? " primary" : ""}`}
-          style={{ fontSize: "var(--text-xs)", padding: "2px 8px" }}
+          className={`btn btn-xs mono${activeFilter === f ? " primary" : ""}`}
           onClick={() => handleClick(f)}
         >
           {t(`income.work.detail.txns.filter.${f}` as Parameters<typeof t>[0])}

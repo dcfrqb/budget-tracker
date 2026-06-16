@@ -55,7 +55,7 @@ function FundCard({ fund, accounts, tz }: FundCardProps) {
     <article className="fund-card" tabIndex={0}>
       <div className="fund-top">
         <span className={`fund-kind ${fund.kind}`}>{fund.kindLabel}</span>
-        <span className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>{fund.dueLabel}</span>
+        <span className="mono" style={{ fontSize: "var(--text-2xs)", color: "var(--muted)" }}>{fund.dueLabel}</span>
       </div>
       <div className="fund-name">
         {fund.name}
@@ -116,7 +116,7 @@ function FundCard({ fund, accounts, tz }: FundCardProps) {
           </div>
         }
       >
-        <p className="mono" style={{ fontSize: 13, color: "var(--text)" }}>
+        <p className="mono" style={{ fontSize: "var(--text-md)", color: "var(--text)" }}>
           {t("forms.fund.delete_confirm_body", { vars: { name: fund.name } })}
         </p>
       </Dialog>
@@ -151,8 +151,7 @@ export function FundsSection({
         <div className="meta mono">
           <Link
             href="/planning/funds/new"
-            className="btn primary"
-            style={{ padding: "3px 9px", fontSize: 10 }}
+            className="btn primary btn-xs"
           >
             {addLabel ?? t("buttons.add_fund")}
           </Link>
@@ -166,7 +165,7 @@ export function FundsSection({
           <article className="fund-card add" tabIndex={0}>
             <div>
               <div className="plus">+</div>
-              <div className="mono" style={{ fontSize: 11, color: "var(--text)" }}>{t("buttons.add_fund")}</div>
+              <div className="mono" style={{ fontSize: "var(--text-xs)", color: "var(--text)" }}>{t("buttons.add_fund")}</div>
             </div>
           </article>
         </div>

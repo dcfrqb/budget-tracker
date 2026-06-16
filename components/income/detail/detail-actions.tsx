@@ -28,10 +28,10 @@ export function DetailActions({ sourceId, isActive }: Props) {
 
   return (
     <button
-      className="btn"
+      className="btn btn-sm"
       onClick={handleToggle}
       disabled={isPending}
-      style={{ fontSize: "var(--text-xs)", padding: "4px 12px", opacity: isPending ? 0.6 : 1 }}
+      style={{ opacity: isPending ? 0.6 : 1 }}
     >
       {isActive
         ? t("income.work.detail.deactivate")

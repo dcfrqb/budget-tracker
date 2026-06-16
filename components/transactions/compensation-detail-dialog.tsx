@@ -93,7 +93,7 @@ export function CompensationDetailDialog({ open, onOpenChange, groupId, kind: ki
         </div>
       }
     >
-      <div style={{ fontFamily: "var(--mono-font, monospace)", fontSize: "13px" }}>
+      <div style={{ fontFamily: "var(--mono-font, monospace)", fontSize: "var(--text-md)" }}>
         {loading && (
           <div style={{ color: "var(--dim)", padding: "var(--space-3) 0" }}>…</div>
         )}

@@ -11,7 +11,7 @@ export function Sparkline({
   width = 260,
   height = 48,
   stroke = "var(--accent)",
-  fill = "rgba(88,211,163,.08)",
+  fill = "color-mix(in srgb, var(--accent) 8%, transparent)",
 }: Props) {
   if (points.length < 2) return null;
   const step = width / (points.length - 1);

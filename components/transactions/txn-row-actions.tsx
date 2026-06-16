@@ -71,7 +71,7 @@ function DangerDialog({
         </div>
       }
     >
-      <p style={{ fontFamily: "var(--mono-font, monospace)", fontSize: "13px", color: "var(--text)" }}>
+      <p style={{ fontFamily: "var(--mono-font, monospace)", fontSize: "var(--text-md)", color: "var(--text)" }}>
         {message}
       </p>
     </Dialog>
@@ -139,8 +139,7 @@ export function TxnRowActions({ txn, accounts, tz }: TxnRowActionsProps) {
         {canConfirm && (
           <button
             type="button"
-            className="btn primary"
-            style={{ fontSize: "10px", padding: "3px 8px" }}
+            className="btn primary btn-xs"
             onClick={() => {
               setOptimisticStatus("done");
               setConfirmOpen(true);
@@ -153,8 +152,8 @@ export function TxnRowActions({ txn, accounts, tz }: TxnRowActionsProps) {
         {canMiss && (
           <button
             type="button"
-            className="btn"
-            style={{ fontSize: "10px", padding: "3px 8px", color: "var(--warn)" }}
+            className="btn btn-xs"
+            style={{ color: "var(--warn)" }}
             onClick={() => setMissOpen(true)}
             disabled={isPending}
           >
@@ -164,8 +163,8 @@ export function TxnRowActions({ txn, accounts, tz }: TxnRowActionsProps) {
         {canCancel && (
           <button
             type="button"
-            className="btn"
-            style={{ fontSize: "10px", padding: "3px 8px", color: "var(--dim)" }}
+            className="btn btn-xs"
+            style={{ color: "var(--dim)" }}
             onClick={() => setCancelOpen(true)}
             disabled={isPending}
           >
@@ -174,8 +173,7 @@ export function TxnRowActions({ txn, accounts, tz }: TxnRowActionsProps) {
         )}
         <button
           type="button"
-          className="btn"
-          style={{ fontSize: "10px", padding: "3px 8px" }}
+          className="btn btn-xs"
           onClick={() => router.push(`/transactions/${txn.id}/edit`)}
           disabled={isInCompensationGroup}
           title={isInCompensationGroup ? t("transactions.compensation.error.edit_blocked") : undefined}
@@ -184,8 +182,8 @@ export function TxnRowActions({ txn, accounts, tz }: TxnRowActionsProps) {
         </button>
         <button
           type="button"
-          className="btn"
-          style={{ fontSize: "10px", padding: "3px 8px", color: "var(--neg)" }}
+          className="btn btn-xs"
+          style={{ color: "var(--neg)" }}
           onClick={() => setDeleteOpen(true)}
           disabled={isPending || isInCompensationGroup}
           title={isInCompensationGroup ? t("transactions.compensation.error.edit_blocked") : undefined}

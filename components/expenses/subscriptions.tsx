@@ -60,8 +60,7 @@ export async function Subscriptions({
           )}
           <Link
             href="/expenses/subscriptions"
-            className="btn"
-            style={{ padding: "3px 9px", fontSize: 10 }}
+            className="btn btn-xs"
           >
             {t("expenses.subscriptions.manage")} →
           </Link>
@@ -90,7 +89,7 @@ export async function Subscriptions({
                       className="mono"
                       style={{
                         color: s.shareTone === "acc" ? "var(--accent)" : "var(--muted)",
-                        fontSize: 11,
+                        fontSize: "var(--text-xs)",
                         fontWeight: 400,
                         marginLeft: 5,
                       }}
@@ -104,7 +103,7 @@ export async function Subscriptions({
             </article>
           ))}
           {items.length === 0 && (
-            <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
+            <div className="mono" style={{ fontSize: "var(--text-sm)", color: "var(--muted)", padding: "12px 20px" }}>
               {t("expenses.subscriptions.group.personal.empty")}
             </div>
           )}

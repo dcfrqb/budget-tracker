@@ -34,7 +34,7 @@ export function Taxes({ hints }: { hints: TaxHintView[] }) {
           </div>
         ))}
         {hints.length === 0 && (
-          <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
+          <div className="mono" style={{ fontSize: "var(--text-sm)", color: "var(--muted)", padding: "12px 20px" }}>
             нет налоговых подсказок
           </div>
         )}

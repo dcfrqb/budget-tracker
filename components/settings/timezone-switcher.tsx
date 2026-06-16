@@ -68,12 +68,12 @@ export function TimezoneSwitcher({ current }: TimezoneSwitcherProps) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <span className="mono" style={{ color: "var(--muted)", fontSize: 11, minWidth: 80 }}>
+        <span className="mono" style={{ color: "var(--muted)", fontSize: "var(--text-xs)", minWidth: 80 }}>
           {t("settings.timezone.label")}
         </span>
         <select
           className="field-input mono"
-          style={{ fontSize: 12, minWidth: 200 }}
+          style={{ fontSize: "var(--text-sm)", minWidth: 200 }}
           value={selected}
           disabled={isPending}
           onChange={(e) => handleSelect(e.target.value)}
@@ -96,7 +96,7 @@ export function TimezoneSwitcher({ current }: TimezoneSwitcherProps) {
             <input
               type="text"
               className="field-input mono"
-              style={{ fontSize: 12, width: 220 }}
+              style={{ fontSize: "var(--text-sm)", width: 220 }}
               placeholder="e.g. Pacific/Auckland"
               value={customValue}
               disabled={isPending}
@@ -106,7 +106,7 @@ export function TimezoneSwitcher({ current }: TimezoneSwitcherProps) {
               }}
             />
             {customError && (
-              <span className="mono" style={{ color: "var(--neg)", fontSize: 10 }}>
+              <span className="mono" style={{ color: "var(--neg)", fontSize: "var(--text-2xs)" }}>
                 {t("settings.timezone.invalid")}
               </span>
             )}
@@ -122,11 +122,11 @@ export function TimezoneSwitcher({ current }: TimezoneSwitcherProps) {
       )}
 
       <div style={{ paddingLeft: 92 }}>
-        <span className="mono" style={{ color: "var(--muted)", fontSize: 10 }}>
+        <span className="mono" style={{ color: "var(--muted)", fontSize: "var(--text-2xs)" }}>
           {t("settings.timezone.help")}
         </span>
         {effectiveTz && effectiveTz !== "other" && (
-          <span className="mono" style={{ color: "var(--muted)", fontSize: 10, marginLeft: 8 }}>
+          <span className="mono" style={{ color: "var(--muted)", fontSize: "var(--text-2xs)", marginLeft: 8 }}>
             {effectiveTz}
           </span>
         )}

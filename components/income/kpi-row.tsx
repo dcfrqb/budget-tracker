@@ -59,8 +59,8 @@ export async function IncomeKpiRow({
                   </div>
                   <Link
                     href="/income/work-sources/new"
-                    className="btn"
-                    style={{ fontSize: 11, padding: "4px 12px", alignSelf: "flex-start", marginTop: 4 }}
+                    className="btn btn-sm"
+                    style={{ alignSelf: "flex-start", marginTop: 4 }}
                   >
                     {t("income.kpi.empty_cta_button")}
                   </Link>
@@ -73,8 +73,8 @@ export async function IncomeKpiRow({
                   </div>
                   <Link
                     href="/income/work-sources/new"
-                    className="btn primary"
-                    style={{ fontSize: 11, padding: "4px 12px", alignSelf: "flex-start", marginTop: 4 }}
+                    className="btn primary btn-sm"
+                    style={{ alignSelf: "flex-start", marginTop: 4 }}
                   >
                     {t("income.kpi.empty_cta_button")}
                   </Link>

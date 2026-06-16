@@ -143,7 +143,7 @@ export function OnboardingForm() {
               </option>
             ))}
           </select>
-          <span className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>
+          <span className="mono" style={{ fontSize: "var(--text-2xs)", color: "var(--muted)" }}>
             {t("onboarding.currency.hint")}
           </span>
         </div>
@@ -169,7 +169,7 @@ export function OnboardingForm() {
             ))}
           </div>
           {/* Show hint for selected mode */}
-          <span className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>
+          <span className="mono" style={{ fontSize: "var(--text-2xs)", color: "var(--muted)" }}>
             {t(MODE_OPTIONS.find((o) => o.id === mode)!.hintKey)}
           </span>
         </div>
@@ -177,7 +177,7 @@ export function OnboardingForm() {
 
       {/* ── Error ── */}
       {error && (
-        <div className="mono" style={{ fontSize: 11, color: "var(--neg)", marginTop: 4 }}>
+        <div className="mono" style={{ fontSize: "var(--text-xs)", color: "var(--neg)", marginTop: 4 }}>
           {error}
         </div>
       )}
@@ -188,7 +188,7 @@ export function OnboardingForm() {
           type="submit"
           disabled={isPending || name.trim().length === 0}
           className="btn primary"
-          style={{ width: "100%", maxWidth: 320, justifyContent: "center", padding: "10px 20px", fontSize: 12 }}
+          style={{ width: "100%", maxWidth: 320, justifyContent: "center", padding: "10px 20px", fontSize: "var(--text-sm)" }}
         >
           {isPending ? "..." : t("onboarding.submit")}
         </button>

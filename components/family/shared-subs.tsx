@@ -65,7 +65,7 @@ export function SharedSubs({ rows, yourShareLabel }: { rows: SharedSubRow[]; you
           </div>
         ))}
         {rows.length === 0 && (
-          <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
+          <div className="mono" style={{ fontSize: "var(--text-sm)", color: "var(--muted)", padding: "12px 20px" }}>
             нет общих подписок
           </div>
         )}

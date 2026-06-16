@@ -25,7 +25,7 @@ const KIND_CONFIG: Record<WeatherKind, KindConfig> = {
     filledOutOf10: 10,
     icon: (
       <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="50" cy="50" r="16" fill="rgba(88,211,163,.12)" stroke="currentColor" />
+        <circle cx="50" cy="50" r="16" fill="color-mix(in srgb, var(--accent) 12%, transparent)" stroke="currentColor" />
         <line x1="50" y1="20" x2="50" y2="26" />
         <line x1="50" y1="74" x2="50" y2="80" />
         <line x1="20" y1="50" x2="26" y2="50" />
@@ -43,7 +43,7 @@ const KIND_CONFIG: Record<WeatherKind, KindConfig> = {
     filledOutOf10: 9,
     icon: (
       <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M30 68 Q18 68 18 56 Q18 46 28 44 Q30 32 44 32 Q58 32 62 44 Q76 44 76 56 Q76 68 64 68 Z" fill="rgba(63,185,80,.10)" />
+        <path d="M30 68 Q18 68 18 56 Q18 46 28 44 Q30 32 44 32 Q58 32 62 44 Q76 44 76 56 Q76 68 64 68 Z" fill="color-mix(in srgb, var(--pos) 10%, transparent)" />
       </svg>
     ),
   },
@@ -53,7 +53,7 @@ const KIND_CONFIG: Record<WeatherKind, KindConfig> = {
     filledOutOf10: 5,
     icon: (
       <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M30 56 Q18 56 18 44 Q18 34 28 32 Q30 20 44 20 Q58 20 62 32 Q76 32 76 44 Q76 56 64 56 Z" fill="rgba(210,153,34,.10)" />
+        <path d="M30 56 Q18 56 18 44 Q18 34 28 32 Q30 20 44 20 Q58 20 62 32 Q76 32 76 44 Q76 56 64 56 Z" fill="color-mix(in srgb, var(--warn) 10%, transparent)" />
         <line x1="34" y1="66" x2="30" y2="80" />
         <line x1="50" y1="66" x2="46" y2="80" />
         <line x1="66" y1="66" x2="62" y2="80" />
@@ -66,7 +66,7 @@ const KIND_CONFIG: Record<WeatherKind, KindConfig> = {
     filledOutOf10: 2,
     icon: (
       <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M30 56 Q18 56 18 44 Q18 34 28 32 Q30 20 44 20 Q58 20 62 32 Q76 32 76 44 Q76 56 64 56 Z" fill="rgba(248,81,73,.10)" />
+        <path d="M30 56 Q18 56 18 44 Q18 34 28 32 Q30 20 44 20 Q58 20 62 32 Q76 32 76 44 Q76 56 64 56 Z" fill="color-mix(in srgb, var(--neg) 10%, transparent)" />
         <path d="M50 60 L42 76 L54 74 L46 88" fill="none" />
       </svg>
     ),
@@ -145,7 +145,7 @@ export function Weather({ kind, savingsRatePct, reason }: WeatherProps) {
 
         <div className="wx-cells">
           <div className="k">{t("analytics.weather.classification_label")}</div>
-          <div className="mono" style={{ fontSize: 11, lineHeight: 1.9, color: "var(--muted)" }}>
+          <div className="mono" style={{ fontSize: "var(--text-xs)", lineHeight: 1.9, color: "var(--muted)" }}>
             <div>
               <b style={{ color: "var(--accent)" }}>
                 {t("analytics.weather.kind.sun")}

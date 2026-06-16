@@ -64,15 +64,14 @@ export async function CreditCards({ cards }: Props) {
               </div>
               <div className="ob-bot">
                 <div>
-                  <div style={{ fontSize: 10, color: "var(--muted)", fontFamily: "var(--mono-font), monospace", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 2 }}>
+                  <div style={{ fontSize: "var(--text-2xs)", color: "var(--muted)", fontFamily: "var(--mono-font), monospace", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 2 }}>
                     {t("expenses.credit_cards.min_payment")}
                   </div>
                   <div className="ob-amt">{formatMoney(card.minPayment, card.currency)}</div>
                 </div>
                 <Link
                   href={`/transactions/new?accountId=${card.id}&amount=${card.minPayment}&type=expense`}
-                  className="btn primary"
-                  style={{ padding: "3px 9px", fontSize: 10 }}
+                  className="btn primary btn-xs"
                 >
                   {t("expenses.credit_cards.pay_button")}
                 </Link>

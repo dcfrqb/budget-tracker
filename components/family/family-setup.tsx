@@ -18,13 +18,13 @@ export function FamilySetup() {
           </div>
         </div>
         <div className="section-body" style={{ padding: "16px 20px" }}>
-          <div className="mono" style={{ fontSize: 12, color: "var(--muted)", marginBottom: 12, lineHeight: 1.6 }}>
+          <div className="mono" style={{ fontSize: "var(--text-sm)", color: "var(--muted)", marginBottom: 12, lineHeight: 1.6 }}>
             {t("forms.family_member.guest_hint")}
           </div>
           <button
             type="button"
             className="btn primary"
-            style={{ fontSize: 12, padding: "6px 16px" }}
+            style={{ fontSize: "var(--text-sm)", padding: "6px 16px" }}
             onClick={() => setShowForm(true)}
           >
             {t("forms.family.title_create")}

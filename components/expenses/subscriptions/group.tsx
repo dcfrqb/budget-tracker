@@ -21,7 +21,7 @@ export function SubscriptionGroup({ group, tz }: Props) {
         {group.items.length === 0 ? (
           <div
             className="mono"
-            style={{ color: "var(--dim)", fontSize: 11, padding: "8px 12px" }}
+            style={{ color: "var(--dim)", fontSize: "var(--text-xs)", padding: "8px 12px" }}
           >
             {group.empty}
           </div>

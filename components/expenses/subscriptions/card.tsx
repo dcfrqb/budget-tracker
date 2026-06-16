@@ -58,7 +58,7 @@ export function SubscriptionCard({ card, tz }: Props) {
               className="mono"
               style={{
                 color: card.badgeClass === "pays" ? "var(--accent)" : "var(--muted)",
-                fontSize: 11,
+                fontSize: "var(--text-xs)",
                 fontWeight: 400,
                 marginLeft: 5,
               }}

@@ -353,7 +353,7 @@ export function FreelanceOrderStages({
                         </span>
                         <button
                           className="btn-sm"
-                          style={{ fontSize: "var(--text-xs)", padding: "2px 8px" }}
+                          style={{ padding: "2px 8px" }}
                           onClick={() => setPayingStageId(isPaying ? null : stage.id)}
                         >
                           {t("forms.freelance_order_stage.mark_paid")}

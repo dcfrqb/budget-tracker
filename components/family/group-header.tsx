@@ -28,13 +28,13 @@ export function GroupHeader({ group }: { group?: GroupHeaderData }) {
         <div className="section-hd">
           <div className="ttl mono"><b>наша группа</b> <span className="dim">· не создана</span></div>
           <div className="meta mono">
-            <button type="button" className="btn primary" style={{ padding: "3px 9px", fontSize: 10 }}>
+            <button type="button" className="btn primary btn-xs">
               + Создать группу
             </button>
           </div>
         </div>
         <div className="section-body flush">
-          <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
+          <div className="mono" style={{ fontSize: "var(--text-sm)", color: "var(--muted)", padding: "12px 20px" }}>
             нет активной семейной группы · создай первую
           </div>
         </div>
@@ -59,8 +59,8 @@ export function GroupHeader({ group }: { group?: GroupHeaderData }) {
               ))}
             </div>
             <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-              <button type="button" className="btn primary" style={{ padding: "4px 10px", fontSize: 10 }}>+ Пригласить</button>
-              <button type="button" className="btn" style={{ padding: "4px 10px", fontSize: 10 }}>Настройки</button>
+              <button type="button" className="btn primary btn-sm">+ Пригласить</button>
+              <button type="button" className="btn btn-sm">Настройки</button>
             </div>
           </div>
           {group.stats.map((s, i) => (

@@ -106,8 +106,7 @@ export function LoanPaymentDialog({
     <>
       <button
         type="button"
-        className="btn primary"
-        style={{ padding: "3px 9px", fontSize: 10 }}
+        className="btn primary btn-xs"
         onClick={() => setOpen(true)}
       >
         {t("buttons.add_payment")}
@@ -140,14 +139,14 @@ export function LoanPaymentDialog({
         }
       >
         <div className="form-grid" style={{ gap: "var(--space-4)" }}>
-          <div className="mono" style={{ fontSize: 11, color: "var(--muted)" }}>{loanName}</div>
+          <div className="mono" style={{ fontSize: "var(--text-xs)", color: "var(--muted)" }}>{loanName}</div>
 
           {/* Auto fill button */}
           {defaultSplit && (
             <button
               type="button"
               className="btn"
-              style={{ fontSize: 11 }}
+              style={{ fontSize: "var(--text-xs)" }}
               onClick={handleAutoFill}
             >
               {t("forms.loan.payment_dialog.auto_split")}

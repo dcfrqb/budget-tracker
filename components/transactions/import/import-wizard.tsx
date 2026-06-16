@@ -813,13 +813,13 @@ function FileRow({
 
       {/* Source format */}
       <div className="field" style={{ marginBottom: 0 }}>
-        <label className="form-label" style={{ fontSize: 10, marginBottom: 2 }}>
+        <label className="form-label" style={{ fontSize: "var(--text-2xs)", marginBottom: 2 }}>
           {t("import.files.source")}
         </label>
         <select
           value={file.source}
           onChange={(e) => onUpdate(file.id, "source", e.target.value as ImportSource)}
-          style={{ fontSize: 11 }}
+          style={{ fontSize: "var(--text-xs)" }}
         >
           <option value="tinkoff">{t("import.source.tinkoff")}</option>
           <option value="generic">{t("import.source.generic")}</option>
@@ -828,13 +828,13 @@ function FileRow({
 
       {/* Target account */}
       <div className="field" style={{ marginBottom: 0 }}>
-        <label className="form-label" style={{ fontSize: 10, marginBottom: 2 }}>
+        <label className="form-label" style={{ fontSize: "var(--text-2xs)", marginBottom: 2 }}>
           {t("import.files.target_account")}
         </label>
         <select
           value={file.accountId}
           onChange={(e) => onUpdate(file.id, "accountId", e.target.value)}
-          style={{ fontSize: 11 }}
+          style={{ fontSize: "var(--text-xs)" }}
         >
           <option value="">—</option>
           {accounts.map((a) => (

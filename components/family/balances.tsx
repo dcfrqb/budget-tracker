@@ -25,7 +25,7 @@ function InfoIcon({ title }: { title: string }) {
   return (
     <span
       title={title}
-      style={{ cursor: "help", color: "var(--dim)", fontSize: 11, marginLeft: 4 }}
+      style={{ cursor: "help", color: "var(--dim)", fontSize: "var(--text-xs)", marginLeft: 4 }}
       aria-label={title}
     >
       ⓘ
@@ -43,7 +43,7 @@ export async function FamilyBalances({ flows }: { flows: BalanceFlow[] }) {
           <span className="dim">· {t("family.balances.subtitle")}</span>
         </div>
         <div className="meta mono">
-          <button type="button" className="btn primary" style={{ padding: "3px 9px", fontSize: 10 }}>
+          <button type="button" className="btn primary btn-xs">
             {t("family.balances.settle_btn")}
           </button>
         </div>
@@ -71,11 +71,11 @@ export async function FamilyBalances({ flows }: { flows: BalanceFlow[] }) {
           </div>
         ))}
         {flows.length === 0 && (
-          <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
+          <div className="mono" style={{ fontSize: "var(--text-sm)", color: "var(--muted)", padding: "12px 20px" }}>
             {t("family.balances.empty")}
           </div>
         )}
-        <div className="mono" style={{ fontSize: 11, color: "var(--muted)", paddingTop: 6 }}>
+        <div className="mono" style={{ fontSize: "var(--text-xs)", color: "var(--muted)", paddingTop: 6 }}>
           <InfoIcon title={t("family.balances.algo_hint")} />
         </div>
       </div>

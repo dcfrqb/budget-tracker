@@ -35,8 +35,7 @@ export async function ExpectedIncome({ rows }: { rows: ExpectedRow[] }) {
         <div className="meta mono">
           <Link
             href="/transactions/new?kind=INCOME&status=PLANNED"
-            className="btn primary"
-            style={{ padding: "3px 9px", fontSize: 10 }}
+            className="btn primary btn-xs"
           >
             {t("income.expected.add")}
           </Link>
@@ -60,7 +59,7 @@ export async function ExpectedIncome({ rows }: { rows: ExpectedRow[] }) {
           </div>
         ))}
         {rows.length === 0 && (
-          <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
+          <div className="mono" style={{ fontSize: "var(--text-sm)", color: "var(--muted)", padding: "12px 20px" }}>
             {t("income.expected.empty")}
           </div>
         )}

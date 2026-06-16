@@ -30,7 +30,7 @@ export async function IncomeSignals({ signals }: { signals: IncomeSignalView[] }
             </div>
           ))}
           {signals.length === 0 && (
-            <div className="mono" style={{ fontSize: 12, color: "var(--muted)" }}>
+            <div className="mono" style={{ fontSize: "var(--text-sm)", color: "var(--muted)" }}>
               {t("signals.empty")}
             </div>
           )}

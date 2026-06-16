@@ -75,7 +75,7 @@ export async function SafeUntilBlock({ data }: { data?: SafeUntilData }) {
   const isDanger = tone === "danger";
 
   return (
-    <div className="sum-block" style={{ padding: "12px 8px" }}>
+    <div className="sum-block" style={{ padding: "var(--sp-3) var(--sp-2)" }}>
       <div className="safe-block" data-tone={tone}>
         <div className="lbl">
           <span>
@@ -181,7 +181,7 @@ export async function BalancesBlock({ balances }: { balances?: BalanceData[] }) 
         </div>
       ))}
       {rows.length === 0 && (
-        <div className="mono" style={{ fontSize: 11, color: "var(--muted)" }}>
+        <div className="mono" style={{ fontSize: "var(--text-xs)", color: "var(--muted)" }}>
           {t("shell.summary.balances.empty")}
         </div>
       )}

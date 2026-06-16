@@ -58,10 +58,10 @@ function CalendarEventRow({ event }: { event: CalendarEvent }) {
       )}
       <div className={`tl-amt ${event.amountTone ?? ""}`}>{event.amount}</div>
       <div style={{ display: "flex", gap: 4, marginLeft: 8 }}>
-        <Link href={`/planning/events/${event.id}/edit`} className="btn" style={{ fontSize: 10, padding: "2px 6px" }}>
+        <Link href={`/planning/events/${event.id}/edit`} className="btn btn-xs">
           {t("buttons.edit")}
         </Link>
-        <button type="button" className="btn" style={{ fontSize: 10, padding: "2px 6px" }} onClick={() => setDeleteOpen(true)}>
+        <button type="button" className="btn btn-xs" onClick={() => setDeleteOpen(true)}>
           {t("buttons.delete")}
         </button>
       </div>
@@ -82,7 +82,7 @@ function CalendarEventRow({ event }: { event: CalendarEvent }) {
           </div>
         }
       >
-        <p className="mono" style={{ fontSize: 13, color: "var(--text)" }}>
+        <p className="mono" style={{ fontSize: "var(--text-md)", color: "var(--text)" }}>
           {t("forms.event.delete_confirm_body", { vars: { name: event.name } })}
         </p>
       </Dialog>
@@ -99,8 +99,7 @@ export function PlanningCalendar({ months }: { months: CalendarMonth[] }) {
         <div className="meta mono">
           <Link
             href="/planning/events/new"
-            className="btn primary"
-            style={{ padding: "3px 9px", fontSize: 10 }}
+            className="btn primary btn-xs"
           >
             {t("buttons.add_event")}
           </Link>
@@ -121,7 +120,7 @@ export function PlanningCalendar({ months }: { months: CalendarMonth[] }) {
           </div>
         ))}
         {months.length === 0 && (
-          <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
+          <div className="mono" style={{ fontSize: "var(--text-sm)", color: "var(--muted)", padding: "12px 20px" }}>
             {t("common.no_data")}
           </div>
         )}

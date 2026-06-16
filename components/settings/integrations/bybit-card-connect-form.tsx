@@ -97,18 +97,18 @@ export function BybitCardConnectForm({ adapter, onClose, onDone }: Props) {
         }}
       >
         {/* Title */}
-        <div className="mono" style={{ fontSize: 12, fontWeight: 700, color: "var(--text)" }}>
+        <div className="mono" style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: "var(--text)" }}>
           {t("settings.integrations.action.connect")} — {t("settings.integrations.bybit_card.title")}
         </div>
 
         {/* Subtitle / helper */}
-        <div className="mono" style={{ fontSize: 10, color: "var(--dim)" }}>
+        <div className="mono" style={{ fontSize: "var(--text-2xs)", color: "var(--dim)" }}>
           {t("settings.integrations.bybit_card.helper")}
         </div>
 
         {/* Display label */}
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>
+          <label className="mono" style={{ fontSize: "var(--text-2xs)", color: "var(--muted)" }}>
             {t("settings.integrations.form.display_label")}
           </label>
           <input
@@ -121,7 +121,7 @@ export function BybitCardConnectForm({ adapter, onClose, onDone }: Props) {
 
         {/* API Key */}
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>
+          <label className="mono" style={{ fontSize: "var(--text-2xs)", color: "var(--muted)" }}>
             {t("settings.integrations.bybit_card.api_key_label")}
           </label>
           <input
@@ -137,13 +137,12 @@ export function BybitCardConnectForm({ adapter, onClose, onDone }: Props) {
         {/* API Secret */}
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <label className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>
+            <label className="mono" style={{ fontSize: "var(--text-2xs)", color: "var(--muted)" }}>
               {t("settings.integrations.bybit_card.api_secret_label")}
             </label>
             <button
               type="button"
-              className="btn"
-              style={{ fontSize: 10, padding: "2px 8px" }}
+              className="btn btn-xs"
               onClick={() => setShowSecret((v) => !v)}
               tabIndex={-1}
             >
@@ -165,7 +164,7 @@ export function BybitCardConnectForm({ adapter, onClose, onDone }: Props) {
         {/* Error */}
         {errorMsg && (
           <div className="sig warn">
-            <div className="m mono" style={{ fontSize: 11 }}>{errorMsg}</div>
+            <div className="m mono" style={{ fontSize: "var(--text-xs)" }}>{errorMsg}</div>
           </div>
         )}
 

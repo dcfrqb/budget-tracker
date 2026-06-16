@@ -130,8 +130,7 @@ export async function DetailHeader({ source }: Props) {
           <div style={{ display: "flex", gap: "var(--sp-2)", flexWrap: "wrap" }}>
             <Link
               href={`/income/work-sources/${source.id}/edit`}
-              className="btn"
-              style={{ fontSize: "var(--text-xs)", padding: "4px 12px" }}
+              className="btn btn-sm"
             >
               {t("income.work.detail.edit")}
             </Link>

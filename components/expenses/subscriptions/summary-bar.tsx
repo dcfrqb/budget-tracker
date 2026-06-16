@@ -31,8 +31,8 @@ export function SubscriptionsSummaryBar({ pageTitle, summary, addButton, importB
         {importButton}
         <Link
           href="/expenses/subscriptions/new"
-          className="btn primary"
-          style={{ padding: "3px 9px", fontSize: 10, marginLeft: importButton ? 0 : 10 }}
+          className="btn primary btn-xs"
+          style={{ marginLeft: importButton ? 0 : 10 }}
         >
           {addButton}
         </Link>

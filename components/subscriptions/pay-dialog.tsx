@@ -112,10 +112,10 @@ export function PayDialog({
           </div>
         }
       >
-        <p className="mono" style={{ fontSize: 13, color: "var(--text)" }}>
+        <p className="mono" style={{ fontSize: "var(--text-md)", color: "var(--text)" }}>
           {bodyText}
         </p>
-        <p className="mono" style={{ fontSize: 11, color: "var(--muted)", marginTop: 8 }}>
+        <p className="mono" style={{ fontSize: "var(--text-xs)", color: "var(--muted)", marginTop: 8 }}>
           {nextDate}
         </p>
         {error && <p className="field-error">{error}</p>}

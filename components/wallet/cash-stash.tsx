@@ -88,7 +88,7 @@ export function CashStashSection({ stash, meta, currencies, primaryCurrency }: P
             >
               <div>
                 <div style={{ fontSize: 18, color: "var(--accent)" }}>+</div>
-                <div className="mono" style={{ fontSize: 11, marginTop: 3 }}>{t("wallet.cash.add_location.title")}</div>
+                <div className="mono" style={{ fontSize: "var(--text-xs)", marginTop: 3 }}>{t("wallet.cash.add_location.title")}</div>
               </div>
             </div>
           )}

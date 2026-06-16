@@ -85,7 +85,7 @@ export function Compare({
         <div className="ttl mono">
           <b>{labels.title}</b>
           {caption && (
-            <div className="dim" style={{ fontSize: 11, fontWeight: 400, marginTop: 2 }}>
+            <div className="dim" style={{ fontSize: "var(--text-xs)", fontWeight: 400, marginTop: 2 }}>
               {caption}
             </div>
           )}
@@ -130,7 +130,7 @@ export function Compare({
               </div>
             ))}
             {rows.length === 0 && (
-              <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
+              <div className="mono" style={{ fontSize: "var(--text-sm)", color: "var(--muted)", padding: "12px 20px" }}>
                 {labels.empty}
               </div>
             )}

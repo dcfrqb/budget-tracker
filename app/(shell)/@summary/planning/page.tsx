@@ -76,7 +76,7 @@ function NextEvents({ rows, labels }: NextEventsProps) {
           </div>
         ))}
         {rows.length === 0 && (
-          <div className="mono" style={{ fontSize: 12, color: "var(--muted)" }}>
+          <div className="mono" style={{ fontSize: "var(--text-sm)", color: "var(--muted)" }}>
             {labels.empty}
           </div>
         )}

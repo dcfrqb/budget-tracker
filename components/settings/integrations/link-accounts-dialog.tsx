@@ -221,24 +221,24 @@ export function LinkAccountsDialog({ credentialId, onClose, onDone }: Props) {
   return (
     <div role="dialog" aria-modal="true" style={overlayStyle}>
       <div style={panelStyle}>
-        <div className="mono" style={{ fontSize: 12, fontWeight: 700, color: "var(--text)" }}>
+        <div className="mono" style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: "var(--text)" }}>
           {t("settings.integrations.tinkoff_retail.link.title")}
         </div>
 
         {loading && (
-          <div className="mono" style={{ fontSize: 11, color: "var(--dim)" }}>
+          <div className="mono" style={{ fontSize: "var(--text-xs)", color: "var(--dim)" }}>
             {t("settings.integrations.tinkoff_retail.link.loading")}
           </div>
         )}
 
         {!loading && loadError && (
           <div className="sig warn">
-            <div className="m mono" style={{ fontSize: 11 }}>{loadError}</div>
+            <div className="m mono" style={{ fontSize: "var(--text-xs)" }}>{loadError}</div>
           </div>
         )}
 
         {!loading && !loadError && externalAccounts.length === 0 && (
-          <div className="mono" style={{ fontSize: 11, color: "var(--dim)" }}>
+          <div className="mono" style={{ fontSize: "var(--text-xs)", color: "var(--dim)" }}>
             {t("settings.integrations.tinkoff_retail.link.no_external_accounts")}
           </div>
         )}
@@ -250,7 +250,7 @@ export function LinkAccountsDialog({ credentialId, onClose, onDone }: Props) {
                 <th
                   className="mono"
                   style={{
-                    fontSize: 10,
+                    fontSize: "var(--text-2xs)",
                     color: "var(--muted)",
                     textAlign: "left",
                     paddingBottom: 8,
@@ -263,7 +263,7 @@ export function LinkAccountsDialog({ credentialId, onClose, onDone }: Props) {
                 <th
                   className="mono"
                   style={{
-                    fontSize: 10,
+                    fontSize: "var(--text-2xs)",
                     color: "var(--muted)",
                     textAlign: "left",
                     paddingBottom: 8,
@@ -277,7 +277,7 @@ export function LinkAccountsDialog({ credentialId, onClose, onDone }: Props) {
                 <th
                   className="mono"
                   style={{
-                    fontSize: 10,
+                    fontSize: "var(--text-2xs)",
                     color: "var(--muted)",
                     textAlign: "left",
                     paddingBottom: 8,
@@ -305,7 +305,7 @@ export function LinkAccountsDialog({ credentialId, onClose, onDone }: Props) {
                     <td
                       className="mono"
                       style={{
-                        fontSize: 11,
+                        fontSize: "var(--text-xs)",
                         color: "var(--text)",
                         paddingTop: 8,
                         paddingBottom: 8,
@@ -318,7 +318,7 @@ export function LinkAccountsDialog({ credentialId, onClose, onDone }: Props) {
                     <td
                       className="mono"
                       style={{
-                        fontSize: 10,
+                        fontSize: "var(--text-2xs)",
                         color: "var(--dim)",
                         paddingTop: 8,
                         paddingBottom: 8,
@@ -337,14 +337,14 @@ export function LinkAccountsDialog({ credentialId, onClose, onDone }: Props) {
                       }}
                     >
                       {justCreated ? (
-                        <span className="mono" style={{ fontSize: 10, color: "var(--pos)" }}>
+                        <span className="mono" style={{ fontSize: "var(--text-2xs)", color: "var(--pos)" }}>
                           {t("settings.integrations.tinkoff_retail.link.created")}
                         </span>
                       ) : (
                         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                           <select
                             className="settings-input mono"
-                            style={{ fontSize: 11, width: "100%" }}
+                            style={{ fontSize: "var(--text-xs)", width: "100%" }}
                             value={selections[ea.externalAccountId] ?? ""}
                             onChange={(e) =>
                               handleSelectionChange(ea.externalAccountId, e.target.value)
@@ -361,17 +361,16 @@ export function LinkAccountsDialog({ credentialId, onClose, onDone }: Props) {
                           </select>
                           {!isAlreadyLinked && (
                             <button
-                              className="btn"
+                              className="btn btn-xs"
                               type="button"
                               onClick={() => handleCreateAndLink(ea)}
                               disabled={isPending}
-                              style={{ fontSize: 10, padding: "3px 8px" }}
                             >
                               {t("settings.integrations.tinkoff_retail.link.create_and_link")}
                             </button>
                           )}
                           {createError && (
-                            <span className="mono" style={{ fontSize: 10, color: "var(--neg)" }}>
+                            <span className="mono" style={{ fontSize: "var(--text-2xs)", color: "var(--neg)" }}>
                               {createError}
                             </span>
                           )}
@@ -387,7 +386,7 @@ export function LinkAccountsDialog({ credentialId, onClose, onDone }: Props) {
 
         {saveError && (
           <div className="sig warn">
-            <div className="m mono" style={{ fontSize: 11 }}>{saveError}</div>
+            <div className="m mono" style={{ fontSize: "var(--text-xs)" }}>{saveError}</div>
           </div>
         )}
 

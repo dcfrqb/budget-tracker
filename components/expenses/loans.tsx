@@ -100,7 +100,7 @@ function LoanCard({ loan, accounts, tz }: LoanCardProps) {
           </div>
         </div>
         <div className="loan-cell">
-          <div className="mono" style={{ fontSize: 10, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 8 }}>
+          <div className="mono" style={{ fontSize: "var(--text-2xs)", letterSpacing: ".08em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 8 }}>
             {t("expenses.loans.amortization")}
           </div>
           <AmortChart />
@@ -150,7 +150,7 @@ function LoanCard({ loan, accounts, tz }: LoanCardProps) {
           </div>
         }
       >
-        <p className="mono" style={{ fontSize: 13, color: "var(--text)" }}>
+        <p className="mono" style={{ fontSize: "var(--text-md)", color: "var(--text)" }}>
           {t("forms.loan.delete_confirm_body", { vars: { name: loan.name } })}
         </p>
       </Dialog>
@@ -177,8 +177,7 @@ export function LoansSection({
         <div className="meta mono">
           <Link
             href="/expenses/loans/new"
-            className="btn primary"
-            style={{ padding: "3px 9px", fontSize: 10 }}
+            className="btn primary btn-xs"
           >
             {addLabel}
           </Link>
@@ -188,7 +187,7 @@ export function LoansSection({
         <LoanCard key={loan.id} loan={loan} accounts={accounts} tz={tz} />
       ))}
       {loans.length === 0 && (
-        <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
+        <div className="mono" style={{ fontSize: "var(--text-sm)", color: "var(--muted)", padding: "12px 20px" }}>
           {t("common.no_data")}
         </div>
       )}
@@ -206,14 +205,13 @@ export function Loans() {
         <div className="meta mono">
           <Link
             href="/expenses/loans/new"
-            className="btn primary"
-            style={{ padding: "3px 9px", fontSize: 10 }}
+            className="btn primary btn-xs"
           >
             {t("expenses.loans.add")}
           </Link>
         </div>
       </div>
-      <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
+      <div className="mono" style={{ fontSize: "var(--text-sm)", color: "var(--muted)", padding: "12px 20px" }}>
         {t("expenses.loans.empty")}
       </div>
     </div>

@@ -57,7 +57,7 @@ export async function CashflowBlock({ points, deltaLabel }: { points?: number[];
             <div
               className="mono"
               style={{
-                fontSize: 10,
+                fontSize: "var(--text-2xs)",
                 color: "var(--muted)",
                 marginTop: 4,
                 letterSpacing: ".1em",
@@ -68,7 +68,7 @@ export async function CashflowBlock({ points, deltaLabel }: { points?: number[];
           )}
         </>
       ) : (
-        <div className="mono" style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
+        <div className="mono" style={{ fontSize: "var(--text-xs)", color: "var(--muted)", marginTop: 4 }}>
           {t("shell.summary.cashflow.empty")}
         </div>
       )}

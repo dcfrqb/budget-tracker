@@ -64,15 +64,14 @@ export function PersonalDebts({ debts, metaLine, accounts = [], showClosed = fal
           <span style={{ marginRight: 8 }}>{metaLine}</span>
           <Link
             href="/transactions/personal-debts/new"
-            className="btn primary"
-            style={{ padding: "3px 9px", fontSize: 10 }}
+            className="btn primary btn-xs"
           >
             {t("buttons.add_debt")}
           </Link>
         </div>
       </div>
       {error && (
-        <div className="mono" style={{ fontSize: 11, color: "var(--neg)", padding: "4px 20px" }}>
+        <div className="mono" style={{ fontSize: "var(--text-xs)", color: "var(--neg)", padding: "4px 20px" }}>
           {error}
         </div>
       )}
@@ -99,24 +98,21 @@ export function PersonalDebts({ debts, metaLine, accounts = [], showClosed = fal
               <div className="debt-actions" style={{ display: "flex", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
                 <button
                   type="button"
-                  className="btn-ghost"
-                  style={{ fontSize: 10, padding: "2px 6px" }}
+                  className="btn-ghost btn-xs"
                   onClick={() => setPaymentDebtId(d.id)}
                 >
                   {t("buttons.record_return")}
                 </button>
                 <Link
                   href={`/transactions/personal-debts/${d.id}/edit`}
-                  className="btn-ghost"
-                  style={{ fontSize: 10, padding: "2px 6px" }}
+                  className="btn-ghost btn-xs"
                 >
                   {t("buttons.edit")}
                 </Link>
                 {showClosed ? (
                   <button
                     type="button"
-                    className="btn-ghost"
-                    style={{ fontSize: 10, padding: "2px 6px" }}
+                    className="btn-ghost btn-xs"
                     onClick={() => handleReopen(d.id)}
                   >
                     {t("buttons.reopen_debt")}
@@ -124,8 +120,7 @@ export function PersonalDebts({ debts, metaLine, accounts = [], showClosed = fal
                 ) : (
                   <button
                     type="button"
-                    className="btn-ghost"
-                    style={{ fontSize: 10, padding: "2px 6px" }}
+                    className="btn-ghost btn-xs"
                     onClick={() => handleClose(d.id)}
                   >
                     {t("buttons.close_debt")}
@@ -135,8 +130,8 @@ export function PersonalDebts({ debts, metaLine, accounts = [], showClosed = fal
                   <>
                     <button
                       type="button"
-                      className="btn-ghost"
-                      style={{ fontSize: 10, padding: "2px 6px", color: "var(--neg)" }}
+                      className="btn-ghost btn-xs"
+                      style={{ color: "var(--neg)" }}
                       disabled={deletingId === d.id}
                       onClick={() => handleDelete(d.id)}
                     >
@@ -144,8 +139,7 @@ export function PersonalDebts({ debts, metaLine, accounts = [], showClosed = fal
                     </button>
                     <button
                       type="button"
-                      className="btn-ghost"
-                      style={{ fontSize: 10, padding: "2px 6px" }}
+                      className="btn-ghost btn-xs"
                       onClick={() => setConfirmDeleteId(null)}
                     >
                       {t("forms.common.cancel")}
@@ -154,8 +148,7 @@ export function PersonalDebts({ debts, metaLine, accounts = [], showClosed = fal
                 ) : (
                   <button
                     type="button"
-                    className="btn-ghost"
-                    style={{ fontSize: 10, padding: "2px 6px" }}
+                    className="btn-ghost btn-xs"
                     onClick={() => setConfirmDeleteId(d.id)}
                   >
                     {t("buttons.delete")}
@@ -165,7 +158,7 @@ export function PersonalDebts({ debts, metaLine, accounts = [], showClosed = fal
             </div>
           ))}
           {debts.length === 0 && (
-            <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
+            <div className="mono" style={{ fontSize: "var(--text-sm)", color: "var(--muted)", padding: "12px 20px" }}>
               {t("common.no_data")}
             </div>
           )}

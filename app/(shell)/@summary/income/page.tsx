@@ -110,7 +110,7 @@ export default async function IncomeSummary() {
             </div>
           ))}
           {upcomingRows.length === 0 && (
-            <div className="mono" style={{ fontSize: 11, color: "var(--muted)" }}>
+            <div className="mono" style={{ fontSize: "var(--text-xs)", color: "var(--muted)" }}>
               {t("summary.income.upcoming_none")}
             </div>
           )}

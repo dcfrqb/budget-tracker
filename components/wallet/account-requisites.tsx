@@ -34,8 +34,8 @@ function CopyButton({ value }: { value: string }) {
   return (
     <button
       type="button"
-      className="btn"
-      style={{ padding: "2px 8px", fontSize: 10, minWidth: 64 }}
+      className="btn btn-xs"
+      style={{ minWidth: 64 }}
       onClick={handleCopy}
     >
       {copied ? t("wallet.account.requisites.copied") : t("wallet.account.requisites.copy")}
@@ -112,13 +112,13 @@ export function AccountRequisites({ account, hasIntegration, pullAction }: Props
             >
               <span
                 className="mono"
-                style={{ fontSize: 11, color: "var(--muted)", minWidth: 140, flexShrink: 0 }}
+                style={{ fontSize: "var(--text-xs)", color: "var(--muted)", minWidth: 140, flexShrink: 0 }}
               >
                 {t(row.labelKey as Parameters<typeof t>[0])}
               </span>
               <span
                 className="mono"
-                style={{ fontSize: 12, color: "var(--text)", flex: 1, wordBreak: "break-all" }}
+                style={{ fontSize: "var(--text-sm)", color: "var(--text)", flex: 1, wordBreak: "break-all" }}
               >
                 {row.value}
               </span>
@@ -133,7 +133,7 @@ export function AccountRequisites({ account, hasIntegration, pullAction }: Props
           <button
             type="button"
             className="btn"
-            style={{ fontSize: 11 }}
+            style={{ fontSize: "var(--text-xs)" }}
             disabled={isPulling}
             onClick={handlePull}
           >

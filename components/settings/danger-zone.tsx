@@ -63,7 +63,7 @@ export function DangerZone() {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            background: "rgba(0,0,0,0.7)",
+            background: "var(--overlay-strong)",
           }}
         >
           <div
@@ -82,7 +82,7 @@ export function DangerZone() {
             <div
               className="mono"
               style={{
-                fontSize: 13,
+                fontSize: "var(--text-md)",
                 fontWeight: 700,
                 color: "var(--neg)",
                 letterSpacing: "0.04em",
@@ -94,7 +94,7 @@ export function DangerZone() {
 
             <div
               className="mono"
-              style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.6 }}
+              style={{ fontSize: "var(--text-sm)", color: "var(--muted)", lineHeight: 1.6 }}
             >
               {t("settings.danger.dialog_body")}
             </div>
@@ -103,7 +103,7 @@ export function DangerZone() {
               <label
                 htmlFor="wipe-confirm"
                 className="mono"
-                style={{ fontSize: 11, color: "var(--dim)" }}
+                style={{ fontSize: "var(--text-xs)", color: "var(--dim)" }}
               >
                 {t("settings.danger.confirm_label", { vars: { phrase: confirmPhrase } })}
               </label>
@@ -121,7 +121,7 @@ export function DangerZone() {
             </div>
 
             {error && (
-              <span className="mono" style={{ fontSize: 11, color: "var(--neg)" }}>
+              <span className="mono" style={{ fontSize: "var(--text-xs)", color: "var(--neg)" }}>
                 {error}
               </span>
             )}

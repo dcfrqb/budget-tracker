@@ -28,7 +28,7 @@ export async function TopCategories({ categories }: { categories: HomeTopCategor
             </div>
           ))}
           {categories.length === 0 && (
-            <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}>
+            <div className="mono" style={{ fontSize: "var(--text-sm)", color: "var(--muted)", padding: "12px 20px" }}>
               {t("home.top_categories.empty")}
             </div>
           )}

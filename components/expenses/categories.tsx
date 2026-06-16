@@ -54,7 +54,7 @@ export function ExpenseCategories({ categories }: { categories: ExpenseCategoryV
           {categories.length === 0 && (
             <div
               className="mono"
-              style={{ fontSize: 12, color: "var(--muted)", padding: "12px 20px" }}
+              style={{ fontSize: "var(--text-sm)", color: "var(--muted)", padding: "12px 20px" }}
             >
               {t("expenses.category.empty")}
             </div>
