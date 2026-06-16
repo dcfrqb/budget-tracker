@@ -43,7 +43,7 @@ export function FreelanceOrdersPanelRows({
             .filter((s) => s.status === FreelanceOrderStageStatus.PAID && s.paidAmount != null)
             .reduce((sum, s) => sum.plus(new Prisma.Decimal(s.paidAmount!)), new Prisma.Decimal(0));
         } else {
-          received = order.paidSum;
+          received = new Prisma.Decimal(order.paidSum);
         }
         const remaining = amount.minus(received).lt(0) ? new Prisma.Decimal(0) : amount.minus(received);
         const pct = amount.gt(0) ? received.div(amount).mul(100).toNumber() : 0;
