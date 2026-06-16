@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { db } from "@/lib/db";
-import { Prisma, TransactionKind, TransactionStatus, FreelanceOrderStatus, WorkKind } from "@prisma/client";
+import { Prisma, TransactionKind, TransactionStatus, FreelanceOrderStatus, FreelanceOrderStageStatus, WorkKind } from "@prisma/client";
 import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
 import { startOfMonthUtcInTz, periodBounds } from "@/lib/data/_period";
 import type { PeriodCode } from "@/lib/data/_period";
@@ -81,7 +81,7 @@ export const getWorkSourceCardSummaries = cache(
         occurredAt: true,
         amount: true,
         status: true,
-        facts: { select: { amount: true } },
+        facts: { select: { amount: true, occurredAt: true }, orderBy: { occurredAt: "desc" } },
       },
     });
 
@@ -135,6 +135,20 @@ export const getWorkSourceCardSummaries = cache(
       );
     }
 
+    function effectiveLastPayment(
+      txn: (typeof allDonePartialTxns)[0],
+    ): { at: Date; amount: Prisma.Decimal } {
+      if (txn.status === TransactionStatus.DONE || txn.facts.length === 0) {
+        return { at: txn.occurredAt, amount: new Prisma.Decimal(txn.amount) };
+      }
+      // PARTIAL: use the latest fact
+      const latestFact = txn.facts[0]; // already ordered by occurredAt desc
+      return {
+        at: latestFact.occurredAt,
+        amount: new Prisma.Decimal(latestFact.amount),
+      };
+    }
+
     return sources.map((ws) => {
       const lastTxn = lastTxnBySource.get(ws.id) ?? null;
       const mtdTxns = mtdTxnsBySource.get(ws.id) ?? [];
@@ -142,8 +156,9 @@ export const getWorkSourceCardSummaries = cache(
       let lastPaymentAt: Date | null = null;
       let lastPaymentAmount: Prisma.Decimal | null = null;
       if (lastTxn) {
-        lastPaymentAt = lastTxn.occurredAt;
-        lastPaymentAmount = effectiveAmount(lastTxn);
+        const lp = effectiveLastPayment(lastTxn);
+        lastPaymentAt = lp.at;
+        lastPaymentAmount = lp.amount;
       }
 
       let mtdTotal = new Prisma.Decimal(0);
@@ -479,6 +494,9 @@ export const getWorkSourceFreelanceOrders = cache(
         { performedAt: { sort: "desc", nulls: "last" } },
         { createdAt: "desc" },
       ],
+      include: {
+        stages: { orderBy: { sortOrder: "asc" } },
+      },
     });
 
     if (orders.length === 0) return orders.map((o) => ({ ...o, paidSum: new Prisma.Decimal(0), paidCount: 0, paidCountOtherCcy: 0 }));
@@ -509,8 +527,23 @@ export const getWorkSourceFreelanceOrders = cache(
 
     const orderCcyMap = new Map(orders.map((o) => [o.id, o.currencyCode]));
 
+    // Orders with stages: received = sum of stage paidAmounts (PAID stages only)
+    const orderIdsWithStages = new Set(orders.filter((o) => o.stages.length > 0).map((o) => o.id));
+    for (const o of orders) {
+      if (!orderIdsWithStages.has(o.id)) continue;
+      const agg = aggMap.get(o.id)!;
+      for (const stage of o.stages) {
+        if (stage.status === FreelanceOrderStageStatus.PAID && stage.paidAmount != null) {
+          agg.paidSum = agg.paidSum.plus(new Prisma.Decimal(stage.paidAmount));
+          agg.paidCount += 1;
+        }
+      }
+    }
+
+    // Orders without stages: received = linked txns (existing logic)
     for (const txn of linkedTxns) {
       if (!txn.freelanceOrderId) continue;
+      if (orderIdsWithStages.has(txn.freelanceOrderId)) continue;
       const agg = aggMap.get(txn.freelanceOrderId);
       if (!agg) continue;
 

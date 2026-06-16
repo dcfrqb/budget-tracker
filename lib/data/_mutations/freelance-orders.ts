@@ -29,6 +29,8 @@ export async function createFreelanceOrder(
     data: {
       userId,
       workSourceId: input.workSourceId,
+      title: input.title,
+      description: input.description ?? null,
       client: input.client ?? null,
       amount: new Prisma.Decimal(input.amount),
       currencyCode: input.currencyCode,
@@ -54,6 +56,8 @@ export async function updateFreelanceOrder(
   return db.freelanceOrder.update({
     where: { id },
     data: {
+      ...(input.title !== undefined && { title: input.title }),
+      ...(input.description !== undefined && { description: input.description ?? null }),
       ...(input.client !== undefined && { client: input.client ?? null }),
       ...(input.amount !== undefined && input.amount !== null && { amount: new Prisma.Decimal(input.amount) }),
       ...(input.currencyCode !== undefined && { currencyCode: input.currencyCode }),

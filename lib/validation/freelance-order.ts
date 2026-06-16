@@ -4,6 +4,8 @@ import { zCuid, zCurrencyCode, zMoney, zIsoDate } from "./shared";
 
 export const freelanceOrderCreateSchema = z.object({
   workSourceId: zCuid,
+  title: z.string().min(1).max(200),
+  description: z.string().max(2000).nullish(),
   client: z.string().max(200).nullish(),
   amount: zMoney,
   currencyCode: zCurrencyCode,

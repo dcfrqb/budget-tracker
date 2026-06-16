@@ -39,6 +39,7 @@ model User {
   transfers              Transfer[]
   workSources            WorkSource[]
   freelanceOrders        FreelanceOrder[]
+  freelanceOrderStages   FreelanceOrderStage[]
   loans                  Loan[]
   subscriptions          Subscription[]
   longProjects           LongProject[]
@@ -63,22 +64,23 @@ model Currency {
   symbol   String
   decimals Int    @default(2)
 
-  accounts        Account[]
-  transactions    Transaction[]
-  funds           Fund[]
-  loans           Loan[]
-  workSources     WorkSource[]
-  freelanceOrders FreelanceOrder[]
-  subscriptions   Subscription[]
-  longProjects    LongProject[]
-  plannedEvents   PlannedEvent[]
-  personalDebts   PersonalDebt[]
-  ratesFrom       ExchangeRate[]   @relation("RateFromCcy")
-  ratesTo         ExchangeRate[]   @relation("RateToCcy")
-  transfersFrom   Transfer[]       @relation("TransferFromCcy")
-  transfersTo     Transfer[]       @relation("TransferToCcy")
-  trips           Trip[]
-  tripBookings    TripBooking[]
+  accounts             Account[]
+  transactions         Transaction[]
+  funds                Fund[]
+  loans                Loan[]
+  workSources          WorkSource[]
+  freelanceOrders      FreelanceOrder[]
+  freelanceOrderStages FreelanceOrderStage[]
+  subscriptions        Subscription[]
+  longProjects         LongProject[]
+  plannedEvents        PlannedEvent[]
+  personalDebts        PersonalDebt[]
+  ratesFrom            ExchangeRate[]        @relation("RateFromCcy")
+  ratesTo              ExchangeRate[]        @relation("RateToCcy")
+  transfersFrom        Transfer[]            @relation("TransferFromCcy")
+  transfersTo          Transfer[]            @relation("TransferToCcy")
+  trips                Trip[]
+  tripBookings         TripBooking[]
 }
 
 model ExchangeRate {
@@ -383,8 +385,9 @@ model Transaction {
   mainOfCompensation CompensationGroup? @relation("CompensationMain")
   trip               Trip?              @relation(fields: [tripId], references: [id], onDelete: SetNull)
 
-  facts       TransactionFact[]
-  tripBooking TripBooking?
+  facts               TransactionFact[]
+  tripBooking         TripBooking?
+  freelanceOrderStage FreelanceOrderStage? @relation("StageTransaction")
 
   @@unique([accountId, source, externalId], name: "importDedupe")
   @@index([userId, occurredAt])
@@ -563,11 +566,18 @@ enum FreelanceOrderStatus {
   CANCELLED // отменён
 }
 
+enum FreelanceOrderStageStatus {
+  PENDING
+  PAID
+}
+
 model FreelanceOrder {
   id           String               @id @default(cuid())
   userId       String
   workSourceId String
   client       String? // имя клиента — опционально
+  title        String // REQUIRED: заголовок заказа
+  description  String? // опциональное подробное описание
   /// Итоговая сумма заказа. Для почасовых — посчитанный итог (hours × rate), хранится явно.
   amount       Decimal              @db.Decimal(28, 10)
   currencyCode String // обычно совпадает с WorkSource, но можно переопределить
@@ -581,14 +591,40 @@ model FreelanceOrder {
   createdAt    DateTime             @default(now())
   updatedAt    DateTime             @updatedAt
 
-  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workSource WorkSource @relation(fields: [workSourceId], references: [id], onDelete: Cascade)
-  currency   Currency   @relation(fields: [currencyCode], references: [code])
+  user       User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workSource WorkSource            @relation(fields: [workSourceId], references: [id], onDelete: Cascade)
+  currency   Currency              @relation(fields: [currencyCode], references: [code])
+  stages     FreelanceOrderStage[]
 
   transactions Transaction[]
 
   @@index([userId])
   @@index([workSourceId])
+}
+
+model FreelanceOrderStage {
+  id               String                    @id @default(cuid())
+  userId           String
+  freelanceOrderId String
+  currencyCode     String
+  label            String
+  expectedAmount   Decimal                   @db.Decimal(28, 10)
+  dueDate          DateTime?
+  sortOrder        Int                       @default(0)
+  status           FreelanceOrderStageStatus @default(PENDING)
+  paidAt           DateTime?
+  paidAmount       Decimal?                  @db.Decimal(28, 10)
+  transactionId    String?                   @unique
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order       FreelanceOrder @relation(fields: [freelanceOrderId], references: [id], onDelete: Cascade)
+  currency    Currency       @relation(fields: [currencyCode], references: [code])
+  transaction Transaction?   @relation("StageTransaction", fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([freelanceOrderId])
 }
 
 // ─────────────────────────────────────────────────────────────

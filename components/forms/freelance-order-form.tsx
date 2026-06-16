@@ -79,6 +79,7 @@ export function FreelanceOrderForm({
         workSourceId,
         currencyCode: workSourceCurrency,
         status: FreelanceOrderStatus.ACTIVE,
+        title: "",
         ...initialValues,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any,
@@ -87,6 +88,7 @@ export function FreelanceOrderForm({
           workSourceId,
           currencyCode: workSourceCurrency,
           status: FreelanceOrderStatus.ACTIVE,
+          title: "",
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any);
         onSuccess?.();
@@ -119,6 +121,23 @@ export function FreelanceOrderForm({
       <form onSubmit={rawSubmit} className="form-grid">
         <input type="hidden" {...register("workSourceId" as never)} />
         <input type="hidden" {...register("currencyCode" as never)} />
+
+        {/* Title — required */}
+        <TextField
+          register={register("title" as never)}
+          label={t("forms.freelance_order.field.title")}
+          error={errMsg(errors["title" as keyof typeof errors])}
+          placeholder={t("forms.freelance_order.placeholder.title")}
+        />
+
+        {/* Description — optional */}
+        <TextareaField
+          register={register("description" as never)}
+          label={t("forms.freelance_order.field.description")}
+          error={errMsg(errors["description" as keyof typeof errors])}
+          placeholder={t("forms.freelance_order.placeholder.description")}
+          rows={2}
+        />
 
         {/* Amount */}
         <MoneyInput

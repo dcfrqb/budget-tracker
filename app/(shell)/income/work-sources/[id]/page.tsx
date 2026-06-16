@@ -17,6 +17,7 @@ import {
 } from "@/lib/data/work-sources";
 import { TransactionStatus } from "@prisma/client";
 import { listAllCurrencies } from "@/lib/data/currencies";
+import { listAccountsForQuickDrawer } from "@/lib/data/wallet";
 import { DetailHeader } from "@/components/income/detail/detail-header";
 import { DetailPeriodTabs } from "@/components/income/detail/detail-period-tabs";
 import { DetailKpiGrid } from "@/components/income/detail/detail-kpi-grid";
@@ -76,7 +77,7 @@ export default async function WorkSourceDetailPage({ params, searchParams }: Pro
   const isFreelance = source.kind === "FREELANCE";
   const isEmployment = source.kind === "EMPLOYMENT";
 
-  const [freelanceOrders, planRows, freelanceLatency, syntheticForecast, currencies, orderStatusBreakdown] =
+  const [freelanceOrders, planRows, freelanceLatency, syntheticForecast, currencies, orderStatusBreakdown, accounts] =
     await Promise.all([
       isFreelance ? getWorkSourceFreelanceOrders(userId, id, bounds) : Promise.resolve([]),
       isEmployment ? getEmploymentMonthlyPlanFact(userId, id, bounds) : Promise.resolve([]),
@@ -91,6 +92,9 @@ export default async function WorkSourceDetailPage({ params, searchParams }: Pro
         : Promise.resolve([]),
       isFreelance
         ? getFreelanceOrderStatusBreakdown(userId, id, bounds)
+        : Promise.resolve([]),
+      isFreelance
+        ? listAccountsForQuickDrawer(userId)
         : Promise.resolve([]),
     ]);
 
@@ -118,7 +122,7 @@ export default async function WorkSourceDetailPage({ params, searchParams }: Pro
           workSourceId={id}
           workSourceCurrency={source.currencyCode}
           currencies={currencyOptions}
-          userId={userId}
+          accounts={accounts}
         />
       )}
       {isFreelance && (

@@ -21,10 +21,26 @@ import {
   unlinkTxnFromOrderSchema,
 } from "@/lib/validation/freelance-order";
 import {
+  stageCreateSchema,
+  stageUpdateSchema,
+  stageMarkPaidSchema,
+  stageAttachTxnSchema,
+  stageUnmarkSchema,
+  stageDeleteSchema,
+} from "@/lib/validation/freelance-order-stage";
+import {
   createFreelanceOrder,
   updateFreelanceOrder,
   deleteFreelanceOrder,
 } from "@/lib/data/_mutations/freelance-orders";
+import {
+  createStage,
+  updateStage,
+  deleteStage,
+  markStagePaid,
+  attachTxnToStage,
+  unmarkStage,
+} from "@/lib/data/_mutations/freelance-order-stages";
 import { db } from "@/lib/db";
 
 // ─────────────────────────────────────────────────────────────
@@ -219,4 +235,123 @@ export async function unlinkTxnFromFreelanceOrderAction(rawInput: unknown) {
     revalidatePath(`/income/work-sources/${workSourceId}/edit`, "page");
   }
   return actionOk(true);
+}
+
+// ─────────────────────────────────────────────────────────────
+// FreelanceOrderStage actions
+// ─────────────────────────────────────────────────────────────
+
+function revalidateOrderPaths(workSourceId: string, orderId: string) {
+  revalidatePath(`/income/work-sources/${workSourceId}`, "page");
+  revalidatePath(`/income/work-sources/${workSourceId}/orders/${orderId}`, "page");
+}
+
+export async function createStageAction(rawInput: unknown) {
+  const userId = await getCurrentUserId();
+  const parsed = stageCreateSchema.safeParse(rawInput);
+  if (!parsed.success) return actionError("validation_error");
+  try {
+    const stage = await createStage(userId, parsed.data);
+    const order = await db.freelanceOrder.findFirst({
+      where: { id: stage.freelanceOrderId },
+      select: { workSourceId: true },
+    });
+    if (order) revalidateOrderPaths(order.workSourceId, stage.freelanceOrderId);
+    return actionOk(stage);
+  } catch (e) {
+    const err = e as { code?: string };
+    if (err.code === "NOT_FOUND") return actionError("not_found");
+    return actionError("internal_error");
+  }
+}
+
+export async function updateStageAction(stageId: string, rawInput: unknown) {
+  const userId = await getCurrentUserId();
+  const parsed = stageUpdateSchema.safeParse(rawInput);
+  if (!parsed.success) return actionError("validation_error");
+  try {
+    const stage = await updateStage(userId, stageId, parsed.data);
+    const order = await db.freelanceOrder.findFirst({
+      where: { id: stage.freelanceOrderId },
+      select: { workSourceId: true },
+    });
+    if (order) revalidateOrderPaths(order.workSourceId, stage.freelanceOrderId);
+    return actionOk(stage);
+  } catch (e) {
+    const err = e as { code?: string };
+    if (err.code === "NOT_FOUND") return actionError("not_found");
+    return actionError("internal_error");
+  }
+}
+
+export async function deleteStageAction(rawInput: unknown) {
+  const userId = await getCurrentUserId();
+  const parsed = stageDeleteSchema.safeParse(rawInput);
+  if (!parsed.success) return actionError("validation_error");
+  try {
+    const result = await deleteStage(userId, parsed.data);
+    revalidatePath("/income", "layout");
+    return actionOk(result);
+  } catch (e) {
+    const err = e as { code?: string };
+    if (err.code === "NOT_FOUND") return actionError("not_found");
+    return actionError("internal_error");
+  }
+}
+
+export async function markStagePaidAction(rawInput: unknown) {
+  const userId = await getCurrentUserId();
+  const parsed = stageMarkPaidSchema.safeParse(rawInput);
+  if (!parsed.success) return actionError("validation_error");
+  try {
+    const result = await markStagePaid(userId, parsed.data);
+    const order = await db.freelanceOrder.findFirst({
+      where: { id: result.stage.freelanceOrderId },
+      select: { workSourceId: true },
+    });
+    if (order) revalidateOrderPaths(order.workSourceId, result.stage.freelanceOrderId);
+    return actionOk(result);
+  } catch (e) {
+    const err = e as { code?: string };
+    if (err.code === "NOT_FOUND") return actionError("not_found");
+    return actionError("internal_error");
+  }
+}
+
+export async function attachTxnToStageAction(rawInput: unknown) {
+  const userId = await getCurrentUserId();
+  const parsed = stageAttachTxnSchema.safeParse(rawInput);
+  if (!parsed.success) return actionError("validation_error");
+  try {
+    const stage = await attachTxnToStage(userId, parsed.data);
+    const order = await db.freelanceOrder.findFirst({
+      where: { id: stage.freelanceOrderId },
+      select: { workSourceId: true },
+    });
+    if (order) revalidateOrderPaths(order.workSourceId, stage.freelanceOrderId);
+    return actionOk(stage);
+  } catch (e) {
+    const err = e as { code?: string };
+    if (err.code === "NOT_FOUND") return actionError("not_found");
+    return actionError("internal_error");
+  }
+}
+
+export async function unmarkStageAction(rawInput: unknown) {
+  const userId = await getCurrentUserId();
+  const parsed = stageUnmarkSchema.safeParse(rawInput);
+  if (!parsed.success) return actionError("validation_error");
+  try {
+    const stage = await unmarkStage(userId, parsed.data);
+    const order = await db.freelanceOrder.findFirst({
+      where: { id: stage.freelanceOrderId },
+      select: { workSourceId: true },
+    });
+    if (order) revalidateOrderPaths(order.workSourceId, stage.freelanceOrderId);
+    return actionOk(stage);
+  } catch (e) {
+    const err = e as { code?: string };
+    if (err.code === "NOT_FOUND") return actionError("not_found");
+    return actionError("internal_error");
+  }
 }
