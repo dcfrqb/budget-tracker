@@ -224,6 +224,10 @@ model Category {
   limitNormal  Decimal? @db.Decimal(28, 10)
   limitFree    Decimal? @db.Decimal(28, 10)
 
+  // Категория существенных расходов (обязательных), которые нельзя урезать.
+  // true = rent, utilities, groceries (essentials); false (default) = discretionary (что можно урезать в Analytics).
+  essential Boolean @default(false)
+
   // MCC коды для автоматического маппинга (e.g. ["4121", "7011", "7012"]).
   // Пустой массив → no MCC mapping.
   mccCodes String[] @default([])
