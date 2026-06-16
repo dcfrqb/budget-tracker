@@ -93,6 +93,7 @@ export const enDict: RuDictShape = {
       section_title: "Autosync",
       hint: "Applies to all integrations. For immediate sync, use the Sync button on Transactions.",
       option: {
+        "2h":  "2h",
         "12h": "12 h",
         "24h": "24 h",
         off: "Off",

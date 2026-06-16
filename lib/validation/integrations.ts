@@ -167,7 +167,7 @@ export type SyncStatusInput = z.infer<typeof syncStatusInput>;
 // ── Autosync cadence (global, in BudgetSettings) ──────────────
 
 export const autosyncCadenceInput = z.object({
-  value: z.enum(["off", "43200000", "86400000"]),
+  value: z.enum(["off", "7200000", "43200000", "86400000"]),
 });
 
 export type AutosyncCadenceInput = z.infer<typeof autosyncCadenceInput>;

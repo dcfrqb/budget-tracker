@@ -10,6 +10,7 @@ import { wipeAllUserData } from "@/lib/data/_mutations/wipe";
 import { userUpdateSchema, timezoneUpdateSchema } from "@/lib/validation/profile";
 import { budgetSettingsUpdateSchema } from "@/lib/validation/budget-settings";
 import { autosyncCadenceInput } from "@/lib/validation/integrations";
+import { jitterMs } from "@/lib/integrations/scheduler-config";
 import { db } from "@/lib/db";
 
 const COOKIE_KEY = "bdg:locale";
@@ -99,7 +100,7 @@ export async function setAutosyncCadenceAction(formData: FormData): Promise<{ er
         data: { nextScheduledAt: null },
       });
     } else {
-      const nextScheduledAt = new Date(Date.now() + intervalMs);
+      const nextScheduledAt = new Date(Date.now() + jitterMs(intervalMs));
       await db.integrationCredential.updateMany({
         where: { userId, status: { not: "DISCONNECTED" } },
         data: { nextScheduledAt },

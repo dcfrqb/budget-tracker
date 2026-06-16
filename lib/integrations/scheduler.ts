@@ -6,6 +6,7 @@ import {
   SCHEDULER_BOOT_DELAY_MS,
   LEASE_BUFFER_MULTIPLIER,
   LEASE_MAX_MS,
+  jitterMs,
 } from "@/lib/integrations/scheduler-config";
 
 let started = false;
@@ -127,7 +128,7 @@ async function tick(): Promise<void> {
       where: { id: cred.id },
       data: {
         lastScheduledRunAt: runAt,
-        nextScheduledAt: new Date(runAt.getTime() + intervalMs),
+        nextScheduledAt: intervalMs > 0 ? new Date(runAt.getTime() + jitterMs(intervalMs)) : null,
         leaseUntil: null,
       },
     }).catch((err) => {
@@ -253,7 +254,7 @@ export async function enqueueManualSync(
       where: { id: credentialId },
       data: {
         lastScheduledRunAt: runAt,
-        nextScheduledAt: intervalMs > 0 ? new Date(runAt.getTime() + intervalMs) : null,
+        nextScheduledAt: intervalMs > 0 ? new Date(runAt.getTime() + jitterMs(intervalMs)) : null,
         leaseUntil: null,
       },
     }).catch((e) => {

@@ -5,17 +5,19 @@ import { useT } from "@/lib/i18n";
 import { setAutosyncCadenceAction } from "@/app/(shell)/settings/actions";
 
 type Option = {
-  value: "off" | "43200000" | "86400000";
-  labelKey: "settings.autosync.option.off" | "settings.autosync.option.12h" | "settings.autosync.option.24h";
+  value: "off" | "7200000" | "43200000" | "86400000";
+  labelKey: "settings.autosync.option.off" | "settings.autosync.option.2h" | "settings.autosync.option.12h" | "settings.autosync.option.24h";
 };
 
 const OPTIONS: Option[] = [
+  { value: "7200000",  labelKey: "settings.autosync.option.2h" },
   { value: "43200000", labelKey: "settings.autosync.option.12h" },
   { value: "86400000", labelKey: "settings.autosync.option.24h" },
   { value: "off",      labelKey: "settings.autosync.option.off" },
 ];
 
-function msToValue(ms: number | null): "off" | "43200000" | "86400000" {
+function msToValue(ms: number | null): "off" | "7200000" | "43200000" | "86400000" {
+  if (ms === 7200000)  return "7200000";
   if (ms === 43200000) return "43200000";
   if (ms === 86400000) return "86400000";
   return "off";
@@ -31,7 +33,7 @@ export function AutosyncCadence({ current }: Props) {
 
   const currentValue = msToValue(current);
 
-  function handleChange(value: "off" | "43200000" | "86400000") {
+  function handleChange(value: "off" | "7200000" | "43200000" | "86400000") {
     const formData = new FormData();
     formData.set("value", value);
     startTransition(async () => {
