@@ -33,7 +33,7 @@ import {
 import { getRunwayByMode } from "@/lib/data/analytics-runway";
 import { getHomeDashboard } from "@/lib/data/dashboard";
 import { getAvailableNow } from "@/lib/data/_shared/period-aggregates";
-import { getBurnRate, getShrinkableCategories } from "@/lib/data/analytics-prescriptive";
+import { getBurnRate, getShrinkableCategories, getObligatoryDiscretionarySplit } from "@/lib/data/analytics-prescriptive";
 import { getLocale, getT } from "@/lib/i18n/server";
 import { pluralRu, pluralEn } from "@/lib/i18n/plural";
 import { ruPluralForms } from "@/lib/i18n/locales/ru";
@@ -85,7 +85,7 @@ export default async function AnalyticsPage({
 
   const now = new Date();
 
-  const [kpis, pie, compare, forecast, forecastYear, weather, budgetSettings, runwayDashboard, trendPoints, homeDash, compareSparklines, availableNow, burnRate, shrinkable] = await Promise.all([
+  const [kpis, pie, compare, forecast, forecastYear, weather, budgetSettings, runwayDashboard, trendPoints, homeDash, compareSparklines, availableNow, burnRate, shrinkable, splitData] = await Promise.all([
     getPeriodKpis(userId, currentRange, DEFAULT_CURRENCY),
     getCategoryPie(userId, currentRange, DEFAULT_CURRENCY),
     getPeriodCompare(userId, currentRange, DEFAULT_CURRENCY, compareRange),
@@ -100,6 +100,7 @@ export default async function AnalyticsPage({
     getAvailableNow(userId, DEFAULT_CURRENCY, now),
     getBurnRate(userId, DEFAULT_CURRENCY, tz, now),
     getShrinkableCategories(userId, DEFAULT_CURRENCY, tz),
+    getObligatoryDiscretionarySplit(userId, currentRange, DEFAULT_CURRENCY, tz),
   ]);
 
   const safeUntilDays = homeDash.safeUntilDays;
@@ -291,6 +292,21 @@ export default async function AnalyticsPage({
       col_over: t("analytics.prescriptive.shrink.col_over"),
       empty: t("analytics.prescriptive.shrink.empty"),
     },
+    split: {
+      title: t("analytics.prescriptive.split.title"),
+      subtitle: t("analytics.prescriptive.split.subtitle"),
+      obligatory: t("analytics.prescriptive.split.obligatory"),
+      discretionary: t("analytics.prescriptive.split.discretionary"),
+      cuttable_pct: t("analytics.prescriptive.split.cuttable_pct"),
+      empty: t("analytics.prescriptive.split.empty"),
+    },
+  };
+
+  const splitFormatted = {
+    obligatory: formatMoney(new Prisma.Decimal(splitData.obligatoryBase), "RUB"),
+    discretionary: formatMoney(new Prisma.Decimal(splitData.discretionaryBase), "RUB"),
+    total: splitData.totalBase,
+    discretionaryPct: splitData.discretionaryPct,
   };
 
   const shrinkFormatted = shrinkable.map((cat) => ({
@@ -441,6 +457,7 @@ export default async function AnalyticsPage({
           daysToZeroTone,
         }}
         shrinkFormatted={shrinkFormatted}
+        splitFormatted={splitFormatted}
       />
       <ModesReference
         modes={STATIC_MODES}

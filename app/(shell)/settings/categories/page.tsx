@@ -33,6 +33,7 @@ export default async function CategoriesSettingsPage() {
           limitNormal: c.limitNormal?.toString() ?? null,
           limitFree: c.limitFree?.toString() ?? null,
           archivedAt: c.archivedAt ?? null,
+          essential: c.essential,
         }))}
       />
     </div>

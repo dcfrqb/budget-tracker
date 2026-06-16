@@ -25,6 +25,21 @@ export type PrescriptiveLabels = {
     col_over: string;
     empty: string;
   };
+  split: {
+    title: string;
+    subtitle: string;
+    obligatory: string;
+    discretionary: string;
+    cuttable_pct: string;
+    empty: string;
+  };
+};
+
+type SplitFormatted = {
+  obligatory: string;
+  discretionary: string;
+  total: string;
+  discretionaryPct: number;
 };
 
 type Props = {
@@ -46,13 +61,14 @@ type Props = {
     over: string;
     overPct: string;
   }>;
+  splitFormatted: SplitFormatted;
 };
 
 // ─────────────────────────────────────────────────────────────
 // Component (server)
 // ─────────────────────────────────────────────────────────────
 
-export function Prescriptive({ burn, shrinkable, labels, burnFormatted, shrinkFormatted }: Props) {
+export function Prescriptive({ burn, shrinkable, labels, burnFormatted, shrinkFormatted, splitFormatted }: Props) {
   const daysToZeroSub = burn.alreadyNegative
     ? labels.burn.already_negative
     : burn.daysToZero === null
@@ -130,6 +146,78 @@ export function Prescriptive({ burn, shrinkable, labels, burnFormatted, shrinkFo
                 </div>
               ))}
             </div>
+          )}
+        </div>
+
+        {/* Obligatory vs discretionary split block */}
+        <div style={{ marginTop: "var(--space-3)" }}>
+          <div className="ttl mono" style={{ fontSize: 11, marginBottom: "var(--space-2)" }}>
+            {labels.split.title}{" "}
+            <span className="dim">&middot; {labels.split.subtitle}</span>
+          </div>
+          {splitFormatted.discretionaryPct === 0 && splitFormatted.total === "0" ? (
+            <div
+              className="mono"
+              style={{ fontSize: 12, color: "var(--muted)", padding: "8px 0" }}
+            >
+              {labels.split.empty}
+            </div>
+          ) : (
+            <>
+              {/* Split bar */}
+              <div
+                style={{
+                  display: "flex",
+                  height: 6,
+                  borderRadius: 2,
+                  overflow: "hidden",
+                  marginBottom: "var(--space-2)",
+                }}
+              >
+                <div
+                  style={{
+                    width: `${100 - splitFormatted.discretionaryPct}%`,
+                    background: "var(--muted)",
+                    opacity: 0.5,
+                  }}
+                />
+                <div
+                  style={{
+                    width: `${splitFormatted.discretionaryPct}%`,
+                    background: "var(--warn)",
+                  }}
+                />
+              </div>
+              {/* Split numbers */}
+              <div className="period-stats">
+                <div className="r">
+                  <span className="k">{labels.split.obligatory}</span>
+                  <span className="v" style={{ color: "var(--muted)" }}>
+                    {splitFormatted.obligatory}
+                  </span>
+                </div>
+                <div className="r">
+                  <span className="k">{labels.split.discretionary}</span>
+                  <span className="v" style={{ color: "var(--warn)" }}>
+                    {splitFormatted.discretionary}
+                  </span>
+                </div>
+                <div className="r" style={{ marginTop: "var(--space-1)" }}>
+                  <span className="k warn">
+                    {labels.split.cuttable_pct}
+                  </span>
+                  <span
+                    className="v warn mono"
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {splitFormatted.discretionaryPct}%
+                  </span>
+                </div>
+              </div>
+            </>
           )}
         </div>
 

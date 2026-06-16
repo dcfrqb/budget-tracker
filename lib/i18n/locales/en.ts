@@ -1056,6 +1056,14 @@ export const enDict: RuDictShape = {
         col_over: "overspend",
         empty: "all categories within norm",
       },
+      split: {
+        title: "essential vs discretionary",
+        subtitle: "where you can cut",
+        obligatory: "essential",
+        discretionary: "discretionary",
+        cuttable_pct: "can cut",
+        empty: "no spending in period",
+      },
     },
     mode: {
       ECONOMY: "Economy",
@@ -1799,6 +1807,8 @@ export const enDict: RuDictShape = {
       add_button: "+ Add category",
       empty: "No categories",
       archived_badge: "archived",
+      essential_label: "essential",
+      essential_hint: "not cut when economizing",
       placeholder: {
         name: "Category name",
         parent: "— no parent —",

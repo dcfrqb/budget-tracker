@@ -17,7 +17,10 @@ export const categoryCreateSchema = z.object({
 // PATCH: допускает archivedAt: null для восстановления (unarchive).
 export const categoryUpdateSchema = categoryCreateSchema
   .partial()
-  .extend({ archivedAt: z.null().optional() });
+  .extend({
+    archivedAt: z.null().optional(),
+    essential: z.boolean().optional(),
+  });
 
 export type CategoryCreateInput = z.infer<typeof categoryCreateSchema>;
 export type CategoryUpdateInput = z.infer<typeof categoryUpdateSchema>;

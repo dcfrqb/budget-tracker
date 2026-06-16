@@ -1064,6 +1064,14 @@ export const ruDict = {
         col_over: "перерасход",
         empty: "все категории в пределах нормы",
       },
+      split: {
+        title: "обязательное vs дискреционное",
+        subtitle: "на чём можно резать",
+        obligatory: "обязательное",
+        discretionary: "дискреционное",
+        cuttable_pct: "можно резать",
+        empty: "нет расходов за период",
+      },
     },
     mode: {
       ECONOMY: "Эконом",
@@ -1807,6 +1815,8 @@ export const ruDict = {
       add_button: "+ Добавить категорию",
       empty: "Нет категорий",
       archived_badge: "архив",
+      essential_label: "обязательная",
+      essential_hint: "не режется при экономии",
       placeholder: {
         name: "Название категории",
         parent: "— без родителя —",

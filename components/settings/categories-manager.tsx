@@ -28,6 +28,7 @@ export interface CategoryRow {
   limitNormal: string | null;
   limitFree: string | null;
   archivedAt: Date | null;
+  essential: boolean;
 }
 
 interface CategoriesManagerProps {
@@ -151,6 +152,23 @@ export function CategoriesManager({ categories: initialCategories }: CategoriesM
     });
   }
 
+  // ─── Essential toggle ────────────────────────────────────────
+
+  function handleToggleEssential(id: string, current: boolean) {
+    const next = !current;
+    setCategories((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, essential: next } : c)),
+    );
+    startTransition(async () => {
+      const result = await updateCategoryAction(id, { essential: next });
+      if (!result.ok) {
+        setCategories((prev) =>
+          prev.map((c) => (c.id === id ? { ...c, essential: current } : c)),
+        );
+      }
+    });
+  }
+
   // ─── Add new ────────────────────────────────────────────────
 
   async function handleAddSubmit(e: React.FormEvent) {
@@ -191,6 +209,7 @@ export function CategoriesManager({ categories: initialCategories }: CategoriesM
           limitNormal: created.limitNormal?.toString() ?? null,
           limitFree: created.limitFree?.toString() ?? null,
           archivedAt: null,
+          essential: created.essential ?? false,
         };
         setCategories((prev) => [...prev, newRow]);
         setNewCat(EMPTY_NEW);
@@ -250,6 +269,7 @@ export function CategoriesManager({ categories: initialCategories }: CategoriesM
             onCommitEdit={commitEdit}
             onArchive={handleArchive}
             onUnarchive={handleUnarchive}
+            onToggleEssential={handleToggleEssential}
             isPending={isPending}
           />
         ))}
@@ -414,6 +434,7 @@ interface RowProps {
   onCommitEdit: (id: string, field: string, value: string) => void;
   onArchive: (id: string) => void;
   onUnarchive: (id: string) => void;
+  onToggleEssential: (id: string, current: boolean) => void;
   isPending: boolean;
 }
 
@@ -424,6 +445,7 @@ function CategoryListRow({
   onCommitEdit,
   onArchive,
   onUnarchive,
+  onToggleEssential,
   isPending,
 }: RowProps) {
   const t = useT();
@@ -520,6 +542,25 @@ function CategoryListRow({
           placeholder={t("forms.category.field.limit_free")}
         />
       </div>
+
+      {/* Essential toggle (EXPENSE only) */}
+      {cat.kind === CategoryKind.EXPENSE && !isArchived && (
+        <div className="category-row-essential" title={t("forms.category.essential_hint")}>
+          <button
+            type="button"
+            className={`btn-ghost btn-sm${cat.essential ? " active" : ""}`}
+            onClick={() => onToggleEssential(cat.id, cat.essential)}
+            disabled={isPending}
+            aria-pressed={cat.essential}
+            style={{
+              color: cat.essential ? "var(--accent)" : "var(--muted)",
+              borderColor: cat.essential ? "var(--accent)" : undefined,
+            }}
+          >
+            {t("forms.category.essential_label")}
+          </button>
+        </div>
+      )}
 
       {/* Actions */}
       <div className="category-row-actions">
