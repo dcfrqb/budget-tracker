@@ -3,6 +3,7 @@
 import React, { useState, useTransition, useRef } from "react";
 import { CategoryKind } from "@prisma/client";
 import { useT } from "@/lib/i18n";
+import { MODE_LIMIT_MULTIPLIER } from "@/lib/constants";
 import {
   createCategoryAction,
   updateCategoryAction,
@@ -353,7 +354,7 @@ export function CategoriesManager({ categories: initialCategories }: CategoriesM
           <div className="form-row">
             <div className="field">
               <label className="form-label" htmlFor="new-cat-eco">
-                {t("forms.category.field.limit_economy")}
+                {t("forms.category.field.limit_economy_pct")}
               </label>
               <input
                 id="new-cat-eco"
@@ -361,12 +362,15 @@ export function CategoriesManager({ categories: initialCategories }: CategoriesM
                 inputMode="decimal"
                 value={newCat.limitEconomy}
                 onChange={(e) => setNewCat((s) => ({ ...s, limitEconomy: e.target.value }))}
-                placeholder="0"
+                placeholder={String(MODE_LIMIT_MULTIPLIER.ECONOMY)}
               />
+              <span className="field-hint mut">
+                {t("forms.category.limit_pct_hint", { vars: { pct: String(MODE_LIMIT_MULTIPLIER.ECONOMY) } })}
+              </span>
             </div>
             <div className="field">
               <label className="form-label" htmlFor="new-cat-norm">
-                {t("forms.category.field.limit_normal")}
+                {t("forms.category.field.limit_normal_pct")}
               </label>
               <input
                 id="new-cat-norm"
@@ -374,12 +378,15 @@ export function CategoriesManager({ categories: initialCategories }: CategoriesM
                 inputMode="decimal"
                 value={newCat.limitNormal}
                 onChange={(e) => setNewCat((s) => ({ ...s, limitNormal: e.target.value }))}
-                placeholder="0"
+                placeholder={String(MODE_LIMIT_MULTIPLIER.NORMAL)}
               />
+              <span className="field-hint mut">
+                {t("forms.category.limit_pct_hint", { vars: { pct: String(MODE_LIMIT_MULTIPLIER.NORMAL) } })}
+              </span>
             </div>
             <div className="field">
               <label className="form-label" htmlFor="new-cat-free">
-                {t("forms.category.field.limit_free")}
+                {t("forms.category.field.limit_free_pct")}
               </label>
               <input
                 id="new-cat-free"
@@ -387,8 +394,11 @@ export function CategoriesManager({ categories: initialCategories }: CategoriesM
                 inputMode="decimal"
                 value={newCat.limitFree}
                 onChange={(e) => setNewCat((s) => ({ ...s, limitFree: e.target.value }))}
-                placeholder="0"
+                placeholder={String(MODE_LIMIT_MULTIPLIER.FREE)}
               />
+              <span className="field-hint mut">
+                {t("forms.category.limit_pct_hint", { vars: { pct: String(MODE_LIMIT_MULTIPLIER.FREE) } })}
+              </span>
             </div>
           </div>
 
@@ -524,22 +534,22 @@ function CategoryListRow({
           : t("forms.category.kind.expense")}
       </span>
 
-      {/* Limit cells */}
+      {/* Limit cells (% of 6-mo avg; empty = global multiplier) */}
       <div className="category-row-limits">
         <EditableCell
           field="limitEconomy"
           value={cat.limitEconomy}
-          placeholder={t("forms.category.field.limit_economy")}
+          placeholder={t("forms.category.field.limit_economy_pct")}
         />
         <EditableCell
           field="limitNormal"
           value={cat.limitNormal}
-          placeholder={t("forms.category.field.limit_normal")}
+          placeholder={t("forms.category.field.limit_normal_pct")}
         />
         <EditableCell
           field="limitFree"
           value={cat.limitFree}
-          placeholder={t("forms.category.field.limit_free")}
+          placeholder={t("forms.category.field.limit_free_pct")}
         />
       </div>
 

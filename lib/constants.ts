@@ -1,3 +1,5 @@
+import type { BudgetMode } from "@prisma/client";
+
 export const DEFAULT_USER_ID = "usr_default_single";
 
 // Default timezone used for day-boundary calculations (grouping, labels).
@@ -26,6 +28,13 @@ export const DEFAULT_USER_EMAIL = "dcfrqb@gmail.com";
 export const DEFAULT_USER_NAME = "Владимир";
 
 export const DEFAULT_CURRENCY = "RUB";
+
+export const MODE_LIMIT_MULTIPLIER: Record<BudgetMode, number> = {
+  ECONOMY: 80,
+  NORMAL: 100,
+  FREE: 120,
+};
+export const RUNWAY_AVG_MONTHS = 6;
 
 export const SUPPORTED_CURRENCIES = [
   { code: "RUB", name: "Российский рубль", symbol: "₽", decimals: 2 },

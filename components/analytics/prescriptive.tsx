@@ -1,4 +1,4 @@
-import type { BurnRate, ShrinkableCategory } from "@/lib/data/analytics-prescriptive";
+import type { BurnRate, ShrinkableCategory, EconomyExitScenario } from "@/lib/data/analytics-prescriptive";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -33,6 +33,15 @@ export type PrescriptiveLabels = {
     cuttable_pct: string;
     empty: string;
   };
+  economy_exit: {
+    title: string;
+    subtitle: string;
+    months: string;
+    no_deficit: string;
+    no_surplus: string;
+    deficit_label: string;
+    recovery_label: string;
+  };
 };
 
 type SplitFormatted = {
@@ -40,6 +49,11 @@ type SplitFormatted = {
   discretionary: string;
   total: string;
   discretionaryPct: number;
+};
+
+type EconomyExitFormatted = {
+  deficit: string;
+  monthlyRecovery: string;
 };
 
 type Props = {
@@ -62,13 +76,15 @@ type Props = {
     overPct: string;
   }>;
   splitFormatted: SplitFormatted;
+  economyExit: EconomyExitScenario;
+  economyExitFormatted: EconomyExitFormatted;
 };
 
 // ─────────────────────────────────────────────────────────────
 // Component (server)
 // ─────────────────────────────────────────────────────────────
 
-export function Prescriptive({ burn, shrinkable, labels, burnFormatted, shrinkFormatted, splitFormatted }: Props) {
+export function Prescriptive({ burn, shrinkable, labels, burnFormatted, shrinkFormatted, splitFormatted, economyExit, economyExitFormatted }: Props) {
   const daysToZeroSub = burn.alreadyNegative
     ? labels.burn.already_negative
     : burn.daysToZero === null
@@ -218,6 +234,39 @@ export function Prescriptive({ burn, shrinkable, labels, burnFormatted, shrinkFo
                 </div>
               </div>
             </>
+          )}
+        </div>
+
+        {/* Economy exit scenario block */}
+        <div style={{ marginTop: "var(--space-3)" }}>
+          <div className="ttl mono" style={{ fontSize: 11, marginBottom: "var(--space-2)" }}>
+            {labels.economy_exit.title}{" "}
+            <span className="dim">&middot; {labels.economy_exit.subtitle}</span>
+          </div>
+          {economyExit.state === "no_deficit" ? (
+            <div className="mono" style={{ fontSize: 12, color: "var(--pos)", padding: "8px 0" }}>
+              {labels.economy_exit.no_deficit}
+            </div>
+          ) : economyExit.state === "no_surplus" ? (
+            <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "8px 0" }}>
+              {labels.economy_exit.no_surplus}
+            </div>
+          ) : (
+            <div className="period-stats">
+              <div className="r">
+                <span className="k mono" style={{ fontSize: 13, fontWeight: 700, color: "var(--warn)" }}>
+                  {labels.economy_exit.months.replace("{n}", String(economyExit.monthsToRecover))}
+                </span>
+              </div>
+              <div className="r">
+                <span className="k">{labels.economy_exit.deficit_label}</span>
+                <span className="v neg">{economyExitFormatted.deficit}</span>
+              </div>
+              <div className="r">
+                <span className="k">{labels.economy_exit.recovery_label}</span>
+                <span className="v pos">{economyExitFormatted.monthlyRecovery}</span>
+              </div>
+            </div>
           )}
         </div>
 

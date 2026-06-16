@@ -1,12 +1,13 @@
 import { cache } from "react";
-import { Prisma, TransactionKind, TransactionStatus } from "@prisma/client";
+import { Prisma, TransactionKind, TransactionStatus, BudgetMode } from "@prisma/client";
 import { db } from "@/lib/db";
-import { DEFAULT_CURRENCY, DEFAULT_TZ } from "@/lib/constants";
+import { DEFAULT_CURRENCY, DEFAULT_TZ, RUNWAY_AVG_MONTHS } from "@/lib/constants";
 import { getPeriodFlow } from "@/lib/data/_shared/period-aggregates";
 import { getAvailableNow } from "@/lib/data/_shared/period-aggregates";
 import { getCompareSparklines } from "@/lib/data/analytics";
 import { getLatestRatesMap, convertToBase } from "@/lib/data/wallet";
 import { getCompensationProjection } from "@/lib/data/_shared/compensation-projection";
+import { effectiveLimitBase } from "@/lib/data/analytics-runway";
 import type { DateRange } from "@/lib/data/analytics";
 
 export type BurnRate = {
@@ -82,7 +83,7 @@ export const getShrinkableCategories = cache(async (
   tz: string = DEFAULT_TZ,
 ): Promise<ShrinkableCategory[]> => {
   const [sparklines, categories] = await Promise.all([
-    getCompareSparklines(userId, baseCcy, tz, 6),
+    getCompareSparklines(userId, baseCcy, tz, RUNWAY_AVG_MONTHS),
     db.category.findMany({
       where: { userId, kind: "EXPENSE" },
       select: { id: true, name: true, icon: true },
@@ -122,6 +123,86 @@ export const getShrinkableCategories = cache(async (
   candidates.sort((a, b) => Number(b.overspendBase) - Number(a.overspendBase));
 
   return candidates.slice(0, 3);
+});
+
+// ─────────────────────────────────────────────────────────────
+// getEconomyExitScenario
+// How many months in Economy mode to recover from current deficit.
+// ─────────────────────────────────────────────────────────────
+
+type EconomyExitBase = {
+  freeBase: string;
+  deficitBase: string;
+  currentMonthlySpendBase: string;
+  economyCapBase: string;
+  monthlyRecoveryBase: string;
+};
+
+export type EconomyExitScenario =
+  | (EconomyExitBase & { state: "no_deficit" | "no_surplus"; monthsToRecover: null })
+  | (EconomyExitBase & { state: "recovering"; monthsToRecover: number });
+
+export const getEconomyExitScenario = cache(async (
+  userId: string,
+  baseCcy: string,
+  tz: string = DEFAULT_TZ,
+  now: Date = new Date(),
+): Promise<EconomyExitScenario> => {
+  const [sparklines, categories, availableNow] = await Promise.all([
+    getCompareSparklines(userId, baseCcy, tz, RUNWAY_AVG_MONTHS),
+    db.category.findMany({
+      where: { userId, kind: "EXPENSE", archivedAt: null },
+      select: { id: true, limitEconomy: true },
+    }),
+    getAvailableNow(userId, baseCcy, now),
+  ]);
+
+  const freeBase = availableNow.freeBase;
+  const deficit = freeBase.isNegative() ? freeBase.abs() : new Prisma.Decimal(0);
+
+  // Build avg6m per category
+  const avg6mMap = new Map<string, Prisma.Decimal>();
+  for (const [categoryId, series] of sparklines.entries()) {
+    if (series.length === 0) continue;
+    const sum = series.reduce((acc, v) => acc + v, 0);
+    const avg = sum / series.length;
+    avg6mMap.set(categoryId, new Prisma.Decimal(avg.toFixed(8)));
+  }
+
+  let currentMonthlySpend = new Prisma.Decimal(0);
+  let economyCap = new Prisma.Decimal(0);
+
+  for (const cat of categories) {
+    const avg6m = avg6mMap.get(cat.id) ?? new Prisma.Decimal(0);
+    if (avg6m.isZero()) continue;
+    currentMonthlySpend = currentMonthlySpend.plus(avg6m);
+    const eff = effectiveLimitBase(cat.limitEconomy, BudgetMode.ECONOMY, avg6m);
+    economyCap = economyCap.plus(eff);
+  }
+
+  const monthlyRecovery = currentMonthlySpend.gt(economyCap)
+    ? currentMonthlySpend.minus(economyCap)
+    : new Prisma.Decimal(0);
+
+  const base = {
+    freeBase: freeBase.toString(),
+    deficitBase: deficit.toString(),
+    currentMonthlySpendBase: currentMonthlySpend.toString(),
+    economyCapBase: economyCap.toString(),
+    monthlyRecoveryBase: monthlyRecovery.toString(),
+  };
+
+  if (deficit.isZero()) {
+    return { ...base, state: "no_deficit" as const, monthsToRecover: null };
+  }
+  if (monthlyRecovery.isZero()) {
+    return { ...base, state: "no_surplus" as const, monthsToRecover: null };
+  }
+  return {
+    ...base,
+    state: "recovering" as const,
+    monthsToRecover: deficit.div(monthlyRecovery).ceil().toNumber(),
+  };
 });
 
 // ─────────────────────────────────────────────────────────────

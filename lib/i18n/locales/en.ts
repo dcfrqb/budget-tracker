@@ -1064,6 +1064,15 @@ export const enDict: RuDictShape = {
         cuttable_pct: "can cut",
         empty: "no spending in period",
       },
+      economy_exit: {
+        title: "exit from deficit",
+        subtitle: "Economy mode · months to recover",
+        months: "≈ {n} mo in Economy",
+        no_deficit: "already in surplus",
+        no_surplus: "Economy mode yields no surplus",
+        deficit_label: "deficit",
+        recovery_label: "surplus / month",
+      },
     },
     mode: {
       ECONOMY: "Economy",
@@ -1795,6 +1804,9 @@ export const enDict: RuDictShape = {
         limit_economy: "Economy limit",
         limit_normal: "Normal limit",
         limit_free: "Free limit",
+        limit_economy_pct: "Economy limit, % of 6-mo avg",
+        limit_normal_pct: "Normal limit, % of 6-mo avg",
+        limit_free_pct: "Free limit, % of 6-mo avg",
       },
       kind: {
         income: "Income",
@@ -1809,6 +1821,7 @@ export const enDict: RuDictShape = {
       archived_badge: "archived",
       essential_label: "essential",
       essential_hint: "not cut when economizing",
+      limit_pct_hint: "Empty = global mode multiplier ({pct}%)",
       placeholder: {
         name: "Category name",
         parent: "— no parent —",

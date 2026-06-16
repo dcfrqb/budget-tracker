@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { CategoryKind } from "@prisma/client";
-import { zCuid, zMoney } from "./shared";
+import { zCuid, zPercent } from "./shared";
 
 export const categoryCreateSchema = z.object({
   name: z.string().min(1).max(120),
@@ -9,9 +9,9 @@ export const categoryCreateSchema = z.object({
   color: z.string().max(32).nullish(),
   parentId: zCuid.nullish(),
   sortOrder: z.number().int().nonnegative().optional(),
-  limitEconomy: zMoney.nullish(),
-  limitNormal: zMoney.nullish(),
-  limitFree: zMoney.nullish(),
+  limitEconomy: zPercent.nullish(),
+  limitNormal: zPercent.nullish(),
+  limitFree: zPercent.nullish(),
 });
 
 // PATCH: допускает archivedAt: null для восстановления (unarchive).

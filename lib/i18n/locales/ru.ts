@@ -1072,6 +1072,15 @@ export const ruDict = {
         cuttable_pct: "можно резать",
         empty: "нет расходов за период",
       },
+      economy_exit: {
+        title: "выход из дефицита",
+        subtitle: "режим Эконом · сколько месяцев",
+        months: "≈ {n} мес в режиме Эконом",
+        no_deficit: "уже в плюсе",
+        no_surplus: "режим Эконом не создаёт запас",
+        deficit_label: "дефицит",
+        recovery_label: "запас в месяц",
+      },
     },
     mode: {
       ECONOMY: "Эконом",
@@ -1803,6 +1812,9 @@ export const ruDict = {
         limit_economy: "Лимит Эконом",
         limit_normal: "Лимит Норма",
         limit_free: "Лимит Свобода",
+        limit_economy_pct: "Лимит Эконом, % от среднего за 6 мес",
+        limit_normal_pct: "Лимит Норма, % от среднего за 6 мес",
+        limit_free_pct: "Лимит Свобода, % от среднего за 6 мес",
       },
       kind: {
         income: "Доход",
@@ -1817,6 +1829,7 @@ export const ruDict = {
       archived_badge: "архив",
       essential_label: "обязательная",
       essential_hint: "не режется при экономии",
+      limit_pct_hint: "Пусто = глобальный множитель режима ({pct}%)",
       placeholder: {
         name: "Название категории",
         parent: "— без родителя —",

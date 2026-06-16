@@ -33,7 +33,7 @@ import {
 import { getRunwayByMode } from "@/lib/data/analytics-runway";
 import { getHomeDashboard } from "@/lib/data/dashboard";
 import { getAvailableNow } from "@/lib/data/_shared/period-aggregates";
-import { getBurnRate, getShrinkableCategories, getObligatoryDiscretionarySplit } from "@/lib/data/analytics-prescriptive";
+import { getBurnRate, getShrinkableCategories, getObligatoryDiscretionarySplit, getEconomyExitScenario } from "@/lib/data/analytics-prescriptive";
 import { getLocale, getT } from "@/lib/i18n/server";
 import { pluralRu, pluralEn } from "@/lib/i18n/plural";
 import { ruPluralForms } from "@/lib/i18n/locales/ru";
@@ -85,7 +85,7 @@ export default async function AnalyticsPage({
 
   const now = new Date();
 
-  const [kpis, pie, compare, forecast, forecastYear, weather, budgetSettings, runwayDashboard, trendPoints, homeDash, compareSparklines, availableNow, burnRate, shrinkable, splitData] = await Promise.all([
+  const [kpis, pie, compare, forecast, forecastYear, weather, budgetSettings, runwayDashboard, trendPoints, homeDash, compareSparklines, availableNow, burnRate, shrinkable, splitData, economyExit] = await Promise.all([
     getPeriodKpis(userId, currentRange, DEFAULT_CURRENCY),
     getCategoryPie(userId, currentRange, DEFAULT_CURRENCY),
     getPeriodCompare(userId, currentRange, DEFAULT_CURRENCY, compareRange),
@@ -101,6 +101,7 @@ export default async function AnalyticsPage({
     getBurnRate(userId, DEFAULT_CURRENCY, tz, now),
     getShrinkableCategories(userId, DEFAULT_CURRENCY, tz),
     getObligatoryDiscretionarySplit(userId, currentRange, DEFAULT_CURRENCY, tz),
+    getEconomyExitScenario(userId, DEFAULT_CURRENCY, tz, now),
   ]);
 
   const safeUntilDays = homeDash.safeUntilDays;
@@ -300,6 +301,20 @@ export default async function AnalyticsPage({
       cuttable_pct: t("analytics.prescriptive.split.cuttable_pct"),
       empty: t("analytics.prescriptive.split.empty"),
     },
+    economy_exit: {
+      title: t("analytics.prescriptive.economy_exit.title"),
+      subtitle: t("analytics.prescriptive.economy_exit.subtitle"),
+      months: t("analytics.prescriptive.economy_exit.months"),
+      no_deficit: t("analytics.prescriptive.economy_exit.no_deficit"),
+      no_surplus: t("analytics.prescriptive.economy_exit.no_surplus"),
+      deficit_label: t("analytics.prescriptive.economy_exit.deficit_label"),
+      recovery_label: t("analytics.prescriptive.economy_exit.recovery_label"),
+    },
+  };
+
+  const economyExitFormatted = {
+    deficit: formatMoney(new Prisma.Decimal(economyExit.deficitBase), DEFAULT_CURRENCY),
+    monthlyRecovery: formatMoney(new Prisma.Decimal(economyExit.monthlyRecoveryBase), DEFAULT_CURRENCY),
   };
 
   const splitFormatted = {
@@ -458,6 +473,8 @@ export default async function AnalyticsPage({
         }}
         shrinkFormatted={shrinkFormatted}
         splitFormatted={splitFormatted}
+        economyExit={economyExit}
+        economyExitFormatted={economyExitFormatted}
       />
       <ModesReference
         modes={STATIC_MODES}
