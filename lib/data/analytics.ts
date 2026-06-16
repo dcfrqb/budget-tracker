@@ -12,6 +12,12 @@ import { getCompensationProjection } from "@/lib/data/_shared/compensation-proje
 
 export type DateRange = { from: Date; to: Date };
 
+export type ForecastYear = {
+  netProjectedBase: string;
+  method: "trailing_avg";
+  monthsOfHistory: number;
+};
+
 export type PeriodKpis = {
   inflowBase: string;
   outflowBase: string;
@@ -734,5 +740,88 @@ export const getForecastMonth = cache(async (
     inflowExpectedBase: inflow.toString(),
     outflowExpectedBase: outflow.toString(),
     netExpectedBase: net.toString(),
+  };
+});
+
+// ─────────────────────────────────────────────────────────────
+// getForecastYear
+// Trailing-12-month CONFIRMED net extrapolated to a full year.
+// Divides by actual month-buckets with data, not by 12.
+// ─────────────────────────────────────────────────────────────
+
+export const getForecastYear = cache(async (
+  userId: string,
+  baseCcy: string,
+  tz: string = DEFAULT_TZ,
+): Promise<ForecastYear> => {
+  const now = new Date();
+  const from = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+
+  const [proj, rates] = await Promise.all([
+    getCompensationProjection(userId),
+    getLatestRatesMap(),
+  ]);
+
+  const rows = await db.transaction.findMany({
+    where: {
+      userId,
+      deletedAt: null,
+      occurredAt: { gte: from, lte: now },
+      kind: { in: [TransactionKind.INCOME, TransactionKind.EXPENSE] },
+      transferId: null,
+      status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
+      ...proj.whereExcludeNonMain,
+    },
+    select: {
+      id: true,
+      kind: true,
+      status: true,
+      amount: true,
+      currencyCode: true,
+      occurredAt: true,
+      facts: { select: { amount: true } },
+    },
+  });
+
+  type Bucket = { inflow: Prisma.Decimal; outflow: Prisma.Decimal };
+  const buckets = new Map<string, Bucket>();
+
+  for (const t of rows) {
+    const key = monthKeyInTz(t.occurredAt, tz);
+    if (!buckets.has(key)) {
+      buckets.set(key, { inflow: new Prisma.Decimal(0), outflow: new Prisma.Decimal(0) });
+    }
+    const bucket = buckets.get(key)!;
+
+    const override = proj.rewriteAmount(t.id);
+    if (override) {
+      if (override.sign === 1) bucket.inflow = bucket.inflow.plus(override.netBase);
+      else bucket.outflow = bucket.outflow.plus(override.netBase);
+    } else {
+      const actual = confirmedAmt(t as Parameters<typeof confirmedAmt>[0]);
+      const inBase = convertToBase(actual, t.currencyCode, baseCcy, rates);
+      if (!inBase) continue;
+      if (t.kind === TransactionKind.INCOME) bucket.inflow = bucket.inflow.plus(inBase);
+      else bucket.outflow = bucket.outflow.plus(inBase);
+    }
+  }
+
+  const monthsOfHistory = buckets.size;
+  if (monthsOfHistory === 0) {
+    return { netProjectedBase: "0", method: "trailing_avg", monthsOfHistory: 0 };
+  }
+
+  let totalNet = new Prisma.Decimal(0);
+  for (const b of buckets.values()) {
+    totalNet = totalNet.plus(b.inflow.minus(b.outflow));
+  }
+
+  const avgMonthlyNet = totalNet.div(monthsOfHistory);
+  const netProjectedBase = avgMonthlyNet.times(12);
+
+  return {
+    netProjectedBase: netProjectedBase.toString(),
+    method: "trailing_avg",
+    monthsOfHistory,
   };
 });

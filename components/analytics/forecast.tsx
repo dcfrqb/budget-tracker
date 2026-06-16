@@ -12,7 +12,15 @@ export type ForecastLabels = {
   empty: string;
 };
 
-export function Forecast({ cells, labels }: { cells: ForecastCell[]; labels: ForecastLabels }) {
+export function Forecast({
+  cells,
+  labels,
+  secondaryCells,
+}: {
+  cells: ForecastCell[];
+  labels: ForecastLabels;
+  secondaryCells?: ForecastCell[];
+}) {
   return (
     <div className="section fade-in" style={{ animationDelay: "360ms" }}>
       <div className="section-hd">
@@ -36,6 +44,17 @@ export function Forecast({ cells, labels }: { cells: ForecastCell[]; labels: For
             </div>
           )}
         </div>
+        {secondaryCells && secondaryCells.length > 0 && (
+          <div className="fc-row">
+            {secondaryCells.map((f, i) => (
+              <div key={i} className="fc-cell">
+                <div className="k">{f.k}</div>
+                <div className={`v ${f.vTone ?? ""}`}>{f.v}</div>
+                <div className="s">{f.s}</div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

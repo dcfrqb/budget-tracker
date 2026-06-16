@@ -12,6 +12,7 @@ import { CategoryPie } from "@/components/analytics/category-pie";
 import { Compare } from "@/components/analytics/compare";
 import { Forecast } from "@/components/analytics/forecast";
 import { ModesReference } from "@/components/analytics/modes-reference";
+import { Prescriptive } from "@/components/analytics/prescriptive";
 import { RunwayByMode } from "@/components/analytics/runway-by-mode";
 import { TrendCharts } from "@/components/analytics/trend";
 import { Weather } from "@/components/analytics/weather";
@@ -24,12 +25,15 @@ import {
   getCategoryPie,
   getPeriodCompare,
   getForecastMonth,
+  getForecastYear,
   getWeather,
   getTrendPoints,
   getCompareSparklines,
 } from "@/lib/data/analytics";
 import { getRunwayByMode } from "@/lib/data/analytics-runway";
 import { getHomeDashboard } from "@/lib/data/dashboard";
+import { getAvailableNow } from "@/lib/data/_shared/period-aggregates";
+import { getBurnRate, getShrinkableCategories } from "@/lib/data/analytics-prescriptive";
 import { getLocale, getT } from "@/lib/i18n/server";
 import { pluralRu, pluralEn } from "@/lib/i18n/plural";
 import { ruPluralForms } from "@/lib/i18n/locales/ru";
@@ -42,6 +46,7 @@ import type { PieSliceView, CategoryPieLabels } from "@/components/analytics/cat
 import type { CompareRow } from "@/components/analytics/compare";
 import type { ForecastCell } from "@/components/analytics/forecast";
 import type { ModeCard } from "@/components/analytics/modes-reference";
+import type { PrescriptiveLabels } from "@/components/analytics/prescriptive";
 
 export const dynamic = "force-dynamic";
 
@@ -78,17 +83,23 @@ export default async function AnalyticsPage({
   const currentPeriodLabel = formatPeriodLabel(currentRange, t);
   const previousPeriodLabel = compareRange ? formatPeriodLabel(compareRange, t) : null;
 
-  const [kpis, pie, compare, forecast, weather, budgetSettings, runwayDashboard, trendPoints, homeDash, compareSparklines] = await Promise.all([
+  const now = new Date();
+
+  const [kpis, pie, compare, forecast, forecastYear, weather, budgetSettings, runwayDashboard, trendPoints, homeDash, compareSparklines, availableNow, burnRate, shrinkable] = await Promise.all([
     getPeriodKpis(userId, currentRange, DEFAULT_CURRENCY),
     getCategoryPie(userId, currentRange, DEFAULT_CURRENCY),
     getPeriodCompare(userId, currentRange, DEFAULT_CURRENCY, compareRange),
     getForecastMonth(userId, DEFAULT_CURRENCY),
+    getForecastYear(userId, DEFAULT_CURRENCY, tz),
     getWeather(userId, DEFAULT_CURRENCY, tz, currentRange),
     db.budgetSettings.findUnique({ where: { userId } }),
     getRunwayByMode(userId, DEFAULT_CURRENCY, tz),
     getTrendPoints(userId, currentRange, DEFAULT_CURRENCY, granularity, tz),
     getHomeDashboard(userId, DEFAULT_CURRENCY),
     getCompareSparklines(userId, DEFAULT_CURRENCY, tz, 6),
+    getAvailableNow(userId, DEFAULT_CURRENCY, now),
+    getBurnRate(userId, DEFAULT_CURRENCY, tz, now),
+    getShrinkableCategories(userId, DEFAULT_CURRENCY, tz),
   ]);
 
   const safeUntilDays = homeDash.safeUntilDays;
@@ -209,6 +220,88 @@ export default async function AnalyticsPage({
     },
   ];
 
+  // ── Forecast secondary cells (posture + year) ────────────────
+  const reservedDec = availableNow.reservedBase;
+  const freeDec = availableNow.freeBase;
+  const liquidDec = availableNow.liquidBase;
+
+  const forecastSecondaryCells: ForecastCell[] = [
+    {
+      k: t("analytics.forecast.reserved"),
+      v: formatMoney(reservedDec, "RUB"),
+      s: t("analytics.forecast.posture_sub"),
+      vTone: "muted",
+    },
+    {
+      k: t("analytics.forecast.free"),
+      v: formatMoney(freeDec, "RUB"),
+      s: t("analytics.forecast.posture_sub"),
+      vTone: freeDec.gt(0) ? "pos" : "neg",
+    },
+    {
+      k: t("analytics.forecast.liquid"),
+      v: formatMoney(liquidDec, "RUB"),
+      s: t("analytics.forecast.posture_sub"),
+      vTone: "info",
+    },
+  ];
+
+  const yearNetDec = new Prisma.Decimal(forecastYear.netProjectedBase);
+  const yearNetCell: ForecastCell = {
+    k: t("analytics.forecast.year_net"),
+    v: formatMoney(yearNetDec, "RUB"),
+    s: forecastYear.monthsOfHistory < 2
+      ? t("analytics.forecast.year_low_confidence")
+      : t("analytics.forecast.year_sub"),
+    vTone: yearNetDec.gte(0) ? "pos" : "neg",
+  };
+
+  // ── Prescriptive data ────────────────────────────────────────
+  const burnPerDay30 = new Prisma.Decimal(burnRate.perDay30dBase);
+  const burnPerDay90 = new Prisma.Decimal(burnRate.perDay90dBase);
+
+  const daysToZeroDisplay =
+    burnRate.daysToZero === null ? "—" : String(burnRate.daysToZero);
+
+  let daysToZeroTone = "muted";
+  if (burnRate.daysToZero !== null) {
+    if (burnRate.daysToZero > 30) daysToZeroTone = "pos";
+    else if (burnRate.daysToZero >= 7) daysToZeroTone = "warn";
+    else daysToZeroTone = "neg";
+  }
+
+  const prescriptiveLabels: PrescriptiveLabels = {
+    title: t("analytics.prescriptive.title"),
+    subtitle: t("analytics.prescriptive.subtitle"),
+    meta: t("analytics.prescriptive.meta"),
+    burn: {
+      title: t("analytics.prescriptive.burn.title"),
+      per_day_30: t("analytics.prescriptive.burn.per_day_30"),
+      per_day_90: t("analytics.prescriptive.burn.per_day_90"),
+      days_to_zero: t("analytics.prescriptive.burn.days_to_zero"),
+      days_to_zero_sub: t("analytics.prescriptive.burn.days_to_zero_sub"),
+      already_negative: t("analytics.prescriptive.burn.already_negative"),
+      no_burn: t("analytics.prescriptive.burn.no_burn"),
+    },
+    shrink: {
+      title: t("analytics.prescriptive.shrink.title"),
+      subtitle: t("analytics.prescriptive.shrink.subtitle"),
+      col_current: t("analytics.prescriptive.shrink.col_current"),
+      col_avg: t("analytics.prescriptive.shrink.col_avg"),
+      col_over: t("analytics.prescriptive.shrink.col_over"),
+      empty: t("analytics.prescriptive.shrink.empty"),
+    },
+  };
+
+  const shrinkFormatted = shrinkable.map((cat) => ({
+    name: cat.categoryName,
+    icon: cat.icon,
+    current: formatMoney(new Prisma.Decimal(cat.currentMonthBase), "RUB"),
+    avg: formatMoney(new Prisma.Decimal(cat.avg6mBase), "RUB"),
+    over: formatMoney(new Prisma.Decimal(cat.overspendBase), "RUB"),
+    overPct: String(Math.round(cat.overspendPct * 10) / 10),
+  }));
+
   // ── Modes ────────────────────────────────────────────────────
   const activeMode = budgetSettings?.activeMode ?? "NORMAL";
   const activeModeLabel = t(`analytics.mode.${activeMode}` as Parameters<typeof t>[0]);
@@ -328,6 +421,7 @@ export default async function AnalyticsPage({
       />
       <Forecast
         cells={forecastCells}
+        secondaryCells={[...forecastSecondaryCells, yearNetCell]}
         labels={{
           title: t("analytics.forecast.title"),
           subtitle: t("analytics.forecast.subtitle"),
@@ -336,6 +430,18 @@ export default async function AnalyticsPage({
         }}
       />
       <RunwayByMode data={runwayDashboard} defaultMode={activeMode} />
+      <Prescriptive
+        burn={burnRate}
+        shrinkable={shrinkable}
+        labels={prescriptiveLabels}
+        burnFormatted={{
+          perDay30: formatMoney(burnPerDay30, "RUB"),
+          perDay90: formatMoney(burnPerDay90, "RUB"),
+          daysToZero: daysToZeroDisplay,
+          daysToZeroTone,
+        }}
+        shrinkFormatted={shrinkFormatted}
+      />
       <ModesReference
         modes={STATIC_MODES}
         activeMode={activeModeLabel}
