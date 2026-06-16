@@ -9,7 +9,7 @@ import {
 import { Sparkline } from "@/components/shell/sparkline";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { getCurrentUserId } from "@/lib/api/auth";
-import { resolveRange, getPeriodKpis, getPeriodCompare, getWeather } from "@/lib/data/analytics";
+import { resolveRange, getPeriodKpis, getPeriodCompare, getWeather, getTrendPoints } from "@/lib/data/analytics";
 import {
   parseAnalyticsPeriod,
   parseAnalyticsCompare,
@@ -42,10 +42,13 @@ export default async function AnalyticsSummary({
   const periodShort = periodShortLabel(period, t);
   const monthCount = periodMonthCount(period, currentRange);
 
-  const [kpis, compareRows, weather] = await Promise.all([
+  const granularity = period === "1m" ? "weekly" : "monthly";
+
+  const [kpis, compareRows, weather, trendPoints] = await Promise.all([
     getPeriodKpis(userId, currentRange, DEFAULT_CURRENCY),
     getPeriodCompare(userId, currentRange, DEFAULT_CURRENCY, compareRange),
     getWeather(userId, DEFAULT_CURRENCY, tz, currentRange),
+    getTrendPoints(userId, currentRange, DEFAULT_CURRENCY, granularity, tz),
   ]);
 
   const net = new Prisma.Decimal(kpis.netBase);
@@ -65,6 +68,14 @@ export default async function AnalyticsSummary({
         : `▼ ${Math.abs(r.deltaPct!).toFixed(1)}%`,
       tone: r.deltaPct! > 0 ? ("neg" as const) : ("pos" as const),
     }));
+
+  const rawNetPoints = trendPoints.map((p) => Number(p.netBase));
+  const minNet = Math.min(...rawNetPoints);
+  const maxNet = Math.max(...rawNetPoints);
+  const netRange = maxNet - minNet;
+  const sparklinePoints = netRange === 0
+    ? rawNetPoints.map(() => 0.5)
+    : rawNetPoints.map((v) => (v - minNet) / netRange);
 
   const weatherKey = weather.kind as "sun" | "cloud" | "rain" | "storm";
   const wxLabel = t(`summary.analytics.weather_${weatherKey}` as Parameters<typeof t>[0]) ?? "—";
@@ -136,8 +147,7 @@ export default async function AnalyticsSummary({
           <span>{t("summary.analytics.flow_label", { vars: { period: periodShort } })}</span>
           <span className="tiny mono">{t("summary.analytics.flow_meta")}</span>
         </div>
-        {/* TODO: pass real cashflow points when historical data is available */}
-        <Sparkline points={[]} />
+        <Sparkline points={sparklinePoints} />
       </div>
 
       <SessionStateBlock

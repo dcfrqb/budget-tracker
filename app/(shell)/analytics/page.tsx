@@ -26,6 +26,7 @@ import {
   getForecastMonth,
   getWeather,
   getTrendPoints,
+  getCompareSparklines,
 } from "@/lib/data/analytics";
 import { getRunwayByMode } from "@/lib/data/analytics-runway";
 import { getHomeDashboard } from "@/lib/data/dashboard";
@@ -77,7 +78,7 @@ export default async function AnalyticsPage({
   const currentPeriodLabel = formatPeriodLabel(currentRange, t);
   const previousPeriodLabel = compareRange ? formatPeriodLabel(compareRange, t) : null;
 
-  const [kpis, pie, compare, forecast, weather, budgetSettings, runwayDashboard, trendPoints, homeDash] = await Promise.all([
+  const [kpis, pie, compare, forecast, weather, budgetSettings, runwayDashboard, trendPoints, homeDash, compareSparklines] = await Promise.all([
     getPeriodKpis(userId, currentRange, DEFAULT_CURRENCY),
     getCategoryPie(userId, currentRange, DEFAULT_CURRENCY),
     getPeriodCompare(userId, currentRange, DEFAULT_CURRENCY, compareRange),
@@ -87,6 +88,7 @@ export default async function AnalyticsPage({
     getRunwayByMode(userId, DEFAULT_CURRENCY, tz),
     getTrendPoints(userId, currentRange, DEFAULT_CURRENCY, granularity, tz),
     getHomeDashboard(userId, DEFAULT_CURRENCY),
+    getCompareSparklines(userId, DEFAULT_CURRENCY, tz, 6),
   ]);
 
   const safeUntilDays = homeDash.safeUntilDays;
@@ -177,7 +179,7 @@ export default async function AnalyticsPage({
         delta: deltaStr,
         deltaTone,
         kind: r.kind,
-        spark: [],
+        spark: compareSparklines.get(r.categoryId) ?? [],
       };
     });
 
@@ -211,6 +213,14 @@ export default async function AnalyticsPage({
   const activeMode = budgetSettings?.activeMode ?? "NORMAL";
   const activeModeLabel = t(`analytics.mode.${activeMode}` as Parameters<typeof t>[0]);
 
+  const formatModeDays = (days: number | null): string =>
+    days === null ? "—" : String(days);
+
+  const formatModeLimit = (limitBase: string): string => {
+    const dec = new Prisma.Decimal(limitBase);
+    return dec.isZero() ? "—" : formatMoney(dec, DEFAULT_CURRENCY);
+  };
+
   const STATIC_MODES: ModeCard[] = [
     {
       id: "lean",
@@ -218,9 +228,12 @@ export default async function AnalyticsPage({
       tag: t("analytics.mode.economy_tag"),
       active: activeMode === "ECONOMY",
       limits: [
-        { k: t("analytics.mode.limit_key"), v: t("analytics.mode.limit_lean") },
+        {
+          k: t("analytics.mode.limit_key"),
+          v: formatModeLimit(runwayDashboard.byMode.ECONOMY.monthlyLimitBase),
+        },
       ],
-      safeDays: "—",
+      safeDays: formatModeDays(runwayDashboard.byMode.ECONOMY.days),
       safeColor: "var(--accent)",
     },
     {
@@ -229,9 +242,12 @@ export default async function AnalyticsPage({
       tag: t("analytics.mode.normal_tag"),
       active: activeMode === "NORMAL",
       limits: [
-        { k: t("analytics.mode.limit_key"), v: t("analytics.mode.limit_normal") },
+        {
+          k: t("analytics.mode.limit_key"),
+          v: formatModeLimit(runwayDashboard.byMode.NORMAL.monthlyLimitBase),
+        },
       ],
-      safeDays: "—",
+      safeDays: formatModeDays(runwayDashboard.byMode.NORMAL.days),
       safeColor: "var(--pos)",
     },
     {
@@ -240,9 +256,12 @@ export default async function AnalyticsPage({
       tag: t("analytics.mode.free_tag"),
       active: activeMode === "FREE",
       limits: [
-        { k: t("analytics.mode.limit_key"), v: t("analytics.mode.limit_free") },
+        {
+          k: t("analytics.mode.limit_key"),
+          v: formatModeLimit(runwayDashboard.byMode.FREE.monthlyLimitBase),
+        },
       ],
-      safeDays: "—",
+      safeDays: formatModeDays(runwayDashboard.byMode.FREE.days),
       safeColor: "var(--info)",
     },
   ];
@@ -302,13 +321,35 @@ export default async function AnalyticsPage({
           colCategory: t("analytics.compare.col.category"),
           colPreviousDefault: t("analytics.compare.col.previous_default"),
           colCurrentDefault: t("analytics.compare.col.current_default"),
+          colTrend6m: t("analytics.compare.col.trend_6m"),
           deltaNew: t("analytics.compare.delta_new"),
           deltaGone: t("analytics.compare.delta_gone"),
         }}
       />
-      <Forecast cells={forecastCells} />
+      <Forecast
+        cells={forecastCells}
+        labels={{
+          title: t("analytics.forecast.title"),
+          subtitle: t("analytics.forecast.subtitle"),
+          meta: t("analytics.forecast.meta"),
+          empty: t("analytics.forecast.empty"),
+        }}
+      />
       <RunwayByMode data={runwayDashboard} defaultMode={activeMode} />
-      <ModesReference modes={STATIC_MODES} activeMode={activeModeLabel} />
+      <ModesReference
+        modes={STATIC_MODES}
+        activeMode={activeModeLabel}
+        labels={{
+          title: t("analytics.mode.reference.title"),
+          subtitle: t("analytics.mode.reference.subtitle"),
+          active_on: t("analytics.mode.reference.active_on", { vars: { name: activeModeLabel } }),
+          active_off: t("analytics.mode.reference.active_off"),
+          pill_on: t("analytics.mode.reference.pill_on"),
+          pill_off: t("analytics.mode.reference.pill_off"),
+          safe_until_label: t("analytics.mode.reference.safe_until_label"),
+          empty: t("analytics.mode.reference.empty"),
+        }}
+      />
     </>
   );
 }

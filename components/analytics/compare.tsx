@@ -7,7 +7,42 @@ export type CompareRow = {
   deltaTone: string;
   /** "new" = appeared this period, "gone" = disappeared, "delta" = normal comparison */
   kind?: "new" | "gone" | "delta";
+  /** Monthly expense series for last 6 months, oldest→newest (raw amounts, not normalized) */
+  spark?: number[];
 };
+
+function MiniSparkline({ points }: { points: number[] }) {
+  if (points.length < 2) return null;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const range = max - min;
+  const w = 56;
+  const h = 24;
+  const step = w / (points.length - 1);
+  const norm = range === 0
+    ? points.map(() => 0.5)
+    : points.map((v) => (v - min) / range);
+  const coords = norm
+    .map((v, i) => `${(i * step).toFixed(1)},${(h - v * (h - 4) - 2).toFixed(1)}`)
+    .join(" ");
+  return (
+    <svg
+      viewBox={`0 0 ${w} ${h}`}
+      width={w}
+      height={h}
+      preserveAspectRatio="none"
+      aria-hidden
+      style={{ display: "block" }}
+    >
+      <polyline
+        fill="none"
+        stroke="var(--accent)"
+        strokeWidth={1.2}
+        points={coords}
+      />
+    </svg>
+  );
+}
 
 export function Compare({
   rows,
@@ -32,6 +67,7 @@ export function Compare({
     colCategory: string;
     colPreviousDefault: string;
     colCurrentDefault: string;
+    colTrend6m: string;
     deltaNew: string;
     deltaGone: string;
   };
@@ -75,6 +111,7 @@ export function Compare({
               <div style={{ textAlign: "right" }}>{previousPeriodLabel ?? labels.colPreviousDefault}</div>
               <div style={{ textAlign: "right" }}>{currentPeriodLabel ?? labels.colCurrentDefault}</div>
               <div style={{ textAlign: "right" }}>Δ %</div>
+              <div style={{ textAlign: "right" }}>{labels.colTrend6m}</div>
             </div>
             {rows.map((r, i) => (
               <div key={i} className="cmp-row">
@@ -86,6 +123,9 @@ export function Compare({
                 <div className="num money">{r.curr}</div>
                 <div className={`delta ${r.kind === "new" ? "acc" : r.kind === "gone" ? "mut" : r.deltaTone}`}>
                   {r.kind === "new" ? labels.deltaNew : r.kind === "gone" ? labels.deltaGone : r.delta}
+                </div>
+                <div className="cmp-spark">
+                  {r.spark && r.spark.length >= 2 && <MiniSparkline points={r.spark} />}
                 </div>
               </div>
             ))}

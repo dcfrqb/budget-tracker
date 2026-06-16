@@ -5,14 +5,21 @@ export type ForecastCell = {
   vTone?: string;
 };
 
-export function Forecast({ cells }: { cells: ForecastCell[] }) {
+export type ForecastLabels = {
+  title: string;
+  subtitle: string;
+  meta: string;
+  empty: string;
+};
+
+export function Forecast({ cells, labels }: { cells: ForecastCell[]; labels: ForecastLabels }) {
   return (
     <div className="section fade-in" style={{ animationDelay: "360ms" }}>
       <div className="section-hd">
         <div className="ttl mono">
-          <b>прогноз</b> <span className="dim">· упрощённый · конец периода</span>
+          <b>{labels.title}</b> <span className="dim">&middot; {labels.subtitle}</span>
         </div>
-        <div className="meta mono">без пессимистичного сценария · см. видение</div>
+        <div className="meta mono">{labels.meta}</div>
       </div>
       <div className="section-body flush">
         <div className="fc-row">
@@ -25,7 +32,7 @@ export function Forecast({ cells }: { cells: ForecastCell[] }) {
           ))}
           {cells.length === 0 && (
             <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 0" }}>
-              нет данных для прогноза
+              {labels.empty}
             </div>
           )}
         </div>

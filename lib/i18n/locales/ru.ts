@@ -1031,6 +1031,10 @@ export const ruDict = {
       sub_plan: "план + факт месяца",
       net_pos: "положительный",
       net_neg: "отрицательный",
+      title: "прогноз",
+      subtitle: "упрощённый · конец периода",
+      meta: "без пессимистичного сценария · см. видение",
+      empty: "нет данных для прогноза",
     },
     mode: {
       ECONOMY: "Эконом",
@@ -1043,6 +1047,16 @@ export const ruDict = {
       limit_lean: "урезан",
       limit_normal: "стандарт",
       limit_free: "расширен",
+      reference: {
+        title: "режимы · справка",
+        subtitle: "только просмотр · переключать на главной",
+        active_on: "активен: {name}",
+        active_off: "не задан",
+        pill_on: "активен",
+        pill_off: "выкл",
+        safe_until_label: "безопасно до",
+        empty: "режимы не настроены",
+      },
     },
     runway: {
       title: "до какого числа прожить",

@@ -1023,6 +1023,10 @@ export const enDict: RuDictShape = {
       sub_plan: "plan + actual month",
       net_pos: "positive",
       net_neg: "negative",
+      title: "forecast",
+      subtitle: "simplified · end of period",
+      meta: "no pessimistic scenario · see vision",
+      empty: "no forecast data",
     },
     mode: {
       ECONOMY: "Economy",
@@ -1035,6 +1039,16 @@ export const enDict: RuDictShape = {
       limit_lean: "reduced",
       limit_normal: "standard",
       limit_free: "expanded",
+      reference: {
+        title: "modes · reference",
+        subtitle: "view only · switch on home",
+        active_on: "active: {name}",
+        active_off: "not set",
+        pill_on: "active",
+        pill_off: "off",
+        safe_until_label: "safe until",
+        empty: "modes not configured",
+      },
     },
     runway: {
       title: "runway by mode",

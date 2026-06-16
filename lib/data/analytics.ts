@@ -473,6 +473,95 @@ export const getTrendPoints = cache(async (
 });
 
 // ─────────────────────────────────────────────────────────────
+// getCompareSparklines
+// Returns Map<categoryId, number[]> — monthly EXPENSE sums per category
+// in base currency, last `months` month-buckets, oldest → newest.
+// ─────────────────────────────────────────────────────────────
+
+export const getCompareSparklines = cache(async (
+  userId: string,
+  baseCcy: string,
+  tz: string = DEFAULT_TZ,
+  months: number = 6,
+): Promise<Map<string, number[]>> => {
+  const now = new Date();
+  const from = new Date(now.getTime() - months * 30 * 24 * 60 * 60 * 1000);
+
+  const [proj, rates] = await Promise.all([
+    getCompensationProjection(userId),
+    getLatestRatesMap(),
+  ]);
+
+  const rows = await db.transaction.findMany({
+    where: {
+      userId,
+      deletedAt: null,
+      occurredAt: { gte: from, lte: now },
+      kind: TransactionKind.EXPENSE,
+      transferId: null,
+      status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
+      categoryId: { not: null },
+      ...proj.whereExcludeNonMain,
+    },
+    select: {
+      id: true,
+      categoryId: true,
+      status: true,
+      amount: true,
+      currencyCode: true,
+      occurredAt: true,
+      facts: { select: { amount: true } },
+    },
+    orderBy: { occurredAt: "asc" },
+  });
+
+  // Collect all month keys in order (oldest → newest)
+  const monthKeySet = new Set<string>();
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 30 * 24 * 60 * 60 * 1000);
+    monthKeySet.add(monthKeyInTz(d, tz));
+  }
+  const allMonthKeys = [...monthKeySet].sort();
+
+  // Map: categoryId → (monthKey → amount)
+  const catMonthMap = new Map<string, Map<string, Prisma.Decimal>>();
+
+  for (const t of rows) {
+    if (!t.categoryId) continue;
+    const override = proj.rewriteAmount(t.id);
+    let inBase: Prisma.Decimal | undefined;
+    let catId = t.categoryId;
+
+    if (override) {
+      inBase = override.netBase;
+      const groupInfo = proj.groupByMainTxnId.get(t.id);
+      if (groupInfo?.categoryIdForAggregation) catId = groupInfo.categoryIdForAggregation;
+    } else {
+      const actual = confirmedAmt(t as Parameters<typeof confirmedAmt>[0]);
+      const converted = convertToBase(actual, t.currencyCode, baseCcy, rates);
+      if (!converted) continue;
+      inBase = converted;
+    }
+
+    const key = monthKeyInTz(t.occurredAt, tz);
+    if (!catMonthMap.has(catId)) catMonthMap.set(catId, new Map());
+    const monthMap = catMonthMap.get(catId)!;
+    monthMap.set(key, (monthMap.get(key) ?? new Prisma.Decimal(0)).plus(inBase));
+  }
+
+  const result = new Map<string, number[]>();
+  for (const [catId, monthMap] of catMonthMap.entries()) {
+    const series = allMonthKeys.map((k) => {
+      const v = monthMap.get(k);
+      return v ? v.toNumber() : 0;
+    });
+    result.set(catId, series);
+  }
+
+  return result;
+});
+
+// ─────────────────────────────────────────────────────────────
 // getWeather
 // ─────────────────────────────────────────────────────────────
 

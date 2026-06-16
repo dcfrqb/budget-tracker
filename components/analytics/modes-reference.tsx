@@ -10,19 +10,38 @@ export type ModeCard = {
   safeColor: string;
 };
 
-export function ModesReference({ modes, activeMode }: { modes: ModeCard[]; activeMode?: string }) {
+export type ModesReferenceLabels = {
+  title: string;
+  subtitle: string;
+  active_on: string;
+  active_off: string;
+  pill_on: string;
+  pill_off: string;
+  safe_until_label: string;
+  empty: string;
+};
+
+export function ModesReference({
+  modes,
+  activeMode,
+  labels,
+}: {
+  modes: ModeCard[];
+  activeMode?: string;
+  labels: ModesReferenceLabels;
+}) {
   return (
     <div className="section fade-in" style={{ animationDelay: "420ms", marginBottom: 0 }}>
       <div className="section-hd">
         <div className="ttl mono">
-          <b>режимы · справка</b>{" "}
-          <span className="dim">· только просмотр · переключать на главной</span>
+          <b>{labels.title}</b>{" "}
+          <span className="dim">&middot; {labels.subtitle}</span>
         </div>
         <div className="meta mono">
           {activeMode ? (
-            <>активен: <span className="pos">{activeMode}</span></>
+            <>{labels.active_on}</>
           ) : (
-            "не задан"
+            labels.active_off
           )}
         </div>
       </div>
@@ -32,7 +51,7 @@ export function ModesReference({ modes, activeMode }: { modes: ModeCard[]; activ
             <div key={m.id} className={`mode-card ${m.id}${m.active ? " active" : ""}`}>
               <div className="mode-hd">
                 <div className="mode-name">{m.name}</div>
-                <span className="mode-active-pill">{m.active ? "активен" : "выкл"}</span>
+                <span className="mode-active-pill">{m.active ? labels.pill_on : labels.pill_off}</span>
               </div>
               <div className="tag mono">{m.tag}</div>
               <div className="mode-limits">
@@ -44,14 +63,14 @@ export function ModesReference({ modes, activeMode }: { modes: ModeCard[]; activ
                 ))}
               </div>
               <div className="safe">
-                <span className="k">безопасно до</span>
+                <span className="k">{labels.safe_until_label}</span>
                 <span className="v" style={{ color: m.safeColor }}>{m.safeDays}</span>
               </div>
             </div>
           ))}
           {modes.length === 0 && (
             <div className="mono" style={{ fontSize: 12, color: "var(--muted)", padding: "12px 0" }}>
-              режимы не настроены
+              {labels.empty}
             </div>
           )}
         </div>
