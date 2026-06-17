@@ -7,6 +7,7 @@ import { useT } from "@/lib/i18n";
 import { formatMoney } from "@/lib/format/money";
 import { formatDate } from "@/lib/format/date";
 import { useLocale } from "@/lib/i18n";
+import { Dialog } from "@/components/ui/dialog";
 
 import {
   createStageAction,
@@ -232,6 +233,7 @@ export function FreelanceOrderStages({
   const [payingStageId, setPayingStageId] = useState<string | null>(null);
   const [addingStage, setAddingStage] = useState(false);
   const [_isPending, start] = useTransition();
+  const [stageToDelete, setStageToDelete] = useState<string | null>(null);
 
   const plan = new Prisma.Decimal(orderAmount);
 
@@ -263,9 +265,15 @@ export function FreelanceOrderStages({
   }
 
   function handleDelete(stageId: string) {
-    if (!confirm(t("forms.freelance_order_stage.delete_stage_confirm"))) return;
+    setStageToDelete(stageId);
+  }
+
+  function confirmDeleteStage() {
+    if (!stageToDelete) return;
+    const id = stageToDelete;
+    setStageToDelete(null);
     start(async () => {
-      await deleteStageAction({ stageId });
+      await deleteStageAction({ stageId: id });
       onMutated?.();
     });
   }
@@ -406,6 +414,39 @@ export function FreelanceOrderStages({
           {t("forms.freelance_order_stage.add_stage")}
         </button>
       )}
+
+      <Dialog
+        open={stageToDelete !== null}
+        onOpenChange={(open) => { if (!open) setStageToDelete(null); }}
+        title={t("forms.freelance_order_stage.delete_stage")}
+        size="sm"
+        footer={
+          <div style={{ display: "flex", gap: "var(--sp-2)", width: "100%" }}>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setStageToDelete(null)}
+            >
+              {t("forms.common.cancel")}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              style={{ marginLeft: "auto", color: "var(--neg)", borderColor: "var(--neg)" }}
+              onClick={confirmDeleteStage}
+            >
+              {t("forms.common.delete")}
+            </button>
+          </div>
+        }
+      >
+        <p
+          className="mono"
+          style={{ fontSize: "var(--text-sm)", color: "var(--muted)", margin: 0 }}
+        >
+          {t("forms.freelance_order_stage.delete_stage_confirm")}
+        </p>
+      </Dialog>
     </div>
   );
 }

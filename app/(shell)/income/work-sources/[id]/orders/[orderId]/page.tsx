@@ -10,7 +10,9 @@ import { FreelanceOrderPayments } from "@/components/income/detail/freelance-ord
 import { formatMoney } from "@/lib/format/money";
 import { formatDate } from "@/lib/format/date";
 import { Prisma } from "@prisma/client";
+import { STATUS_COLOR } from "@/components/income/detail/order-status-colors";
 import { OrderDetailActions } from "./order-detail-actions";
+import { OrderDetailEditToggle } from "./order-detail-edit";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +42,8 @@ export default async function OrderDetailPage({ params }: Props) {
 
   const orderTitle = order.title;
   const orderDesc = order.description;
+  const statusColor = STATUS_COLOR[order.status] ?? "var(--muted)";
+  const statusKey = `income.work.detail.orders.status.${order.status.toLowerCase()}` as Parameters<typeof t>[0];
 
   return (
     <div className="page-content">
@@ -60,7 +64,7 @@ export default async function OrderDetailPage({ params }: Props) {
         style={{ padding: "var(--sp-3)", borderBottom: "1px solid var(--border)" }}
       >
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "var(--sp-2)" }}>
-          <div>
+          <div style={{ minWidth: 0 }}>
             <div
               style={{ fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--text)" }}
             >
@@ -71,6 +75,22 @@ export default async function OrderDetailPage({ params }: Props) {
                 {order.client}
               </div>
             )}
+            {/* Status badge */}
+            <div style={{ marginTop: "var(--sp-1)" }}>
+              <span
+                className="mono"
+                style={{
+                  fontSize: "var(--text-xs)",
+                  color: statusColor,
+                  background: `color-mix(in srgb, ${statusColor} 12%, transparent)`,
+                  padding: "2px 6px",
+                  border: `1px solid color-mix(in srgb, ${statusColor} 25%, transparent)`,
+                  letterSpacing: ".05em",
+                }}
+              >
+                {t(statusKey)}
+              </span>
+            </div>
             {orderDesc && (
               <div
                 style={{ fontSize: "var(--text-sm)", color: "var(--muted)", marginTop: "var(--sp-2)" }}
@@ -112,6 +132,32 @@ export default async function OrderDetailPage({ params }: Props) {
             {order.note}
           </div>
         )}
+      </div>
+
+      {/* Edit toggle */}
+      <div style={{ padding: "var(--sp-3)", borderBottom: "1px solid var(--border)" }}>
+        <OrderDetailEditToggle
+          freelanceOrderId={order.id}
+          workSourceId={workSourceId}
+          workSourceCurrency={order.currencyCode}
+          currencies={currencyOptions}
+          initialValues={{
+            workSourceId: order.workSourceId ?? workSourceId,
+            title: order.title ?? "",
+            description: order.description ?? undefined,
+            client: order.client ?? undefined,
+            amount: order.amount ? String(order.amount) : undefined,
+            hours: order.hours ? String(order.hours) : undefined,
+            hourlyRate: order.hourlyRate ? String(order.hourlyRate) : undefined,
+            tipsAmount: order.tipsAmount ? String(order.tipsAmount) : undefined,
+            status: order.status,
+            performedAt: order.performedAt ?? undefined,
+            paidAt: order.paidAt ?? undefined,
+            note: order.note ?? undefined,
+          }}
+          editLabel={t("income.order_detail.edit")}
+          cancelLabel={t("forms.common.cancel")}
+        />
       </div>
 
       {/* Stages */}
@@ -181,7 +227,9 @@ export default async function OrderDetailPage({ params }: Props) {
           orderId={order.id}
           workSourceId={workSourceId}
           deleteLabel={t("income.order_detail.delete")}
-          deleteConfirm={t("income.order_detail.delete_confirm")}
+          deleteConfirmTitle={t("income.order_detail.delete_confirm_title")}
+          deleteConfirmBody={t("income.order_detail.delete_confirm_body", { vars: { name: order.title ?? order.client ?? order.id } })}
+          cancelLabel={t("forms.common.cancel")}
         />
       </div>
     </div>

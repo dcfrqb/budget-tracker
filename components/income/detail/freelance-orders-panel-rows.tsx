@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Prisma, FreelanceOrderStageStatus } from "@prisma/client";
+import { Prisma, FreelanceOrderStageStatus, FreelanceOrderStatus } from "@prisma/client";
 import { useT } from "@/lib/i18n";
 import { formatMoney } from "@/lib/format/money";
 import { STATUS_COLOR } from "./order-status-colors";
@@ -52,6 +52,11 @@ export function FreelanceOrdersPanelRows({
         // Derive title
         const orderTitle = (order as unknown as { title?: string }).title ?? order.client ?? "—";
         const isExpanded = expandedId === order.id;
+        const showPlanFact =
+          !received.isZero() ||
+          hasStages ||
+          order.status === FreelanceOrderStatus.ACTIVE ||
+          order.status === FreelanceOrderStatus.AWAITING_PAYMENT;
 
         return (
           <div key={order.id}>
@@ -98,7 +103,7 @@ export function FreelanceOrdersPanelRows({
                     {order.hours && ` · ${order.hours}h`}
                   </div>
                   {/* Plan/fact line */}
-                  {(!received.isZero() || hasStages) && (
+                  {showPlanFact && (
                     <div className="mono" style={{ fontSize: "var(--text-xs)", color: "var(--muted)", marginTop: 2 }}>
                       {t("income.work.detail.orders.plan_fact", {
                         vars: {
@@ -129,7 +134,7 @@ export function FreelanceOrdersPanelRows({
               </div>
 
               {/* Progress bar */}
-              {(!received.isZero() || hasStages) && (
+              {showPlanFact && (
                 <div className="src-cmp-bar-track" style={{ marginTop: 6 }}>
                   <div
                     className="src-cmp-bar-fill"

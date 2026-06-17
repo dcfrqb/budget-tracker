@@ -488,6 +488,7 @@ export const getWorkSourceFreelanceOrders = cache(
         OR: [
           { performedAt: { gte: bounds.from, lte: bounds.to } },
           { paidAt: { gte: bounds.from, lte: bounds.to } },
+          { performedAt: null, paidAt: null },
         ],
       },
       orderBy: [
@@ -813,6 +814,7 @@ export const getFreelanceOrderStatusBreakdown = cache(
         OR: [
           { performedAt: { gte: bounds.from, lte: bounds.to } },
           { paidAt: { gte: bounds.from, lte: bounds.to } },
+          { performedAt: null, paidAt: null },
         ],
       },
       select: { status: true, amount: true },

@@ -12,6 +12,31 @@ interface Props {
   currencies: CurrencyOption[];
 }
 
+/**
+ * Renders the "Add order" toggle button. When clicked, a full-width form
+ * renders below the section header (not inside it) by receiving an
+ * `onToggle` callback from FreelanceOrdersPanel.
+ */
+export function FreelanceOrdersPanelAddButton({
+  showForm,
+  onToggle,
+}: {
+  showForm: boolean;
+  onToggle: () => void;
+}) {
+  const t = useT();
+  return (
+    <button
+      type="button"
+      className="btn primary"
+      style={{ padding: "var(--sp-1) var(--sp-3)", fontSize: "var(--text-xs)" }}
+      onClick={onToggle}
+    >
+      {showForm ? t("forms.common.cancel") : t("income.work.detail.orders.add")}
+    </button>
+  );
+}
+
 export function FreelanceOrdersPanelAdd({ workSourceId, workSourceCurrency, currencies }: Props) {
   const t = useT();
   const router = useRouter();

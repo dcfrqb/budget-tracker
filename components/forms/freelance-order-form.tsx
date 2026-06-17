@@ -2,6 +2,7 @@
 
 import React, { useState, useTransition } from "react";
 import { FreelanceOrderStatus } from "@prisma/client";
+import { Dialog } from "@/components/ui/dialog";
 import { useServerActionForm } from "./use-server-action-form";
 import {
   freelanceOrderCreateSchema,
@@ -54,6 +55,7 @@ export function FreelanceOrderForm({
   const t = useT();
   const [isDeleting, startDelete] = useTransition();
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   type UpdateInput = z.infer<typeof freelanceOrderUpdateSchema>;
 
@@ -252,18 +254,7 @@ export function FreelanceOrderForm({
             type="button"
             className="btn-ghost"
             disabled={isDeleting || isPending}
-            onClick={() => {
-              if (!confirm(t("forms.freelance_order.delete_confirm"))) return;
-              setDeleteError(null);
-              startDelete(async () => {
-                const result = await deleteFreelanceOrderAction(freelanceOrderId);
-                if (!result.ok) {
-                  setDeleteError(t("forms.freelance_order.delete_failed"));
-                  return;
-                }
-                onSuccess?.();
-              });
-            }}
+            onClick={() => setDeleteOpen(true)}
           >
             {t("forms.freelance_order.delete")}
           </button>
@@ -272,6 +263,51 @@ export function FreelanceOrderForm({
               {deleteError}
             </div>
           )}
+          <Dialog
+            open={deleteOpen}
+            onOpenChange={setDeleteOpen}
+            title={t("forms.freelance_order.delete")}
+            size="sm"
+            footer={
+              <div style={{ display: "flex", gap: "var(--sp-2)", width: "100%" }}>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => setDeleteOpen(false)}
+                  disabled={isDeleting}
+                >
+                  {t("forms.common.cancel")}
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ marginLeft: "auto", color: "var(--neg)", borderColor: "var(--neg)" }}
+                  disabled={isDeleting}
+                  onClick={() => {
+                    setDeleteOpen(false);
+                    setDeleteError(null);
+                    startDelete(async () => {
+                      const result = await deleteFreelanceOrderAction(freelanceOrderId);
+                      if (!result.ok) {
+                        setDeleteError(t("forms.freelance_order.delete_failed"));
+                        return;
+                      }
+                      onSuccess?.();
+                    });
+                  }}
+                >
+                  {t("forms.freelance_order.delete")}
+                </button>
+              </div>
+            }
+          >
+            <p
+              className="mono"
+              style={{ fontSize: "var(--text-sm)", color: "var(--muted)", margin: 0 }}
+            >
+              {t("forms.freelance_order.delete_confirm")}
+            </p>
+          </Dialog>
         </div>
       )}
     </>

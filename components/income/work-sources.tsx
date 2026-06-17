@@ -101,7 +101,7 @@ export async function WorkSourcesSection({ items }: WorkSourcesSectionProps) {
                     )}
                     {src.taxLabel && (
                       <div>
-                        <div className="k">tax</div>
+                        <div className="k">{t("income.work.card.tax_label")}</div>
                         <div className="v">{src.taxLabel}</div>
                       </div>
                     )}

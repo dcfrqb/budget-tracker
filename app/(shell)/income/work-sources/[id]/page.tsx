@@ -25,6 +25,7 @@ import { MonthlyBarChart } from "@/components/income/detail/monthly-bar-chart";
 import { CumulativeLineChart } from "@/components/income/detail/cumulative-line-chart";
 import { TransactionsList } from "@/components/income/detail/transactions-list";
 import { FreelanceOrdersPanel } from "@/components/income/detail/freelance-orders-panel";
+import { getT } from "@/lib/i18n/server";
 import { EmploymentPlanGrid } from "@/components/income/detail/employment-plan-grid";
 import { FreelanceLatencyKpisBlock } from "@/components/income/detail/freelance-latency-kpis";
 import { SyntheticForecastBlock } from "@/components/income/detail/synthetic-forecast-block";
@@ -45,9 +46,10 @@ interface Props {
 }
 
 export default async function WorkSourceDetailPage({ params, searchParams }: Props) {
-  const [userId, tz] = await Promise.all([
+  const [userId, tz, t] = await Promise.all([
     getCurrentUserId(),
     getCurrentUserTz(),
+    getT(),
   ]);
 
   const { id } = await params;
@@ -123,6 +125,10 @@ export default async function WorkSourceDetailPage({ params, searchParams }: Pro
           workSourceCurrency={source.currencyCode}
           currencies={currencyOptions}
           accounts={accounts}
+          titleLabel={t("income.work.detail.orders.title")}
+          emptyLabel={t("income.work.detail.orders.empty")}
+          addLabel={t("income.work.detail.orders.add")}
+          cancelLabel={t("forms.common.cancel")}
         />
       )}
       {isFreelance && (
