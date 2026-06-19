@@ -33,8 +33,25 @@ export function SubscriptionCard({ card, tz }: Props) {
     });
   }
 
+  function handleCardClick() {
+    router.push(`/expenses/subscriptions/${card.id}/edit`);
+  }
+
+  function handleCardKeyDown(e: React.KeyboardEvent<HTMLElement>) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      handleCardClick();
+    }
+  }
+
   return (
-    <article className="sub-card" tabIndex={0}>
+    <article
+      className="sub-card"
+      tabIndex={0}
+      role="button"
+      onClick={handleCardClick}
+      onKeyDown={handleCardKeyDown}
+    >
       <div className="sub-top">
         <div className="sub-ico" style={icoStyle}>
           {card.icon ?? card.name.charAt(0).toUpperCase()}
@@ -70,22 +87,30 @@ export function SubscriptionCard({ card, tz }: Props) {
         <span className={`sub-next${card.nextToneOk ? " ok" : ""}`}>{card.nextDate}</span>
       </div>
       <div className="sub-btns">
-        <PayDialog
-          subscriptionId={card.id}
-          subscriptionName={card.name}
-          subscriptionAmount={card.price}
-          billingIntervalMonths={card.billingIntervalMonths}
-          currentNextPaymentDate={card.nextPaymentDateIso}
-          onPaid={() => router.refresh()}
-          tz={tz}
-        />
-        <Link href={`/expenses/subscriptions/${card.id}/edit`} className="btn">
+        <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+          <PayDialog
+            subscriptionId={card.id}
+            subscriptionName={card.name}
+            subscriptionAmount={card.price}
+            billingIntervalMonths={card.billingIntervalMonths}
+            currentNextPaymentDate={card.nextPaymentDateIso}
+            onPaid={() => router.refresh()}
+            tz={tz}
+          />
+        </span>
+        <Link
+          href={`/expenses/subscriptions/${card.id}/edit`}
+          className="btn"
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
           {t("buttons.edit")}
         </Link>
         <button
           type="button"
           className="btn"
-          onClick={() => setDeleteOpen(true)}
+          onClick={(e) => { e.stopPropagation(); setDeleteOpen(true); }}
+          onKeyDown={(e) => e.stopPropagation()}
         >
           {t("buttons.delete")}
         </button>

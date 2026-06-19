@@ -1034,6 +1034,8 @@ export const enDict: RuDictShape = {
       net_sub_neg: "negative",
       savings_rate: "rate {pct}%",
       no_data: "no data",
+      avg_spend_day: "AVG SPEND / DAY",
+      avg_spend_day_sub: "average",
       // === wave-1+2 shell ===
       title: "key metrics",
       title_period: "· {period}",

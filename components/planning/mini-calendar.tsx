@@ -64,12 +64,7 @@ export function MiniCalendar({ itemsByDay, selectedDay, horizon, labels }: Props
   ];
 
   function handleDayClick(iso: string) {
-    const isAlreadySelected = selectedDay === iso;
-    if (isAlreadySelected) {
-      router.replace(`/planning/calendar?horizon=${horizon}`, { scroll: false });
-    } else {
-      router.replace(`/planning/calendar?horizon=${horizon}&day=${iso}`, { scroll: false });
-    }
+    router.push(`/planning/events/new?date=${iso}`);
   }
 
   return (
@@ -111,7 +106,9 @@ export function MiniCalendar({ itemsByDay, selectedDay, horizon, labels }: Props
                     key={iso}
                     className={`mini-cal-cell${isToday ? " is-today" : ""}${isSelected ? " is-selected" : ""}`}
                     onClick={() => handleDayClick(iso)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleDayClick(iso); } }}
                     role="button"
+                    tabIndex={0}
                     aria-label={iso}
                     aria-pressed={isSelected}
                   >

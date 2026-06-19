@@ -1042,6 +1042,8 @@ export const ruDict = {
       net_sub_neg: "отрицательный",
       savings_rate: "норма {pct}%",
       no_data: "нет данных",
+      avg_spend_day: "СР. РАСХОД / ДЕНЬ",
+      avg_spend_day_sub: "в среднем",
       // === wave-1+2 shell ===
       title: "ключевые метрики",
       title_period: "· {period}",

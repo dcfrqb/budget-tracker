@@ -142,6 +142,18 @@ export default async function AnalyticsPage({
       s: t("analytics.kpi.net_sub"),
       c: net.gte(0) ? "pos" : "neg",
     },
+    {
+      k: t("analytics.kpi.avg_spend_day"),
+      v: (() => {
+        const periodDays = Math.max(1, Math.round((currentRange.to.getTime() - currentRange.from.getTime()) / (24 * 60 * 60 * 1000)));
+        return Number(outflow.div(periodDays).toFixed(0));
+      })(),
+      vFormat: "money",
+      delta: "",
+      deltaTone: "info",
+      s: t("analytics.kpi.avg_spend_day_sub"),
+      c: "info",
+    },
   ];
 
   // ── Pie slices ───────────────────────────────────────────────

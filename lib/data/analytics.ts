@@ -361,6 +361,8 @@ export const getPeriodCompare = cache(async (
   const prevByCat = sumByCat(prevRows);
 
   const EPSILON = new Prisma.Decimal("0.01");
+  // Growth beyond this threshold is treated as "new/explosive" rather than a meaningful %
+  const MAX_DELTA_PCT = 1000;
 
   // Все категории, у которых есть движения в current или previous
   const allCatIds = new Set([...currentByCat.keys(), ...prevByCat.keys()]);
@@ -382,6 +384,10 @@ export const getPeriodCompare = cache(async (
     } else {
       kind = "delta";
       deltaPct = current.minus(prev).div(prev).times(100).toNumber();
+      if (Math.abs(deltaPct) > MAX_DELTA_PCT) {
+        kind = "new";
+        deltaPct = null;
+      }
     }
 
     return {

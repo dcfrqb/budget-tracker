@@ -181,6 +181,9 @@ export default async function PlanningCalendarPage({
           <div className="ttl mono">
             <b>{h1}</b> <span className="dim">· {sub}</span>
           </div>
+          <Link href="/planning/events/new" className="btn">
+            {t("buttons.add_event")}
+          </Link>
         </div>
       </div>
 

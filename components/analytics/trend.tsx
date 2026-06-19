@@ -9,7 +9,7 @@ import type { TrendPoint } from "@/lib/data/analytics";
 // ─────────────────────────────────────────────────────────────
 
 const SVG_W = 560;
-const SVG_H = 120;
+const SVG_H = 160;
 const PAD_TOP = 12;
 const PAD_BOTTOM = 24; // space for x-axis labels (rendered outside SVG)
 const PAD_LEFT = 0;
@@ -141,9 +141,9 @@ export function TrendCharts({ points, granularity = "monthly", safeUntilDaysNow 
               {/* Chart */}
               <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} preserveAspectRatio="none">
                 {/* Grid lines */}
-                <g stroke="var(--border)" strokeWidth={1}>
+                <g stroke="var(--border)" strokeWidth={1} vectorEffect="non-scaling-stroke">
                   {gridYs.map((gy, i) => (
-                    <line key={i} x1="0" y1={gy.toFixed(1)} x2={SVG_W} y2={gy.toFixed(1)} />
+                    <line key={i} x1="0" y1={gy.toFixed(1)} x2={SVG_W} y2={gy.toFixed(1)} vectorEffect="non-scaling-stroke" />
                   ))}
                 </g>
 
@@ -159,6 +159,9 @@ export function TrendCharts({ points, granularity = "monthly", safeUntilDaysNow 
                   fill="none"
                   stroke="var(--pos)"
                   strokeWidth={1.6}
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                  vectorEffect="non-scaling-stroke"
                   points={toPoints(inflowYs, n)}
                 />
 
@@ -174,6 +177,9 @@ export function TrendCharts({ points, granularity = "monthly", safeUntilDaysNow 
                   fill="none"
                   stroke="var(--neg)"
                   strokeWidth={1.4}
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                  vectorEffect="non-scaling-stroke"
                   points={toPoints(outflowYs, n)}
                 />
 
@@ -183,6 +189,9 @@ export function TrendCharts({ points, granularity = "monthly", safeUntilDaysNow 
                   stroke="var(--accent)"
                   strokeWidth={1.8}
                   strokeDasharray="4 2"
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                  vectorEffect="non-scaling-stroke"
                   points={toPoints(netYs, n)}
                 />
 

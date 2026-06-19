@@ -122,7 +122,12 @@ export function Compare({
                 <div className="num money">{r.prev}</div>
                 <div className="num money">{r.curr}</div>
                 <div className={`delta ${r.kind === "new" ? "acc" : r.kind === "gone" ? "mut" : r.deltaTone}`}>
-                  {r.kind === "new" ? labels.deltaNew : r.kind === "gone" ? labels.deltaGone : r.delta}
+                  {r.kind === "new" ? (
+                    <>
+                      <span className="cmp-new-tag">{labels.deltaNew}</span>
+                      <span className="money" style={{ color: "var(--text)" }}>{r.curr}</span>
+                    </>
+                  ) : r.kind === "gone" ? labels.deltaGone : r.delta}
                 </div>
                 <div className="cmp-spark">
                   {r.spark && r.spark.length >= 2 && <MiniSparkline points={r.spark} />}
