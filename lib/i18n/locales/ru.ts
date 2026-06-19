@@ -711,6 +711,7 @@ export const ruDict = {
           empty: "Заказов за период нет",
           paid_prefix: "Оплачено",
           tips_suffix: "чаевые",
+          per_hour: "/ч",
           add: "Добавить заказ",
           paid_sum_line: "Получено {paid} / {total} · {count} платежей",
           payments_toggle: "Платежи",

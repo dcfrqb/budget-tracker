@@ -34,6 +34,8 @@ export function FreelanceOrdersPanelRows({
         const statusColor = STATUS_COLOR[order.status] ?? "var(--muted)";
         const amount = new Prisma.Decimal(order.amount);
         const tips = order.tipsAmount ? new Prisma.Decimal(order.tipsAmount) : null;
+        const hoursDec = order.hours ? new Prisma.Decimal(order.hours) : null;
+        const rate = hoursDec && hoursDec.gt(0) ? amount.div(hoursDec) : null;
 
         // Compute received
         const hasStages = order.stages.length > 0;
@@ -101,6 +103,7 @@ export function FreelanceOrdersPanelRows({
                       ? order.performedAt.toISOString().slice(0, 10)
                       : "—"}
                     {order.hours && ` · ${order.hours}h`}
+                    {rate && ` · ${formatMoney(rate, order.currencyCode, { decimals: 0 })}${t("income.work.detail.orders.per_hour")}`}
                   </div>
                   {/* Plan/fact line */}
                   {showPlanFact && (

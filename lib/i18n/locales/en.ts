@@ -703,6 +703,7 @@ export const enDict: RuDictShape = {
           empty: "No orders in this period",
           paid_prefix: "Paid",
           tips_suffix: "tips",
+          per_hour: "/h",
           add: "Add order",
           paid_sum_line: "Received {paid} / {total} · {count} payments",
           payments_toggle: "Payments",
