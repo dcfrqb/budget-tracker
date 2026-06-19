@@ -8,6 +8,14 @@ interface Props {
   baseCcy: string;
 }
 
+function barColor(kind: SourceComparisonRow["kind"]): string {
+  switch (kind) {
+    case "FREELANCE":   return "var(--accent)";
+    case "EMPLOYMENT":  return "var(--pos)";
+    default:            return "var(--muted)";
+  }
+}
+
 export async function SourceComparison({ rows, baseCcy }: Props) {
   const t = await getT();
 
@@ -50,7 +58,7 @@ export async function SourceComparison({ rows, baseCcy }: Props) {
                 style={{
                   width: `${Math.max(widthPct, 0)}%`,
                   minWidth: row.totalBase.gt(0) ? "2px" : "0",
-                  background: "var(--accent)",
+                  background: barColor(row.kind),
                 }}
               />
             </div>
