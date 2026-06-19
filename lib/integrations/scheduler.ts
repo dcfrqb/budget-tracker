@@ -226,17 +226,33 @@ export async function enqueueManualSync(
       await syncCredential(userId, credentialId, { logId: jobId });
     } catch (err) {
       const errorClass = err instanceof Error ? err.message.split(":")[0].slice(0, 40) : "unknown";
-      try {
-        await db.integrationSyncLog.update({
-          where: { id: jobId },
-          data: {
-            status: "ERROR",
-            finishedAt: new Date(),
-            errorClass,
-          },
+
+      // Breaker/rate-limit rejections are already recorded by syncCredential
+      // as CIRCUIT_OPEN or RATE_LIMITED rows. Writing a second ERROR row here
+      // would poison the circuit-breaker's real-error basis, so we delete the
+      // orphan RUNNING placeholder instead (canonical rejection row was written
+      // inside syncCredential).
+      const isRejection = errorClass === "circuit_open" || errorClass === "rate_limited";
+
+      if (isRejection) {
+        await db.integrationSyncLog.deleteMany({
+          where: { id: jobId, status: "RUNNING" },
+        }).catch(() => {
+          // ignore — row may already be gone
         });
-      } catch {
-        // ignore — best effort
+      } else {
+        try {
+          await db.integrationSyncLog.update({
+            where: { id: jobId },
+            data: {
+              status: "ERROR",
+              finishedAt: new Date(),
+              errorClass,
+            },
+          });
+        } catch {
+          // ignore — best effort
+        }
       }
     }
 
