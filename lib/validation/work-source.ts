@@ -4,8 +4,8 @@ import { zCurrencyCode, zMoney, zIsoDate } from "./shared";
 
 const baseShape = {
   name: z.string().min(1).max(200),
-  kind: z.nativeEnum(WorkKind),
-  currencyCode: zCurrencyCode,
+  kind: z.nativeEnum(WorkKind).nullish(),
+  currencyCode: zCurrencyCode.nullish(),
   rateType: z.nativeEnum(RateType).nullish(),
   rateAmount: zMoney.nullish(),
   premiumAmount: zMoney.nullish(),
@@ -21,21 +21,10 @@ const baseShape = {
 
 function addCrossFieldRules<T extends z.ZodObject<typeof baseShape>>(schema: T) {
   return schema.superRefine((data, ctx) => {
-    const { kind, rateType, rateAmount, payDay, startedAt, endedAt } = data;
+    const { rateType, rateAmount, startedAt, endedAt } = data;
 
-    if (kind === WorkKind.EMPLOYMENT) {
-      if (rateType == null) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "required_for_employment", path: ["rateType"] });
-      }
-      if (rateAmount == null) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "required_for_employment", path: ["rateAmount"] });
-      }
-      if (rateType === RateType.MONTHLY && payDay == null) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "required_for_monthly", path: ["payDay"] });
-      }
-    }
-
-    if (kind === WorkKind.FREELANCE && rateAmount != null && rateType == null) {
+    // rateType required only IF rateAmount is set (regardless of kind)
+    if (rateAmount != null && rateType == null) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "required_when_rate_set", path: ["rateType"] });
     }
 

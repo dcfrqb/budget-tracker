@@ -3,6 +3,7 @@ import { getCurrentUserId } from "@/lib/api/auth";
 import { ok, serverError } from "@/lib/api/response";
 import { parseBody, parseWith } from "@/lib/api/validate";
 import { workSourceCreateSchema } from "@/lib/validation/work-source";
+import { createWorkSource } from "@/lib/data/_mutations/work-sources";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -41,9 +42,7 @@ export async function POST(req: Request) {
     const body = await parseBody(req, workSourceCreateSchema);
     if (!body.ok) return body.response;
 
-    const source = await db.workSource.create({
-      data: { ...body.data, userId },
-    });
+    const source = await createWorkSource(userId, body.data);
     return ok(source, 201);
   } catch (e) {
     return serverError(e);

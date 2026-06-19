@@ -1,8 +1,8 @@
 import { cache } from "react";
 import { db } from "@/lib/db";
-import { Prisma, TransactionKind, TransactionStatus, FreelanceOrderStatus, FreelanceOrderStageStatus, WorkKind } from "@prisma/client";
+import { Prisma, TransactionKind, TransactionStatus, FreelanceOrderStatus, FreelanceOrderStageStatus } from "@prisma/client";
 import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
-import { startOfMonthUtcInTz, periodBounds } from "@/lib/data/_period";
+import { startOfMonthUtcInTz, addMonths, periodBounds } from "@/lib/data/_period";
 import type { PeriodCode } from "@/lib/data/_period";
 import { convertToBase, getLatestRatesMap } from "@/lib/data/wallet";
 import { HOURS_PER_MONTH_DEFAULT } from "@/lib/constants";
@@ -33,7 +33,7 @@ export const getPrimaryWorkSource = cache(async (userId: string) => {
 export type WorkSourceCardSummary = {
   id: string;
   name: string;
-  kind: string;
+  kind: string | null;
   currencyCode: string;
   rateType: string | null;
   rateAmount: Prisma.Decimal | null;
@@ -44,6 +44,7 @@ export type WorkSourceCardSummary = {
   lastPaymentAt: Date | null;
   lastPaymentAmount: Prisma.Decimal | null;
   mtdTotal: Prisma.Decimal;
+  typicalMonthly: Prisma.Decimal | null;
   nextExpectedAt: Date | null;
 };
 
@@ -56,6 +57,10 @@ export const getWorkSourceCardSummaries = cache(
     const tz = await getCurrentUserTz();
     const now = new Date();
     const mtdStart = startOfMonthUtcInTz(tz, now);
+
+    // 3 full calendar months back (for typicalMonthly) — derived from the
+    // tz-correct mtdStart so the boundary is exact in the user's timezone.
+    const typical3Start = addMonths(mtdStart, -3);
 
     const sources = await db.workSource.findMany({
       where: { userId },
@@ -85,6 +90,25 @@ export const getWorkSourceCardSummaries = cache(
       },
     });
 
+    // Batch: DONE+PARTIAL income txns for last 3 full calendar months (for typicalMonthly)
+    const allTypical3Txns = await db.transaction.findMany({
+      where: {
+        userId,
+        workSourceId: { in: sourceIds },
+        deletedAt: null,
+        kind: TransactionKind.INCOME,
+        status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
+        occurredAt: { gte: typical3Start, lt: mtdStart },
+      },
+      select: {
+        workSourceId: true,
+        occurredAt: true,
+        amount: true,
+        status: true,
+        facts: { select: { amount: true } },
+      },
+    });
+
     // Batch: next planned income per source
     const allNextPlanned = await db.transaction.findMany({
       where: {
@@ -103,6 +127,8 @@ export const getWorkSourceCardSummaries = cache(
     const lastTxnBySource = new Map<string, (typeof allDonePartialTxns)[0]>();
     const mtdTxnsBySource = new Map<string, typeof allDonePartialTxns>();
     const nextPlannedBySource = new Map<string, Date>();
+    // typical3: map of sourceId → Set of monthKeys → total per month
+    const typical3MonthsBySource = new Map<string, Map<string, Prisma.Decimal>>();
 
     for (const txn of allDonePartialTxns) {
       if (!txn.workSourceId) continue;
@@ -114,6 +140,29 @@ export const getWorkSourceCardSummaries = cache(
         arr.push(txn);
         mtdTxnsBySource.set(txn.workSourceId, arr);
       }
+    }
+
+    const tzMonthFmt3 = new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz,
+      year: "numeric",
+      month: "2-digit",
+    });
+
+    for (const txn of allTypical3Txns) {
+      if (!txn.workSourceId) continue;
+      const parts = tzMonthFmt3.formatToParts(txn.occurredAt);
+      const yr = parts.find((p) => p.type === "year")!.value;
+      const mo = parts.find((p) => p.type === "month")!.value;
+      const key = `${yr}-${mo}`;
+
+      const amount =
+        txn.status === TransactionStatus.DONE
+          ? new Prisma.Decimal(txn.amount)
+          : txn.facts.reduce((s, f) => s.plus(f.amount), new Prisma.Decimal(0));
+
+      const monthMap = typical3MonthsBySource.get(txn.workSourceId) ?? new Map<string, Prisma.Decimal>();
+      monthMap.set(key, (monthMap.get(key) ?? new Prisma.Decimal(0)).plus(amount));
+      typical3MonthsBySource.set(txn.workSourceId, monthMap);
     }
 
     for (const txn of allNextPlanned) {
@@ -166,6 +215,14 @@ export const getWorkSourceCardSummaries = cache(
         mtdTotal = mtdTotal.plus(effectiveAmount(txn));
       }
 
+      // Typical: average of the last 3 full calendar months
+      const monthMap = typical3MonthsBySource.get(ws.id);
+      let typicalMonthly: Prisma.Decimal | null = null;
+      if (monthMap && monthMap.size > 0) {
+        const sum = Array.from(monthMap.values()).reduce((s, v) => s.plus(v), new Prisma.Decimal(0));
+        typicalMonthly = sum.div(monthMap.size);
+      }
+
       return {
         id: ws.id,
         name: ws.name,
@@ -180,6 +237,7 @@ export const getWorkSourceCardSummaries = cache(
         lastPaymentAt,
         lastPaymentAmount,
         mtdTotal,
+        typicalMonthly,
         nextExpectedAt: nextPlannedBySource.get(ws.id) ?? null,
       };
     });
@@ -400,7 +458,7 @@ export const getWorkSourceKpis = cache(
         effectiveHourlyRate = new Prisma.Decimal(ws.rateAmount).div(hoursPerMonth);
       } else if (ws.rateType === "DAILY" && ws.rateAmount) {
         effectiveHourlyRate = new Prisma.Decimal(ws.rateAmount).div(8);
-      } else if (ws.kind === WorkKind.FREELANCE) {
+      } else if (ws.kind === "FREELANCE") {
         // Fallback: derive from orders where both amount and hours are recorded
         const orders = await db.freelanceOrder.findMany({
           where: {
@@ -845,7 +903,7 @@ export const getFreelanceOrderStatusBreakdown = cache(
 export type SourceComparisonRow = {
   id: string;
   name: string;
-  kind: WorkKind;
+  kind: string | null;
   currencyCode: string;
   totalNative: Prisma.Decimal;
   totalBase: Prisma.Decimal;

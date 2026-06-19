@@ -640,6 +640,7 @@ export const enDict: RuDictShape = {
         employment: "Job",
         freelance: "Freelance",
         one_time: "One-time",
+        source: "Source",
       },
       tax: {
         ndfl: "NDFL {pct}%",
@@ -649,6 +650,7 @@ export const enDict: RuDictShape = {
       card: {
         last_payment: "Last payment",
         mtd_total: "MTD total",
+        typical_monthly: "Typical (3-month avg)",
         next_expected: "Next expected",
         no_payments: "No payments yet",
         tax_label: "TAX",
@@ -1941,9 +1943,15 @@ export const enDict: RuDictShape = {
         ended_at: "Ended",
       },
       kind: {
+        not_set: "— not set",
         employment: "Employment",
         freelance: "Freelance",
         one_time: "One-time",
+      },
+      section: {
+        basics: "Basics",
+        pay_details: "Pay details (reference)",
+        period: "Period",
       },
       rate_type: {
         hourly: "Hourly",
@@ -1969,6 +1977,8 @@ export const enDict: RuDictShape = {
       hint: {
         hours_per_month: "Default 160 h/mo",
         tax_rate: "Hint only — manage taxes manually",
+        currency_default: "If not set, defaults to your main currency",
+        pay_details_reference: "Reference only — actual income is calculated from linked transactions",
       },
     },
     tx_confirm: {

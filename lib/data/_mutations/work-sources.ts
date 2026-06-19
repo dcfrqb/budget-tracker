@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
-import { WorkKind } from "@prisma/client";
 import { getWorkSourceById } from "@/lib/data/work-sources";
+import { DEFAULT_CURRENCY } from "@/lib/constants";
 import type {
   WorkSourceCreateInput,
   WorkSourceUpdateInput,
@@ -10,9 +10,20 @@ import type {
 // WorkSource mutations
 // ─────────────────────────────────────────────────────────────
 
+export async function resolveUserBaseCurrency(userId: string): Promise<string> {
+  // Use the primary non-archived account's currency, fallback to DEFAULT_CURRENCY
+  const primary = await db.account.findFirst({
+    where: { userId, archivedAt: null },
+    orderBy: { createdAt: "asc" },
+    select: { currencyCode: true },
+  });
+  return primary?.currencyCode ?? DEFAULT_CURRENCY;
+}
+
 export async function createWorkSource(userId: string, input: WorkSourceCreateInput) {
+  const currencyCode = input.currencyCode ?? (await resolveUserBaseCurrency(userId));
   return db.workSource.create({
-    data: { ...input, userId },
+    data: { ...input, currencyCode, userId },
   });
 }
 
@@ -38,9 +49,9 @@ export async function updateWorkSource(
 
   // Cleanup: when kind changes away from EMPLOYMENT, clear premium fields and payDay
   const incomingKind = input.kind ?? existing.kind;
-  const kindChanged = input.kind != null && input.kind !== existing.kind;
+  const kindChanged = input.kind !== undefined && input.kind !== existing.kind;
   const cleanupEmploymentFields =
-    kindChanged && incomingKind !== WorkKind.EMPLOYMENT;
+    kindChanged && incomingKind !== "EMPLOYMENT";
 
   const data: WorkSourceUpdateInput = { ...input };
 
@@ -50,7 +61,11 @@ export async function updateWorkSource(
     (data as Record<string, unknown>).payDay = null;
   }
 
-  return db.workSource.update({ where: { id }, data });
+  // Strip null for required Prisma fields (currencyCode is non-nullable in schema)
+  const { currencyCode: ccy, ...restData } = data;
+  const prismaData = ccy != null ? { ...restData, currencyCode: ccy } : restData;
+
+  return db.workSource.update({ where: { id }, data: prismaData });
 }
 
 // Soft deactivate

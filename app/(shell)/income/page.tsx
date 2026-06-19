@@ -180,7 +180,9 @@ export default async function IncomePage({
         ? t("income.work.kind_label.employment")
         : ws.kind === "FREELANCE"
         ? t("income.work.kind_label.freelance")
-        : t("income.work.kind_label.one_time");
+        : ws.kind === "ONE_TIME"
+        ? t("income.work.kind_label.one_time")
+        : t("income.work.kind_label.source");
 
     let taxLabel: string | undefined;
     if (ws.taxRatePct) {
@@ -214,6 +216,10 @@ export default async function IncomePage({
       nextExpectedLabel = `${d.getUTCDate()} ${monthShort[d.getUTCMonth()]}`;
     }
 
+    const typicalMonthlyLabel: string | undefined = ws.typicalMonthly?.gt(0)
+      ? fmtWorkMoney(ws.typicalMonthly, ws.currencyCode)
+      : undefined;
+
     return {
       id: ws.id,
       kind: ws.kind as WorkSourceCardView["kind"],
@@ -229,6 +235,7 @@ export default async function IncomePage({
       isActive: ws.isActive,
       lastPaymentLabel,
       mtdTotalLabel,
+      typicalMonthlyLabel,
       nextExpectedLabel,
     };
   });

@@ -21,7 +21,9 @@ export async function DetailHeader({ source }: Props) {
       ? "income.work.kind_label.employment"
       : source.kind === "FREELANCE"
         ? "income.work.kind_label.freelance"
-        : "income.work.kind_label.one_time";
+        : source.kind === "ONE_TIME"
+          ? "income.work.kind_label.one_time"
+          : "income.work.kind_label.source";
 
   const kindLabel = t(kindLabelKey as Parameters<typeof t>[0]);
 
@@ -82,7 +84,7 @@ export async function DetailHeader({ source }: Props) {
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span className={KIND_TAG_CLASS[source.kind] ?? "ws-tag other"}>
+              <span className={KIND_TAG_CLASS[source.kind ?? ""] ?? "ws-tag other"}>
                 {kindLabel}
               </span>
               {!source.isActive && (

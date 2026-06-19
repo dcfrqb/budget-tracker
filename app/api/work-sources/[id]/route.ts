@@ -35,9 +35,13 @@ export async function PATCH(
     const body = await parseBody(req, workSourceUpdateSchema);
     if (!body.ok) return body.response;
 
+    // Strip null for required fields (currencyCode is required in schema)
+    const { currencyCode, ...rest } = body.data;
+    const data = currencyCode != null ? { ...rest, currencyCode } : rest;
+
     const updated = await db.workSource.update({
       where: { id },
-      data: body.data,
+      data,
     });
     return ok(updated);
   } catch (e) {

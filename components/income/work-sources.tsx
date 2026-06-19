@@ -3,7 +3,7 @@ import { getT } from "@/lib/i18n/server";
 
 export interface WorkSourceCardView {
   id: string;
-  kind: "EMPLOYMENT" | "FREELANCE" | "ONE_TIME";
+  kind: "EMPLOYMENT" | "FREELANCE" | "ONE_TIME" | null;
   kindLabel: string;
   name: string;
   sub?: string;
@@ -15,10 +15,11 @@ export interface WorkSourceCardView {
   // Summary rows (from getWorkSourceCardSummaries)
   lastPaymentLabel?: string;
   mtdTotalLabel?: string;
+  typicalMonthlyLabel?: string;
   nextExpectedLabel?: string;
 }
 
-const KIND_TAG_CLASS: Record<WorkSourceCardView["kind"], string> = {
+const KIND_TAG_CLASS: Record<string, string> = {
   EMPLOYMENT: "ws-tag emp",
   FREELANCE:  "ws-tag fl",
   ONE_TIME:   "ws-tag other",
@@ -70,7 +71,7 @@ export async function WorkSourcesSection({ items }: WorkSourcesSectionProps) {
         ) : (
           <div className="ws-grid">
             {items.map((src) => {
-              const hasPaymentSummary = src.lastPaymentLabel || src.mtdTotalLabel || src.nextExpectedLabel;
+              const hasPaymentSummary = src.lastPaymentLabel || src.mtdTotalLabel || src.typicalMonthlyLabel || src.nextExpectedLabel;
 
               return (
                 <Link
@@ -81,7 +82,7 @@ export async function WorkSourcesSection({ items }: WorkSourcesSectionProps) {
                   style={{ display: "flex", flexDirection: "column", gap: 10, textDecoration: "none" }}
                 >
                   <div className="ws-top" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span className={KIND_TAG_CLASS[src.kind]}>{src.kindLabel}</span>
+                    <span className={KIND_TAG_CLASS[src.kind ?? ""] ?? "ws-tag other"}>{src.kindLabel}</span>
                     {src.payDay != null && (
                       <span className="mono" style={{ fontSize: "var(--text-2xs)", color: "var(--muted)" }}>
                         {src.payDay}
@@ -124,6 +125,12 @@ export async function WorkSourcesSection({ items }: WorkSourcesSectionProps) {
                         <div>
                           <div className="k">{t("income.work.card.mtd_total")}</div>
                           <div className="v pos">{src.mtdTotalLabel}</div>
+                        </div>
+                      )}
+                      {src.typicalMonthlyLabel && (
+                        <div>
+                          <div className="k">{t("income.work.card.typical_monthly")}</div>
+                          <div className="v">{src.typicalMonthlyLabel}</div>
                         </div>
                       )}
                       {src.nextExpectedLabel && (

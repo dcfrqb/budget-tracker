@@ -12,7 +12,7 @@ function barColor(kind: SourceComparisonRow["kind"]): string {
   switch (kind) {
     case "FREELANCE":   return "var(--accent)";
     case "EMPLOYMENT":  return "var(--pos)";
-    case "ONE_TIME":    return "var(--muted)";
+    default:            return "var(--muted)";
   }
 }
 

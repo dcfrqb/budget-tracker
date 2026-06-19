@@ -520,10 +520,10 @@ enum RateType {
 }
 
 model WorkSource {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   userId       String
   name         String
-  kind         WorkKind
+  kind         WorkKind?
   currencyCode String
 
   rateType   RateType?

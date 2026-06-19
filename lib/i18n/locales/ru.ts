@@ -648,6 +648,7 @@ export const ruDict = {
         employment: "Работа",
         freelance: "Фриланс",
         one_time: "Разовое",
+        source: "Источник",
       },
       tax: {
         ndfl: "НДФЛ {pct}%",
@@ -657,6 +658,7 @@ export const ruDict = {
       card: {
         last_payment: "Последняя выплата",
         mtd_total: "С начала месяца",
+        typical_monthly: "Типичный (среднее за 3 мес)",
         next_expected: "Следующая ожидается",
         no_payments: "Выплат пока нет",
         tax_label: "НАЛОГ",
@@ -1949,9 +1951,15 @@ export const ruDict = {
         ended_at: "Дата окончания",
       },
       kind: {
+        not_set: "— не указан",
         employment: "Трудоустройство",
         freelance: "Фриланс",
         one_time: "Разовый",
+      },
+      section: {
+        basics: "Основное",
+        pay_details: "Реквизиты выплат (справочно)",
+        period: "Период",
       },
       rate_type: {
         hourly: "Почасовая",
@@ -1977,6 +1985,8 @@ export const ruDict = {
       hint: {
         hours_per_month: "По умолчанию 160 ч/мес",
         tax_rate: "Только подсказка — налоги ведёте вручную",
+        currency_default: "Если не выбрана — подставится основная валюта",
+        pay_details_reference: "Справочные поля — не влияют на реальный доход, рассчитываемый из транзакций",
       },
     },
     tx_confirm: {
