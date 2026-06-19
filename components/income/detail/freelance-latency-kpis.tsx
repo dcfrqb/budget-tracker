@@ -5,10 +5,10 @@ interface Props {
   kpis: FreelanceLatencyKpis;
 }
 
-function streakColor(streak: number): string {
-  if (streak === 0) return "var(--pos)";
-  if (streak >= 3) return "var(--neg)";
-  return "var(--warn)";
+function streakClass(streak: number): string {
+  if (streak === 0) return "v pos";
+  if (streak >= 3) return "v neg";
+  return "v warn";
 }
 
 export async function FreelanceLatencyKpisBlock({ kpis }: Props) {
@@ -25,68 +25,14 @@ export async function FreelanceLatencyKpisBlock({ kpis }: Props) {
       style={{ padding: "var(--sp-3)", borderBottom: "1px solid var(--border)" }}
     >
       <div className="freelance-extras">
-        <div
-          style={{
-            padding: "var(--sp-3)",
-            background: "var(--panel-2)",
-            border: "1px solid var(--border)",
-            borderRadius: 4,
-            display: "flex",
-            flexDirection: "column",
-            gap: "var(--space-1)",
-          }}
-        >
-          <div
-            className="mono"
-            style={{
-              fontSize: "var(--text-xs)",
-              color: "var(--muted)",
-              textTransform: "uppercase",
-              letterSpacing: "0.05em",
-            }}
-          >
-            {t("income.work.detail.kpi.avg_days_to_pay")}
-          </div>
-          <div
-            className="mono"
-            style={{ fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--text)" }}
-          >
-            {avgFmt}
-          </div>
+        <div className="kpi">
+          <div className="c">{t("income.work.detail.kpi.avg_days_to_pay")}</div>
+          <div className="v">{avgFmt}</div>
         </div>
 
-        <div
-          style={{
-            padding: "var(--sp-3)",
-            background: "var(--panel-2)",
-            border: "1px solid var(--border)",
-            borderRadius: 4,
-            display: "flex",
-            flexDirection: "column",
-            gap: "var(--space-1)",
-          }}
-        >
-          <div
-            className="mono"
-            style={{
-              fontSize: "var(--text-xs)",
-              color: "var(--muted)",
-              textTransform: "uppercase",
-              letterSpacing: "0.05em",
-            }}
-          >
-            {t("income.work.detail.kpi.late_streak")}
-          </div>
-          <div
-            className="mono"
-            style={{
-              fontSize: "var(--text-lg)",
-              fontWeight: 700,
-              color: streakColor(kpis.latePaymentStreak),
-            }}
-          >
-            {kpis.latePaymentStreak}
-          </div>
+        <div className="kpi">
+          <div className="c">{t("income.work.detail.kpi.late_streak")}</div>
+          <div className={streakClass(kpis.latePaymentStreak)}>{kpis.latePaymentStreak}</div>
         </div>
       </div>
     </div>

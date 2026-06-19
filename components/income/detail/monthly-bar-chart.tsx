@@ -5,7 +5,7 @@ import type { WorkSourceMonthlyBucket } from "@/lib/data/work-sources";
 
 const SVG_H = 100;
 const PAD_TOP = 8;
-const PAD_BOTTOM = 24;
+const PAD_BOTTOM = 4;
 const BAR_PLOT_H = SVG_H - PAD_TOP - PAD_BOTTOM;
 
 interface Props {
@@ -48,6 +48,7 @@ export function MonthlyBarChart({ series, sourceCcy }: Props) {
   const barW = n > 0 ? Math.floor(100 / n) : 10;
   const gap = Math.max(1, Math.floor(barW * 0.15));
   const netBarW = barW - gap;
+  const isNarrow = n > 4;
 
   return (
     <div
@@ -74,6 +75,7 @@ export function MonthlyBarChart({ series, sourceCcy }: Props) {
             y2={SVG_H - PAD_BOTTOM}
             stroke="var(--border)"
             strokeWidth={0.5}
+            vectorEffect="non-scaling-stroke"
           />
           {series.map((bucket, i) => {
             const val = Number(bucket.total.toString());
@@ -81,33 +83,34 @@ export function MonthlyBarChart({ series, sourceCcy }: Props) {
             const x = i * barW;
             const y = SVG_H - PAD_BOTTOM - barH;
 
-            const isNarrow = n > 4;
-            const label = shortMonthLabel(bucket.monthKey, isNarrow);
-
             return (
-              <g key={bucket.monthKey}>
-                <rect
-                  x={x + gap / 2}
-                  y={y}
-                  width={netBarW}
-                  height={barH}
-                  fill="var(--accent)"
-                  rx={0.5}
-                  opacity={0.85}
-                />
-                <text
-                  x={x + barW / 2}
-                  y={SVG_H - 4}
-                  textAnchor="middle"
-                  fontSize={5}
-                  fill="var(--muted)"
-                >
-                  {label}
-                </text>
-              </g>
+              <rect
+                key={bucket.monthKey}
+                x={x + gap / 2}
+                y={y}
+                width={netBarW}
+                height={barH}
+                fill="var(--accent)"
+                rx={0.5}
+                opacity={0.85}
+              />
             );
           })}
         </svg>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-around",
+            fontFamily: "var(--mono-font), monospace",
+            fontSize: "var(--text-2xs)",
+            color: "var(--dim)",
+            marginTop: 4,
+          }}
+        >
+          {series.map((bucket) => (
+            <span key={bucket.monthKey}>{shortMonthLabel(bucket.monthKey, isNarrow)}</span>
+          ))}
+        </div>
       </div>
     </div>
   );

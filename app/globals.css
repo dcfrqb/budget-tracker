@@ -1113,7 +1113,8 @@ a { color: inherit; text-decoration: none; }
 .freelance-extras {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: var(--sp-2);
+  gap: 1px;
+  background: var(--border);
 }
 @container wsdetail (max-width: 380px) {
   .freelance-extras { grid-template-columns: 1fr; }
@@ -1136,7 +1137,8 @@ a { color: inherit; text-decoration: none; }
 .ws-chart-row {
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-  gap: var(--sp-3);
+  gap: 1px;
+  background: var(--border);
 }
 @media (max-width: 900px) {
   .ws-chart-row {
