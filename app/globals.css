@@ -1098,16 +1098,16 @@ a { color: inherit; text-decoration: none; }
 
 /* Work-source detail page layout */
 .ws-detail { container-type: inline-size; container-name: wsdetail; }
+/* Hairline-separated KPI cells that fill every wrapped row (no empty holes,
+   matches the house .pf-grid / .period-grid abutting style). */
 .ws-kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--sp-2);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
+  background: var(--border);
 }
-@container wsdetail (max-width: 520px) {
-  .ws-kpi-grid { grid-template-columns: repeat(2, 1fr); }
-}
-@container wsdetail (max-width: 380px) {
-  .ws-kpi-grid { grid-template-columns: 1fr; }
+.ws-detail .ws-kpi-grid > * {
+  flex: 1 1 170px;
 }
 
 .freelance-extras {

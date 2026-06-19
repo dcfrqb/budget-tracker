@@ -18,34 +18,10 @@ interface KpiCardProps {
 
 function KpiCard({ label, value, sub }: KpiCardProps) {
   return (
-    <div
-      style={{
-        padding: "var(--sp-3)",
-        background: "var(--panel-2)",
-        border: "1px solid var(--border)",
-        borderRadius: 4,
-        display: "flex",
-        flexDirection: "column",
-        gap: 4,
-      }}
-    >
-      <div
-        className="mono"
-        style={{ fontSize: "var(--text-xs)", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}
-      >
-        {label}
-      </div>
-      <div
-        className="mono"
-        style={{ fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--text)" }}
-      >
-        {value}
-      </div>
-      {sub && (
-        <div style={{ fontSize: "var(--text-xs)", color: "var(--muted)" }}>
-          {sub}
-        </div>
-      )}
+    <div className="kpi">
+      <div className="c">{label}</div>
+      <div className="v">{value}</div>
+      {sub && <div className="s">{sub}</div>}
     </div>
   );
 }
@@ -64,7 +40,7 @@ export async function DetailKpiGrid({ kpis, taxRatePct, sourceCcy, baseCcy }: Pr
         })
       : undefined;
 
-  const avgFmt = formatMoney(kpis.avgPerMonth, sourceCcy);
+  const avgFmt = formatMoney(kpis.avgPerMonth, sourceCcy, { decimals: 0 });
 
   const rateFmt = kpis.effectiveHourlyRate
     ? formatMoney(kpis.effectiveHourlyRate, sourceCcy)
