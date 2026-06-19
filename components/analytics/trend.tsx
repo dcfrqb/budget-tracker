@@ -3,6 +3,7 @@
 import { useT, useLocale } from "@/lib/i18n/context";
 import { formatShortDate, formatMonthYear } from "@/lib/format/date";
 import type { TrendPoint } from "@/lib/data/analytics";
+import { monotonePath, monotoneAreaPath } from "@/lib/charts/monotone";
 
 // ─────────────────────────────────────────────────────────────
 // Helpers
@@ -18,20 +19,6 @@ const PLOT_H = SVG_H - PAD_TOP - 8;
 function calcY(value: number, min: number, range: number): number {
   if (range === 0) return PAD_TOP + PLOT_H / 2;
   return PAD_TOP + PLOT_H - ((value - min) / range) * PLOT_H;
-}
-
-function toPoints(ys: number[], total: number): string {
-  if (total === 0) return "";
-  return ys
-    .map((y, i) => `${(i / Math.max(total - 1, 1)) * SVG_W},${y.toFixed(1)}`)
-    .join(" ");
-}
-
-function toFillPoints(ys: number[], total: number): string {
-  if (total === 0) return "";
-  const pts = toPoints(ys, total);
-  const lastX = ((total - 1) / Math.max(total - 1, 1)) * SVG_W;
-  return `${pts} ${lastX},${SVG_H} 0,${SVG_H}`;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -65,6 +52,7 @@ export function TrendCharts({ points, granularity = "monthly", safeUntilDaysNow 
   const netYs = points.map((p) => calcY(Number(p.netBase), minVal, range));
 
   const n = points.length;
+  const xs = points.map((_, i) => (i / Math.max(n - 1, 1)) * SVG_W);
 
   // X-axis labels — show first, middle and last
   const labelIndices = n <= 1
@@ -149,42 +137,43 @@ export function TrendCharts({ points, granularity = "monthly", safeUntilDaysNow 
 
                 {/* Inflow fill + line */}
                 {n > 1 && (
-                  <polyline
+                  <path
+                    d={monotoneAreaPath(xs, inflowYs, SVG_H)}
                     style={{ fill: "var(--pos-fill)" }}
                     stroke="none"
-                    points={toFillPoints(inflowYs, n)}
                   />
                 )}
-                <polyline
+                <path
+                  d={monotonePath(xs, inflowYs)}
                   fill="none"
                   stroke="var(--pos)"
                   strokeWidth={1.6}
                   strokeLinejoin="round"
                   strokeLinecap="round"
                   vectorEffect="non-scaling-stroke"
-                  points={toPoints(inflowYs, n)}
                 />
 
                 {/* Outflow fill + line */}
                 {n > 1 && (
-                  <polyline
+                  <path
+                    d={monotoneAreaPath(xs, outflowYs, SVG_H)}
                     style={{ fill: "var(--neg-fill)" }}
                     stroke="none"
-                    points={toFillPoints(outflowYs, n)}
                   />
                 )}
-                <polyline
+                <path
+                  d={monotonePath(xs, outflowYs)}
                   fill="none"
                   stroke="var(--neg)"
                   strokeWidth={1.4}
                   strokeLinejoin="round"
                   strokeLinecap="round"
                   vectorEffect="non-scaling-stroke"
-                  points={toPoints(outflowYs, n)}
                 />
 
                 {/* Net line */}
-                <polyline
+                <path
+                  d={monotonePath(xs, netYs)}
                   fill="none"
                   stroke="var(--accent)"
                   strokeWidth={1.8}
@@ -192,7 +181,6 @@ export function TrendCharts({ points, granularity = "monthly", safeUntilDaysNow 
                   strokeLinejoin="round"
                   strokeLinecap="round"
                   vectorEffect="non-scaling-stroke"
-                  points={toPoints(netYs, n)}
                 />
 
                 {/* Dot at last net point */}

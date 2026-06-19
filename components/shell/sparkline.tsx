@@ -1,3 +1,5 @@
+import { monotonePath, monotoneAreaPath } from "@/lib/charts/monotone";
+
 type Props = {
   points: number[]; // normalized 0..1, chronological
   width?: number;
@@ -15,10 +17,8 @@ export function Sparkline({
 }: Props) {
   if (points.length < 2) return null;
   const step = width / (points.length - 1);
-  const coords = points
-    .map((v, i) => `${(i * step).toFixed(1)},${(height - v * (height - 4) - 2).toFixed(1)}`)
-    .join(" ");
-  const areaCoords = `0,${height} ${coords} ${width},${height}`;
+  const xs = points.map((_, i) => i * step);
+  const ys = points.map((v) => height - v * (height - 4) - 2);
 
   return (
     <svg
@@ -28,8 +28,13 @@ export function Sparkline({
       preserveAspectRatio="none"
       aria-hidden
     >
-      <polyline fill={fill} stroke="none" points={areaCoords} />
-      <polyline fill="none" stroke={stroke} strokeWidth={1.4} points={coords} />
+      <path d={monotoneAreaPath(xs, ys, height)} fill={fill} stroke="none" />
+      <path
+        d={monotonePath(xs, ys)}
+        fill="none"
+        stroke={stroke}
+        strokeWidth={1.4}
+      />
     </svg>
   );
 }

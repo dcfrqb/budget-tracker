@@ -2,6 +2,7 @@
 
 import { useT } from "@/lib/i18n/context";
 import type { WorkSourceMonthlyBucket } from "@/lib/data/work-sources";
+import { monotonePath, monotoneAreaPath } from "@/lib/charts/monotone";
 
 const SVG_W = 560;
 const SVG_H = 100;
@@ -47,22 +48,12 @@ export function CumulativeLineChart({ series, sourceCcy }: Props) {
     return `${abbrev} ${yr?.slice(2)}`;
   }
 
-  const xyPairs: { x: number; y: number }[] = cumulatives.map((v, i) => ({
-    x: n <= 1 ? SVG_W / 2 : (i / (n - 1)) * SVG_W,
-    y: calcY(v),
-  }));
-
-  const points = xyPairs.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+  const xs = cumulatives.map((_, i) =>
+    n <= 1 ? SVG_W / 2 : (i / (n - 1)) * SVG_W,
+  );
+  const ys = cumulatives.map((v) => calcY(v));
 
   const baselineY = SVG_H - PAD_BOTTOM;
-  const firstX = xyPairs[0]?.x ?? 0;
-  const lastX = xyPairs[xyPairs.length - 1]?.x ?? SVG_W;
-
-  const areaPoints = [
-    `${firstX.toFixed(1)},${baselineY}`,
-    ...xyPairs.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`),
-    `${lastX.toFixed(1)},${baselineY}`,
-  ].join(" ");
 
   return (
     <div
@@ -90,18 +81,18 @@ export function CumulativeLineChart({ series, sourceCcy }: Props) {
           vectorEffect="non-scaling-stroke"
         />
         {n > 1 && (
-          <polygon
-            points={areaPoints}
+          <path
+            d={monotoneAreaPath(xs, ys, baselineY)}
             fill="color-mix(in srgb, var(--accent) 12%, transparent)"
             stroke="none"
           />
         )}
         {n > 1 && (
-          <polyline
+          <path
+            d={monotonePath(xs, ys)}
             fill="none"
             stroke="var(--accent)"
             strokeWidth={2}
-            points={points}
             vectorEffect="non-scaling-stroke"
           />
         )}
