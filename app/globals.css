@@ -4032,13 +4032,13 @@ input[type="checkbox"]:disabled {
 }
 .src-cmp-row {
   display: grid;
-  grid-template-columns: 1fr 1fr auto;
+  grid-template-columns: minmax(80px, 168px) 1fr auto;
   gap: var(--sp-3);
   align-items: center;
   padding: var(--sp-2) 0;
 }
 .src-cmp-bar-track {
-  height: 6px; border-radius: 2px; background: var(--border); position: relative; overflow: hidden;
+  height: 8px; border-radius: 2px; background: var(--border); position: relative; overflow: hidden;
 }
 .src-cmp-bar-fill {
   position: absolute; left: 0; top: 0; bottom: 0;
