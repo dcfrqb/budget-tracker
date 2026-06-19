@@ -868,10 +868,21 @@ export async function syncCredential(
       }
     }
 
-    // Update lastSyncAt on success
+    // Update lastSyncAt on success, and clear any stale ERROR status.
+    // A sync that ran to completion without throwing means the credential is
+    // healthy. Adapters only call setStatus("CONNECTED") in their interactive
+    // login flow, never on a scheduled sync — so without this reset a single
+    // past failure pins status=ERROR forever even though every subsequent sync
+    // succeeds (observed on bybit-card: stuck ERROR/"fetch failed" since
+    // 2026-05-07 while the card synced fine every 2h).
     await db.integrationCredential.update({
       where: { id: credentialId },
-      data: { lastSyncAt: new Date() },
+      data: {
+        lastSyncAt: new Date(),
+        status: "CONNECTED",
+        lastErrorMessage: null,
+        lastErrorAt: null,
+      },
     });
   } catch (e) {
     safeErr = toSafeError(e);
