@@ -37,6 +37,30 @@ function classifyBybitError(err: unknown): string {
   return "unknown";
 }
 
+/**
+ * Bybit card spends are ~99% subscriptions (ChatGPT, Anthropic, Netflix,
+ * YouTube, Figma, Cursor, Amazon Prime, hosting, eSIM, …), so anything not
+ * matched by an explicit override defaults to "Подписки". The resolver
+ * (category-map/resolve.ts) maps this name to the user's category, and the
+ * persist path never overwrites a manually re-categorized row — so the owner
+ * can move any individual spend to another category and it sticks across syncs.
+ *
+ * Overrides below are keyword→category-name; add entries here for merchants the
+ * owner wants in a different category (e.g. [/hostvds/i, "Сервис"]).
+ */
+const BYBIT_MERCHANT_OVERRIDES: ReadonlyArray<readonly [RegExp, string]> = [
+  // [/hostvds/i, "Сервис"],
+];
+
+const BYBIT_DEFAULT_CATEGORY = "Подписки";
+
+function bybitExpenseCategory(merchName: string): string {
+  for (const [pattern, category] of BYBIT_MERCHANT_OVERRIDES) {
+    if (pattern.test(merchName)) return category;
+  }
+  return BYBIT_DEFAULT_CATEGORY;
+}
+
 function composeNote(opts: {
   city: string;
   country: string;
@@ -247,6 +271,7 @@ export const bybitCardAdapter: BankAdapter = {
         kind: "EXPENSE",
         direction: "out",
         description,
+        rawCategory: bybitExpenseCategory(record.merchName || ""),
         cardLast4: record.pan4,
         source: "bybit-card",
         note,
