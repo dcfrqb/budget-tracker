@@ -80,6 +80,26 @@ export const unlinkSubscriptionTxnSchema = z.object({
 
 export const subscriptionsBulkImportSchema = z.array(subscriptionCreateSchema).min(1).max(500);
 
+// ─── From-selection schemas ─────────────────────────────────
+
+export const subscriptionFromTransactionsSchema = z.object({
+  name: z.string().min(1).max(200),
+  transactionIds: z.array(zCuid).min(1).max(200),
+  isVariablePrice: z.boolean().optional(),
+  currencyCode: zCurrencyCode,
+  billingIntervalMonths: z.number().int().min(1).max(120).default(1),
+  categoryId: zCuid.nullish(),
+  sharingType: z.nativeEnum(SharingType).default("PERSONAL"),
+});
+
+export const linkTransactionsToSubscriptionSchema = z.object({
+  subscriptionId: zCuid,
+  transactionIds: z.array(zCuid).min(1).max(200),
+});
+
+export type SubscriptionFromTransactionsInput = z.infer<typeof subscriptionFromTransactionsSchema>;
+export type LinkTransactionsToSubscriptionInput = z.infer<typeof linkTransactionsToSubscriptionSchema>;
+
 export type SubscriptionCreateInput = z.infer<typeof subscriptionCreateSchema>;
 export type SubscriptionUpdateInput = z.infer<typeof subscriptionUpdateSchema>;
 export type SubscriptionPayInput = z.infer<typeof subscriptionPaySchema>;

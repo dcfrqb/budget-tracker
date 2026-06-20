@@ -1,14 +1,17 @@
 import { db } from "@/lib/db";
-import { TransactionKind } from "@prisma/client";
+import { Prisma, TransactionKind } from "@prisma/client";
 import type {
   SubscriptionCreateInput,
   SubscriptionUpdateInput,
   SubscriptionPayInput,
+  SubscriptionFromTransactionsInput,
+  LinkTransactionsToSubscriptionInput,
 } from "@/lib/validation/subscription";
 import {
   learnAliasFromTransaction,
   advanceNextPaymentDate,
 } from "@/lib/data/_mutations/subscription-pairing";
+import { normalizeMerchant } from "@/lib/integrations/merchant";
 
 // ─────────────────────────────────────────────────────────────
 // Subscription mutations
@@ -219,5 +222,152 @@ export async function paySubscription(
     });
 
     return { subscription: updated, transactionId: transaction.id };
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+// createSubscriptionFromTransactions
+// ─────────────────────────────────────────────────────────────
+
+export async function createSubscriptionFromTransactions(
+  userId: string,
+  input: SubscriptionFromTransactionsInput,
+): Promise<{ subscriptionId: string; linkedCount: number }> {
+  const { name, transactionIds, isVariablePrice, currencyCode, billingIntervalMonths, categoryId, sharingType } = input;
+
+  const txns = await db.transaction.findMany({
+    where: { id: { in: transactionIds }, userId, deletedAt: null },
+    select: { id: true, kind: true, subscriptionId: true, amount: true, currencyCode: true, occurredAt: true, name: true },
+  });
+
+  if (txns.length !== transactionIds.length) {
+    throw Object.assign(new Error("one or more transactions not found"), { code: "NOT_FOUND" });
+  }
+  for (const txn of txns) {
+    if (txn.kind !== TransactionKind.EXPENSE) {
+      throw Object.assign(new Error("all transactions must be EXPENSE"), { code: "INVALID" });
+    }
+    if (txn.subscriptionId !== null) {
+      throw Object.assign(new Error("transaction already linked to a subscription"), { code: "CONFLICT" });
+    }
+  }
+
+  // Price: use latest charge matching the target currency, or latest overall
+  const sorted = [...txns].sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime());
+  const latestMatching = sorted.find((t) => t.currencyCode === currencyCode);
+  const priceTxn = latestMatching ?? sorted[0];
+  const price = new Prisma.Decimal(priceTxn.amount).abs();
+
+  // nextPaymentDate: latest charge occurredAt + billingIntervalMonths
+  const latestOccurredAt = sorted[0].occurredAt;
+  const nextPaymentDate = new Date(latestOccurredAt);
+  nextPaymentDate.setMonth(nextPaymentDate.getMonth() + billingIntervalMonths);
+
+  // matchKeywords: most frequent normalized name across selected txns
+  const nameFreq = new Map<string, number>();
+  for (const txn of txns) {
+    const key = normalizeMerchant(txn.name);
+    if (key) nameFreq.set(key, (nameFreq.get(key) ?? 0) + 1);
+  }
+  const topKey = [...nameFreq.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+  const matchKeywords = topKey ? [topKey] : [];
+
+  return db.$transaction(async (tx) => {
+    const sub = await tx.subscription.create({
+      data: {
+        userId,
+        name,
+        price,
+        currencyCode,
+        billingIntervalMonths,
+        nextPaymentDate,
+        sharingType,
+        isVariablePrice: isVariablePrice ?? false,
+        autoMatch: true,
+        matchKeywords,
+        ...(categoryId ? { categoryId } : {}),
+      },
+    });
+
+    await tx.transaction.updateMany({
+      where: { id: { in: transactionIds } },
+      data: { subscriptionId: sub.id, subscriptionLinkSource: "manual" },
+    });
+
+    return { subscriptionId: sub.id, linkedCount: transactionIds.length };
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+// linkTransactionsToSubscription
+// ─────────────────────────────────────────────────────────────
+
+export async function linkTransactionsToSubscription(
+  userId: string,
+  input: LinkTransactionsToSubscriptionInput,
+): Promise<{ subscriptionId: string; linkedCount: number }> {
+  const { subscriptionId, transactionIds } = input;
+
+  const sub = await db.subscription.findFirst({
+    where: { id: subscriptionId, userId, deletedAt: null },
+  });
+  if (!sub) throw Object.assign(new Error("subscription not found"), { code: "NOT_FOUND" });
+
+  const txns = await db.transaction.findMany({
+    where: { id: { in: transactionIds }, userId, deletedAt: null },
+    select: { id: true, kind: true, subscriptionId: true, occurredAt: true, name: true },
+  });
+
+  if (txns.length !== transactionIds.length) {
+    throw Object.assign(new Error("one or more transactions not found"), { code: "NOT_FOUND" });
+  }
+  for (const txn of txns) {
+    if (txn.kind !== TransactionKind.EXPENSE) {
+      throw Object.assign(new Error("all transactions must be EXPENSE"), { code: "INVALID" });
+    }
+    if (txn.subscriptionId !== null) {
+      throw Object.assign(new Error("transaction already linked to a subscription"), { code: "CONFLICT" });
+    }
+  }
+
+  // Most common normalized name across selected txns
+  const nameFreq = new Map<string, string>(); // normalizedKey → original name
+  const nameCount = new Map<string, number>();
+  for (const txn of txns) {
+    const key = normalizeMerchant(txn.name);
+    if (key) {
+      nameCount.set(key, (nameCount.get(key) ?? 0) + 1);
+      if (!nameFreq.has(key)) nameFreq.set(key, txn.name);
+    }
+  }
+  const topKey = [...nameCount.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+  const topOriginalName = topKey ? (nameFreq.get(topKey) ?? "") : "";
+
+  // Latest occurredAt among selected txns (for nextPaymentDate advance)
+  const latestOccurredAt = txns.reduce(
+    (max, t) => (t.occurredAt > max ? t.occurredAt : max),
+    txns[0].occurredAt,
+  );
+
+  return db.$transaction(async (tx) => {
+    await tx.transaction.updateMany({
+      where: { id: { in: transactionIds } },
+      data: { subscriptionId, subscriptionLinkSource: "manual" },
+    });
+
+    if (topOriginalName) {
+      await learnAliasFromTransaction(tx, subscriptionId, topOriginalName);
+    }
+
+    // Advance nextPaymentDate only if latest linked charge is newer than current nextPaymentDate
+    const newNext = advanceNextPaymentDate(sub.nextPaymentDate, sub.billingIntervalMonths, latestOccurredAt);
+    if (newNext > sub.nextPaymentDate) {
+      await tx.subscription.update({
+        where: { id: subscriptionId },
+        data: { nextPaymentDate: newNext },
+      });
+    }
+
+    return { subscriptionId, linkedCount: transactionIds.length };
   });
 }

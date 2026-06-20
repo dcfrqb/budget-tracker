@@ -36,6 +36,8 @@ export type TxnView = {
   compensationMembersCount: number | null;
   mergeMainBadge: boolean;
   mergeMembersCount: number | null;
+  subscriptionId: string | null;
+  currencyCode: string;
   status: TxnShortStatus;
   statusLabel: string;
   amount: string;
@@ -311,6 +313,8 @@ export function toTxnView(
     compensationMembersCount: isCompensationMain && groupInfo ? groupInfo.memberCount : null,
     mergeMainBadge: isMergeMain,
     mergeMembersCount: isMergeMain && groupInfo ? groupInfo.memberCount : null,
+    subscriptionId: txn.subscriptionId ?? null,
+    currencyCode: txn.currencyCode,
     status: STATUS_SHORT[txn.status],
     statusLabel: t(`transactions.status.${STATUS_SHORT[txn.status]}` as TKey),
     amount: signedAmount(displayAmount, txn.currency, displaySign),

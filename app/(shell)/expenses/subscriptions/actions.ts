@@ -12,6 +12,8 @@ import {
   markSubscriptionPaidSchema,
   confirmSubscriptionMatchSchema,
   unlinkSubscriptionTxnSchema,
+  subscriptionFromTransactionsSchema,
+  linkTransactionsToSubscriptionSchema,
   type SubscriptionJsonItem,
 } from "@/lib/validation/subscription";
 import {
@@ -25,6 +27,8 @@ import {
   paySubscription,
   markSubscriptionPaid,
   unlinkSubscriptionTransaction,
+  createSubscriptionFromTransactions,
+  linkTransactionsToSubscription,
 } from "@/lib/data/_mutations/subscriptions";
 import { db } from "@/lib/db";
 
@@ -358,5 +362,85 @@ export async function replaceSubscriptionsAction(rawItems: unknown): Promise<
   } catch (e) {
     const msg = e instanceof Error ? e.message : "internal_error";
     return { ok: false, error: msg };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Create subscription from selected transactions
+// ─────────────────────────────────────────────────────────────
+
+export async function createSubscriptionFromTransactionsAction(rawData: unknown) {
+  const userId = await getCurrentUserId();
+  const parsed = subscriptionFromTransactionsSchema.safeParse(rawData);
+  if (!parsed.success) {
+    const fieldErrors: Record<string, string[]> = {};
+    for (const issue of parsed.error.issues) {
+      const key = issue.path.join(".");
+      if (!fieldErrors[key]) fieldErrors[key] = [];
+      fieldErrors[key].push(issue.message);
+    }
+    return { ok: false as const, fieldErrors };
+  }
+  try {
+    const result = await createSubscriptionFromTransactions(userId, parsed.data);
+    revalidateTag("subscriptions", "default");
+    revalidateTag("transactions", "default");
+    revalidatePath("/", "layout");
+    return actionOk(result);
+  } catch (e) {
+    const err = e as { code?: string };
+    if (err.code === "NOT_FOUND") return actionError("not_found");
+    if (err.code === "CONFLICT") return actionError("conflict");
+    return actionError("internal_error");
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Link transactions to existing subscription
+// ─────────────────────────────────────────────────────────────
+
+export async function linkTransactionsToSubscriptionAction(rawData: unknown) {
+  const userId = await getCurrentUserId();
+  const parsed = linkTransactionsToSubscriptionSchema.safeParse(rawData);
+  if (!parsed.success) {
+    const fieldErrors: Record<string, string[]> = {};
+    for (const issue of parsed.error.issues) {
+      const key = issue.path.join(".");
+      if (!fieldErrors[key]) fieldErrors[key] = [];
+      fieldErrors[key].push(issue.message);
+    }
+    return { ok: false as const, fieldErrors };
+  }
+  try {
+    const result = await linkTransactionsToSubscription(userId, parsed.data);
+    revalidateTag("subscriptions", "default");
+    revalidateTag("transactions", "default");
+    revalidatePath("/", "layout");
+    return actionOk(result);
+  } catch (e) {
+    const err = e as { code?: string };
+    if (err.code === "NOT_FOUND") return actionError("not_found");
+    if (err.code === "CONFLICT") return actionError("conflict");
+    return actionError("internal_error");
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Get active subscriptions list (for dialog "link to existing")
+// ─────────────────────────────────────────────────────────────
+
+export async function getActiveSubscriptionsAction(): Promise<
+  { ok: true; data: { id: string; name: string; currencyCode: string }[] } | { ok: false; error: string }
+> {
+  const userId = await getCurrentUserId();
+  try {
+    const subs = await db.subscription.findMany({
+      where: { userId, isActive: true, deletedAt: null },
+      select: { id: true, name: true, currencyCode: true },
+      orderBy: { name: "asc" },
+    });
+    return { ok: true, data: subs };
+  } catch {
+    return { ok: false, error: "internal_error" };
   }
 }

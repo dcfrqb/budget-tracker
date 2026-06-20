@@ -5,6 +5,7 @@ import { useT } from "@/lib/i18n";
 import { markPairAsTransfer, breakTransfer } from "@/lib/data/_mutations/transfer-manual";
 import { createCompensationGroup, breakCompensationGroup } from "@/lib/data/_mutations/compensations";
 import { makeMergeAction } from "@/app/(shell)/transactions/compensation-actions";
+import { SubscriptionFromSelectionDialog } from "@/components/transactions/subscription-from-selection-dialog";
 import type { TxnView } from "@/lib/view/transactions";
 
 type SelectionContextValue = {
@@ -34,6 +35,7 @@ export function TransactionsSelectionProvider({
   const [rowsMap, setRowsMap] = useState<Map<string, TxnView>>(new Map());
   const [actionState, setActionState] = useState<ActionState>({ kind: "idle" });
   const [isPending, startTransition] = useTransition();
+  const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false);
 
   const toggle = useCallback((id: string, row: TxnView) => {
     setSelected((prev) => {
@@ -118,6 +120,28 @@ export function TransactionsSelectionProvider({
     if (selectedRows.some((r) => r.compensationGroupId !== null)) return t("transactions.selection.tooltip.already_grouped");
     if (!allSameSign) return t("transactions.merge.tooltip.need_same_sign");
     return null;
+  })();
+
+  // ── Subscription eligibility ──────────────────────────────
+  const expenseRows = selectedRows.filter((r) => r.kind === "exp");
+  const canLinkSubscription =
+    count >= 1 &&
+    expenseRows.length >= 1 &&
+    expenseRows.every((r) => r.subscriptionId === null);
+
+  const subscriptionDisabledReason: string | null = (() => {
+    if (expenseRows.length === 0) return t("transactions.selection.subscription.tooltip_need_expense");
+    if (expenseRows.some((r) => r.subscriptionId !== null)) return t("transactions.selection.subscription.tooltip_already_linked");
+    return null;
+  })();
+
+  // Default currency for subscription dialog: most common among selected expense rows
+  const subscriptionDefaultCurrency = (() => {
+    const freq = new Map<string, number>();
+    for (const r of expenseRows) {
+      freq.set(r.currencyCode, (freq.get(r.currencyCode) ?? 0) + 1);
+    }
+    return [...freq.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "RUB";
   })();
 
   // ── Break eligibility ─────────────────────────────────────
@@ -213,9 +237,22 @@ export function TransactionsSelectionProvider({
     });
   }
 
+  function handleSubscriptionSuccess(msgKey: string) {
+    setActionState({ kind: "success", msgKey });
+    setSelected(new Set());
+    setRowsMap(new Map());
+  }
+
   return (
     <SelectionContext.Provider value={{ selected, rowsMap, toggle, clear }}>
       {children}
+      <SubscriptionFromSelectionDialog
+        open={subscriptionDialogOpen}
+        onOpenChange={setSubscriptionDialogOpen}
+        transactionIds={expenseRows.map((r) => r.id)}
+        defaultCurrencyCode={subscriptionDefaultCurrency}
+        onSuccess={handleSubscriptionSuccess}
+      />
       {count > 0 && (
         <div className="selection-action-bar" role="region" aria-label={t("transactions.selection.count", { vars: { count: String(count) } })}>
           <span className="selection-count mono dim">
@@ -250,6 +287,16 @@ export function TransactionsSelectionProvider({
             onClick={handleMakeMerge}
           >
             {t("transactions.merge.action_label")}
+          </button>
+
+          <button
+            type="button"
+            className="btn"
+            disabled={!canLinkSubscription || isPending}
+            title={subscriptionDisabledReason ?? ""}
+            onClick={() => setSubscriptionDialogOpen(true)}
+          >
+            {t("transactions.selection.subscription.action")}
           </button>
 
           <button
