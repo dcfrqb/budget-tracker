@@ -3,6 +3,8 @@ import { getCurrentUserId } from "@/lib/api/auth";
 import { db } from "@/lib/db";
 import { AccountForm } from "@/components/forms/account-form";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
+import { listAllCurrencies } from "@/lib/data/currencies";
+import { getBudgetSettings } from "@/lib/data/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -20,11 +22,8 @@ export default async function NewAccountPage({
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
       select: { id: true, name: true, kind: true },
     }),
-    db.currency.findMany({ orderBy: { code: "asc" } }),
-    db.budgetSettings.findUnique({
-      where: { userId },
-      select: { primaryCurrencyCode: true },
-    }),
+    listAllCurrencies(),
+    getBudgetSettings(userId),
   ]);
 
   const primaryCurrency = budgetSettings?.primaryCurrencyCode ?? DEFAULT_CURRENCY;

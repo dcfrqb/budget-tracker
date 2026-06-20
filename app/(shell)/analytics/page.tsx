@@ -38,7 +38,7 @@ import { getLocale, getT } from "@/lib/i18n/server";
 import { pluralRu, pluralEn } from "@/lib/i18n/plural";
 import { ruPluralForms } from "@/lib/i18n/locales/ru";
 import { enPluralForms } from "@/lib/i18n/locales/en";
-import { db } from "@/lib/db";
+import { getBudgetSettings } from "@/lib/data/settings";
 import { Prisma } from "@prisma/client";
 import { formatMoney } from "@/lib/format/money";
 import type { AnalyticsKpiItem } from "@/components/analytics/kpi-row";
@@ -92,7 +92,7 @@ export default async function AnalyticsPage({
     getForecastMonth(userId, DEFAULT_CURRENCY),
     getForecastYear(userId, DEFAULT_CURRENCY, tz),
     getWeather(userId, DEFAULT_CURRENCY, tz, currentRange),
-    db.budgetSettings.findUnique({ where: { userId } }),
+    getBudgetSettings(userId),
     getRunwayByMode(userId, DEFAULT_CURRENCY, tz),
     getTrendPoints(userId, currentRange, DEFAULT_CURRENCY, granularity, tz),
     getHomeDashboard(userId, DEFAULT_CURRENCY),

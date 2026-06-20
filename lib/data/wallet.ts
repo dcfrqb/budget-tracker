@@ -117,7 +117,7 @@ export async function getArchivedAccounts(
 }
 
 // Последние rate'ы по всем парам. Ключ map'ы "FROM-TO".
-export async function getLatestRatesMap(): Promise<Map<string, Prisma.Decimal>> {
+export const getLatestRatesMap = cache(async (): Promise<Map<string, Prisma.Decimal>> => {
   const rows = await db.exchangeRate.findMany({ orderBy: { recordedAt: "desc" } });
   const map = new Map<string, Prisma.Decimal>();
   for (const r of rows) {
@@ -125,7 +125,7 @@ export async function getLatestRatesMap(): Promise<Map<string, Prisma.Decimal>> 
     if (!map.has(key)) map.set(key, new Prisma.Decimal(r.rate));
   }
   return map;
-}
+});
 
 export type RateWithMeta = { rate: Prisma.Decimal; recordedAt: Date };
 
@@ -134,7 +134,7 @@ export type RateWithMeta = { rate: Prisma.Decimal; recordedAt: Date };
  * Used only where freshness display is needed (top-bar, fx-rates panel).
  * All other call sites use getLatestRatesMap to avoid a shape-change cascade.
  */
-export async function getLatestRatesWithMeta(): Promise<Map<string, RateWithMeta>> {
+export const getLatestRatesWithMeta = cache(async (): Promise<Map<string, RateWithMeta>> => {
   const rows = await db.exchangeRate.findMany({ orderBy: { recordedAt: "desc" } });
   const map = new Map<string, RateWithMeta>();
   for (const r of rows) {
@@ -144,7 +144,7 @@ export async function getLatestRatesWithMeta(): Promise<Map<string, RateWithMeta
     }
   }
   return map;
-}
+});
 
 // Конвертация через direct / inverse / pivot (USD).
 // Возвращает null если rate'а нет ни напрямую, ни через USD.

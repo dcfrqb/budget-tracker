@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { AccountForm } from "@/components/forms/account-form";
 import { AccountRequisites } from "@/components/wallet/account-requisites";
 import { pullRequisitesAction } from "./actions";
+import { listAllCurrencies } from "@/lib/data/currencies";
 
 export const dynamic = "force-dynamic";
 
@@ -59,7 +60,7 @@ export default async function EditAccountPage({ params }: Props) {
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
       select: { id: true, name: true, kind: true },
     }),
-    db.currency.findMany({ orderBy: { code: "asc" } }),
+    listAllCurrencies(),
     db.integrationAccountLink.findFirst({
       where: { accountId: id },
       select: { id: true },

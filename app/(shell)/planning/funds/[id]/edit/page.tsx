@@ -6,6 +6,7 @@ import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
 import { dayKeyInTz } from "@/lib/format/date";
 import { db } from "@/lib/db";
 import { FundForm } from "@/components/forms/fund-form";
+import { listAllCurrencies } from "@/lib/data/currencies";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -18,7 +19,7 @@ export default async function EditFundPage({ params }: Props) {
 
   const [fund, currencies] = await Promise.all([
     db.fund.findFirst({ where: { id, userId } }),
-    db.currency.findMany({ orderBy: { code: "asc" } }),
+    listAllCurrencies(),
   ]);
 
   if (!fund) notFound();

@@ -13,6 +13,7 @@ import { computeAmortization } from "@/lib/amortization";
 import { computeSafeUntil } from "@/lib/forecast";
 import { getAvailableNow } from "@/lib/data/_shared/period-aggregates";
 import { getCompensationProjection } from "@/lib/data/_shared/compensation-projection";
+import { getBudgetSettings } from "@/lib/data/settings";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -140,7 +141,7 @@ export const getHomeDashboard = cache(async (
   ] = await Promise.all([
     getAvailableNow(userId, baseCcy, now),
     getLatestRatesMap(),
-    db.budgetSettings.findUnique({ where: { userId } }),
+    getBudgetSettings(userId),
     getSubscriptions(userId),
     // prevMonthStart / prevMonthEnd — Date objects
     Promise.resolve(startOfMonth(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)))),

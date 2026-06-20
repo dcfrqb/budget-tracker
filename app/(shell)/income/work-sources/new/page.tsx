@@ -1,7 +1,7 @@
 import { getCurrentUserId } from "@/lib/api/auth";
-import { db } from "@/lib/db";
 import { resolveUserBaseCurrency } from "@/lib/data/_mutations/work-sources";
 import { WorkSourceForm } from "@/components/forms/work-source-form";
+import { listAllCurrencies } from "@/lib/data/currencies";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +9,7 @@ export default async function NewWorkSourcePage() {
   const userId = await getCurrentUserId();
 
   const [currencies, defaultCurrencyCode] = await Promise.all([
-    db.currency.findMany({ orderBy: { code: "asc" } }),
+    listAllCurrencies(),
     resolveUserBaseCurrency(userId),
   ]);
 

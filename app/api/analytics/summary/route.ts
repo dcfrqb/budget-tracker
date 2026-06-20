@@ -14,7 +14,7 @@ import {
 } from "@/lib/data/analytics";
 import { getHomeDashboard } from "@/lib/data/dashboard";
 import { toAnalyticsView } from "@/lib/view/analytics";
-import { db } from "@/lib/db";
+import { getBudgetSettings } from "@/lib/data/settings";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
@@ -38,7 +38,7 @@ export async function GET(req: Request) {
     // baseCcy: query param → BudgetSettings → DEFAULT_CURRENCY
     let baseCcy = queryResult.data.baseCcy?.toUpperCase() ?? null;
     if (!baseCcy) {
-      const settings = await db.budgetSettings.findUnique({ where: { userId } });
+      const settings = await getBudgetSettings(userId);
       baseCcy = settings?.primaryCurrencyCode ?? DEFAULT_CURRENCY;
     }
 

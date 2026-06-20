@@ -5,6 +5,7 @@ import { getActiveWorkSources } from "@/lib/data/work-sources";
 import { db } from "@/lib/db";
 import { TransactionForm } from "@/components/forms/transaction-form";
 import { getT } from "@/lib/i18n/server";
+import { listAllCurrencies } from "@/lib/data/currencies";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +37,7 @@ export default async function NewTransactionPage({ searchParams }: Props) {
       select: { id: true, name: true, currencyCode: true },
     }),
     getCategories(userId),
-    db.currency.findMany({ orderBy: { code: "asc" } }),
+    listAllCurrencies(),
     getActiveWorkSources(userId),
   ]);
 

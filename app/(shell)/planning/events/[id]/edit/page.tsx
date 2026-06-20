@@ -6,6 +6,7 @@ import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
 import { dayKeyInTz } from "@/lib/format/date";
 import { db } from "@/lib/db";
 import { PlannedEventForm } from "@/components/forms/planned-event-form";
+import { listAllCurrencies } from "@/lib/data/currencies";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -18,7 +19,7 @@ export default async function EditPlannedEventPage({ params }: Props) {
 
   const [event, currencies, funds] = await Promise.all([
     db.plannedEvent.findFirst({ where: { id, userId } }),
-    db.currency.findMany({ orderBy: { code: "asc" } }),
+    listAllCurrencies(),
     db.fund.findMany({
       where: { userId },
       orderBy: { name: "asc" },

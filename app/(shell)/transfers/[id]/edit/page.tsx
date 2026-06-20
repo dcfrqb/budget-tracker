@@ -4,6 +4,7 @@ import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
 import { dayKeyInTz } from "@/lib/format/date";
 import { db } from "@/lib/db";
 import { TransferForm } from "@/components/forms/transfer-form";
+import { listAllCurrencies } from "@/lib/data/currencies";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +39,7 @@ export default async function EditTransferPage({ params }: Props) {
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
       select: { id: true, name: true, currencyCode: true },
     }),
-    db.currency.findMany({ orderBy: { code: "asc" } }),
+    listAllCurrencies(),
   ]);
 
   if (!transfer) notFound();

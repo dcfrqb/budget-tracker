@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
+import { getBudgetSettings } from "@/lib/data/settings";
 
 // Recursively converts Decimal and Date values to plain serializable types.
 function serialize(value: unknown): unknown {
@@ -69,7 +70,7 @@ export async function getUserDataBundle(userId: string): Promise<UserDataBundle>
       where: { id: userId },
       select: { id: true, email: true, name: true, gender: true, createdAt: true },
     }),
-    db.budgetSettings.findUnique({ where: { userId } }),
+    getBudgetSettings(userId),
     db.institution.findMany({ where: { userId } }),
     db.account.findMany({ where: { userId } }),
     db.category.findMany({ where: { userId } }),

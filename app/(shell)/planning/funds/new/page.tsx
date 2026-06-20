@@ -1,10 +1,10 @@
-export const dynamic = "force-dynamic";
-
-import { db } from "@/lib/db";
+import { listAllCurrencies } from "@/lib/data/currencies";
 import { FundForm } from "@/components/forms/fund-form";
 
+export const dynamic = "force-dynamic";
+
 export default async function NewFundPage() {
-  const currencies = await db.currency.findMany({ orderBy: { code: "asc" } });
+  const currencies = await listAllCurrencies();
 
   return (
     <div className="page-content">

@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { getCurrentUserId } from "@/lib/api/auth";
 import { db } from "@/lib/db";
 import { PlannedEventForm } from "@/components/forms/planned-event-form";
+import { listAllCurrencies } from "@/lib/data/currencies";
 
 type SearchParams = Promise<{ date?: string }>;
 
@@ -20,7 +21,7 @@ export default async function NewPlannedEventPage({
       : undefined;
 
   const [currencies, funds] = await Promise.all([
-    db.currency.findMany({ orderBy: { code: "asc" } }),
+    listAllCurrencies(),
     db.fund.findMany({
       where: { userId },
       orderBy: { name: "asc" },

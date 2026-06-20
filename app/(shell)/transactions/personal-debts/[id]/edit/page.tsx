@@ -6,6 +6,7 @@ import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
 import { dayKeyInTz } from "@/lib/format/date";
 import { db } from "@/lib/db";
 import { PersonalDebtForm } from "@/components/forms/personal-debt-form";
+import { listAllCurrencies } from "@/lib/data/currencies";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -18,7 +19,7 @@ export default async function EditPersonalDebtPage({ params }: Props) {
 
   const [debt, currencies, accounts] = await Promise.all([
     db.personalDebt.findFirst({ where: { id, userId } }),
-    db.currency.findMany({ orderBy: { code: "asc" } }),
+    listAllCurrencies(),
     db.account.findMany({
       where: { userId, isArchived: false, deletedAt: null },
       orderBy: { name: "asc" },

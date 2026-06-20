@@ -3,6 +3,7 @@ import { getCurrentUserId } from "@/lib/api/auth";
 import { db } from "@/lib/db";
 import { AccountKind } from "@prisma/client";
 import { CashEditForm } from "@/components/wallet/cash-edit-form";
+import { listAllCurrencies } from "@/lib/data/currencies";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export default async function EditCashPage({ params }: Props) {
         includeInAnalytics: true,
       },
     }),
-    db.currency.findMany({ orderBy: { code: "asc" } }),
+    listAllCurrencies(),
   ]);
 
   if (!account) notFound();

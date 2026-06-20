@@ -3,12 +3,13 @@ export const dynamic = "force-dynamic";
 import { getCurrentUserId } from "@/lib/api/auth";
 import { db } from "@/lib/db";
 import { LoanForm } from "@/components/forms/loan-form";
+import { listAllCurrencies } from "@/lib/data/currencies";
 
 export default async function NewLoanPage() {
   const userId = await getCurrentUserId();
 
   const [currencies, accounts] = await Promise.all([
-    db.currency.findMany({ orderBy: { code: "asc" } }),
+    listAllCurrencies(),
     db.account.findMany({
       where: { userId, isArchived: false, deletedAt: null },
       orderBy: { name: "asc" },

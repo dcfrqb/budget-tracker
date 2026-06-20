@@ -8,7 +8,6 @@ import { WalletTotals } from "@/components/wallet/totals";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { getCurrentUserId } from "@/lib/api/auth";
 import { getLocale, getT } from "@/lib/i18n/server";
-import { db } from "@/lib/db";
 import {
   getArchivedAccounts,
   getCashStash,
@@ -19,6 +18,8 @@ import {
   type InstitutionWithAccounts,
   type AccountWithCurrency,
 } from "@/lib/data/wallet";
+import { listAllCurrencies } from "@/lib/data/currencies";
+import { getBudgetSettings } from "@/lib/data/settings";
 import {
   toArchivedView,
   toCashStashView,
@@ -131,11 +132,8 @@ export default async function WalletPage({
       getArchivedAccounts(userId),
       getWalletTotals(userId, DEFAULT_CURRENCY),
       getLatestRatesMap(),
-      db.currency.findMany({ orderBy: { code: "asc" } }),
-      db.budgetSettings.findUnique({
-        where: { userId },
-        select: { primaryCurrencyCode: true, shownFxPairs: true },
-      }),
+      listAllCurrencies(),
+      getBudgetSettings(userId),
     ]);
 
   const shownFxPairs = budgetSettings?.shownFxPairs ?? [];

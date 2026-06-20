@@ -15,6 +15,7 @@ import type { ShareItem } from "@/components/subscriptions/shares-editor";
 import { PaymentHistory } from "@/components/subscriptions/payment-history";
 import type { ChargeRow } from "@/components/subscriptions/payment-history";
 import { getT, getLocale } from "@/lib/i18n/server";
+import { listAllCurrencies } from "@/lib/data/currencies";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -30,7 +31,7 @@ export default async function EditSubscriptionPage({ params }: Props) {
       where: { id, userId, deletedAt: null },
       include: { shares: true },
     }),
-    db.currency.findMany({ orderBy: { code: "asc" } }),
+    listAllCurrencies(),
     getSubscriptionCharges(userId, id),
   ]);
 
