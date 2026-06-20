@@ -1382,10 +1382,18 @@ a { color: inherit; text-decoration: none; }
   display: flex; flex-direction: column; gap: 10px;
   box-shadow: inset 0 0 0 1px transparent;
   transition: all var(--d-fast) var(--e-out);
+  position: relative;
 }
 .sub-card:hover {
   background: var(--panel-3); transform: translateY(-1px);
   box-shadow: inset 0 0 0 1px rgba(121,192,255,.4);
+}
+.sub-card:hover .sub-select-btn,
+.sub-card--selected .sub-select-btn {
+  opacity: 1 !important;
+}
+.sub-card--selected {
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 .sub-top { display: flex; justify-content: space-between; align-items: flex-start; }
 .sub-ico {

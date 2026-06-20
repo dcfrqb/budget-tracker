@@ -15,6 +15,8 @@ import {
   subscriptionFromTransactionsSchema,
   linkTransactionsToSubscriptionSchema,
   confirmReimbursementSchema,
+  mergeSubscriptionsSchema,
+  dismissDuplicatePairSchema,
   type SubscriptionJsonItem,
 } from "@/lib/validation/subscription";
 import { createCompensationGroup } from "@/lib/data/_mutations/compensations";
@@ -31,6 +33,8 @@ import {
   unlinkSubscriptionTransaction,
   createSubscriptionFromTransactions,
   linkTransactionsToSubscription,
+  mergeSubscriptions,
+  dismissDuplicatePair,
 } from "@/lib/data/_mutations/subscriptions";
 import { db } from "@/lib/db";
 
@@ -476,4 +480,62 @@ export async function confirmReimbursementAction(rawData: unknown): Promise<
   revalidatePath("/", "layout");
 
   return { ok: true, groupId: result.groupId };
+}
+
+// ─────────────────────────────────────────────────────────────
+// Merge subscriptions
+// ─────────────────────────────────────────────────────────────
+
+export async function mergeSubscriptionsAction(rawData: unknown) {
+  const userId = await getCurrentUserId();
+  const parsed = mergeSubscriptionsSchema.safeParse(rawData);
+  if (!parsed.success) {
+    const fieldErrors: Record<string, string[]> = {};
+    for (const issue of parsed.error.issues) {
+      const key = issue.path.join(".");
+      if (!fieldErrors[key]) fieldErrors[key] = [];
+      fieldErrors[key].push(issue.message);
+    }
+    return { ok: false as const, fieldErrors };
+  }
+  try {
+    const result = await mergeSubscriptions(userId, parsed.data.keepId, parsed.data.mergeId);
+    revalidateTag("subscriptions", "default");
+    revalidateTag("transactions", "default");
+    revalidatePath("/", "layout");
+    return actionOk(result);
+  } catch (e) {
+    const err = e as { code?: string };
+    if (err.code === "NOT_FOUND") return actionError("not_found");
+    if (err.code === "CONFLICT") return actionError("conflict");
+    return actionError("internal_error");
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Dismiss duplicate pair
+// ─────────────────────────────────────────────────────────────
+
+export async function dismissDuplicatePairAction(rawData: unknown) {
+  const userId = await getCurrentUserId();
+  const parsed = dismissDuplicatePairSchema.safeParse(rawData);
+  if (!parsed.success) {
+    const fieldErrors: Record<string, string[]> = {};
+    for (const issue of parsed.error.issues) {
+      const key = issue.path.join(".");
+      if (!fieldErrors[key]) fieldErrors[key] = [];
+      fieldErrors[key].push(issue.message);
+    }
+    return { ok: false as const, fieldErrors };
+  }
+  try {
+    await dismissDuplicatePair(userId, parsed.data.idA, parsed.data.idB);
+    revalidateTag("subscriptions", "default");
+    revalidatePath("/", "layout");
+    return actionOk({ dismissed: true });
+  } catch (e) {
+    const err = e as { code?: string };
+    if (err.code === "NOT_FOUND") return actionError("not_found");
+    return actionError("internal_error");
+  }
 }

@@ -371,3 +371,89 @@ export async function linkTransactionsToSubscription(
     return { subscriptionId, linkedCount: transactionIds.length };
   });
 }
+
+// ─────────────────────────────────────────────────────────────
+// mergeSubscriptions
+// ─────────────────────────────────────────────────────────────
+
+export async function mergeSubscriptions(
+  userId: string,
+  keepId: string,
+  mergeId: string,
+): Promise<{ keepId: string; movedCount: number }> {
+  if (keepId === mergeId) {
+    throw Object.assign(new Error("keepId and mergeId must differ"), { code: "CONFLICT" });
+  }
+
+  const [keep, merge] = await Promise.all([
+    db.subscription.findFirst({ where: { id: keepId, userId, deletedAt: null } }),
+    db.subscription.findFirst({ where: { id: mergeId, userId, deletedAt: null } }),
+  ]);
+
+  if (!keep) throw Object.assign(new Error("keep subscription not found"), { code: "NOT_FOUND" });
+  if (!merge) throw Object.assign(new Error("merge subscription not found"), { code: "NOT_FOUND" });
+
+  return db.$transaction(async (tx) => {
+    const [keepInTx, mergeInTx] = await Promise.all([
+      tx.subscription.findUnique({ where: { id: keepId }, select: { matchKeywords: true } }),
+      tx.subscription.findUnique({ where: { id: mergeId }, select: { matchKeywords: true } }),
+    ]);
+
+    const unionKeywords = [
+      ...new Set([
+        ...(keepInTx?.matchKeywords ?? []),
+        ...(mergeInTx?.matchKeywords ?? []),
+      ]),
+    ];
+
+    const { count: movedCount } = await tx.transaction.updateMany({
+      where: { subscriptionId: mergeId, userId },
+      data: { subscriptionId: keepId },
+    });
+
+    await tx.subscription.update({
+      where: { id: keepId, userId },
+      data: { matchKeywords: unionKeywords },
+    });
+
+    await tx.subscription.update({
+      where: { id: mergeId, userId },
+      data: { deletedAt: new Date(), isActive: false },
+    });
+
+    await tx.subscriptionDuplicateDismissal.deleteMany({
+      where: {
+        userId,
+        OR: [{ subAId: mergeId }, { subBId: mergeId }],
+      },
+    });
+
+    return { keepId, movedCount };
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+// dismissDuplicatePair
+// ─────────────────────────────────────────────────────────────
+
+export async function dismissDuplicatePair(
+  userId: string,
+  idA: string,
+  idB: string,
+): Promise<void> {
+  const [subA, subB] = await Promise.all([
+    db.subscription.findFirst({ where: { id: idA, userId, deletedAt: null } }),
+    db.subscription.findFirst({ where: { id: idB, userId, deletedAt: null } }),
+  ]);
+
+  if (!subA) throw Object.assign(new Error("subscription A not found"), { code: "NOT_FOUND" });
+  if (!subB) throw Object.assign(new Error("subscription B not found"), { code: "NOT_FOUND" });
+
+  const [subAId, subBId] = idA < idB ? [idA, idB] : [idB, idA];
+
+  await db.subscriptionDuplicateDismissal.upsert({
+    where: { userId_subAId_subBId: { userId, subAId, subBId } },
+    create: { userId, subAId, subBId },
+    update: {},
+  });
+}

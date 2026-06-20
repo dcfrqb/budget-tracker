@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { getLocale, getT } from "@/lib/i18n/server";
 import { getCurrentUserId } from "@/lib/api/auth";
 import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
-import { getSubscriptionsGrouped } from "@/lib/data/subscriptions";
+import { getSubscriptionsGrouped, getDuplicateSuggestions } from "@/lib/data/subscriptions";
 import { getLatestRatesMap } from "@/lib/data/wallet";
 import { getSubscriptionSuggestions } from "@/lib/data/_mutations/subscription-pairing";
 import { getReimbursementSuggestions } from "@/lib/data/_mutations/reimbursement-pairing";
@@ -12,12 +12,15 @@ import {
   toSubscriptionsSummaryView,
 } from "@/lib/view/subscriptions";
 import { SubscriptionsSummaryBar } from "@/components/expenses/subscriptions/summary-bar";
-import { SubscriptionGroup } from "@/components/expenses/subscriptions/group";
+import { SubscriptionsShell } from "@/components/expenses/subscriptions/subscriptions-shell";
 import { SubscriptionImportButton } from "@/components/expenses/subscriptions/import-button";
 import { MatchSuggestions } from "@/components/subscriptions/match-suggestions";
 import type { SuggestionRow } from "@/components/subscriptions/match-suggestions";
 import { ReimbursementSuggestions } from "@/components/subscriptions/reimbursement-suggestions";
 import type { ReimbursementSuggestionRow } from "@/components/subscriptions/reimbursement-suggestions";
+import { DuplicateSuggestions } from "@/components/expenses/subscriptions/duplicate-suggestions";
+import type { DuplicatePairRow } from "@/components/expenses/subscriptions/duplicate-suggestions";
+import type { MergeSubItem } from "@/components/expenses/subscriptions/merge-dialog";
 import { formatDate } from "@/lib/format/date";
 
 export default async function SubscriptionsPage() {
@@ -28,10 +31,11 @@ export default async function SubscriptionsPage() {
     getCurrentUserTz(),
   ]);
 
-  const [grouped, rawSuggestions, rawReimbursements] = await Promise.all([
+  const [grouped, rawSuggestions, rawReimbursements, duplicatePairs] = await Promise.all([
     getSubscriptionsGrouped(userId),
     getSubscriptionSuggestions(userId),
     getReimbursementSuggestions(userId),
+    getDuplicateSuggestions(userId),
   ]);
 
   const tFn = await getT(locale);
@@ -41,6 +45,15 @@ export default async function SubscriptionsPage() {
   const splitGroup = toSubscriptionGroupView("split", grouped.split, tFn, rates, locale, tz);
   const paidGroup = toSubscriptionGroupView("paidForOthers", grouped.paidForOthers, tFn, rates, locale, tz);
   const pageTitle = tFn("expenses.subscriptions.pageTitle");
+
+  // Build sub meta list for selection bar (id, name, raw price, currency)
+  const allSubs = [...grouped.personal, ...grouped.split, ...grouped.paidForOthers];
+  const subMetas: MergeSubItem[] = allSubs.map((s) => ({
+    id: s.id,
+    name: s.name,
+    price: String(s.price),
+    currencyCode: s.currencyCode,
+  }));
 
   // Serialize suggestions (convert Dates to formatted strings)
   const suggestions: SuggestionRow[] = rawSuggestions.map((s) => ({
@@ -54,6 +67,7 @@ export default async function SubscriptionsPage() {
     subscriptionPrice: s.subscription.price,
     subscriptionCurrencyCode: s.subscription.currencyCode,
     reason: s.reason,
+    count: s.count,
   }));
 
   // Serialize reimbursement suggestions (convert Dates to formatted strings)
@@ -71,6 +85,12 @@ export default async function SubscriptionsPage() {
     spendCurrencyCode: r.spend?.currencyCode ?? null,
     spendDate: r.spend ? formatDate(r.spend.occurredAt, locale) : null,
     reason: r.reason,
+  }));
+
+  // Serialize duplicate pairs
+  const serializedDuplicates: DuplicatePairRow[] = duplicatePairs.map((p) => ({
+    a: { id: p.a.id, name: p.a.name, price: p.a.price, currencyCode: p.a.currencyCode },
+    b: { id: p.b.id, name: p.b.name, price: p.b.price, currencyCode: p.b.currencyCode },
   }));
 
   return (
@@ -92,9 +112,17 @@ export default async function SubscriptionsPage() {
         <ReimbursementSuggestions suggestions={reimbursementSuggestions} />
       )}
 
-      <SubscriptionGroup group={personalGroup} tz={tz} />
-      <SubscriptionGroup group={splitGroup} tz={tz} />
-      <SubscriptionGroup group={paidGroup} tz={tz} />
+      {serializedDuplicates.length > 0 && (
+        <DuplicateSuggestions pairs={serializedDuplicates} />
+      )}
+
+      <SubscriptionsShell
+        personalGroup={personalGroup}
+        splitGroup={splitGroup}
+        paidGroup={paidGroup}
+        subMetas={subMetas}
+        tz={tz}
+      />
     </>
   );
 }

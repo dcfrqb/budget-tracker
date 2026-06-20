@@ -32,26 +32,27 @@ model User {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  institutions           Institution[]
-  accounts               Account[]
-  categories             Category[]
-  transactions           Transaction[]
-  transfers              Transfer[]
-  workSources            WorkSource[]
-  freelanceOrders        FreelanceOrder[]
-  freelanceOrderStages   FreelanceOrderStage[]
-  loans                  Loan[]
-  subscriptions          Subscription[]
-  longProjects           LongProject[]
-  funds                  Fund[]
-  plannedEvents          PlannedEvent[]
-  personalDebts          PersonalDebt[]
-  compensationGroups     CompensationGroup[]
-  budgetSettings         BudgetSettings?
-  familyMemberships      FamilyMember[]
-  ownedFamilies          Family[]                @relation("FamilyOwner")
-  integrationCredentials IntegrationCredential[]
-  trips                  Trip[]
+  institutions                    Institution[]
+  accounts                        Account[]
+  categories                      Category[]
+  transactions                    Transaction[]
+  transfers                       Transfer[]
+  workSources                     WorkSource[]
+  freelanceOrders                 FreelanceOrder[]
+  freelanceOrderStages            FreelanceOrderStage[]
+  loans                           Loan[]
+  subscriptions                   Subscription[]
+  longProjects                    LongProject[]
+  funds                           Fund[]
+  plannedEvents                   PlannedEvent[]
+  personalDebts                   PersonalDebt[]
+  compensationGroups              CompensationGroup[]
+  budgetSettings                  BudgetSettings?
+  familyMemberships               FamilyMember[]
+  subscriptionDuplicateDismissals SubscriptionDuplicateDismissal[]
+  ownedFamilies                   Family[]                         @relation("FamilyOwner")
+  integrationCredentials          IntegrationCredential[]
+  trips                           Trip[]
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -741,6 +742,22 @@ model SubscriptionShare {
   familyMember FamilyMember? @relation(fields: [familyMemberId], references: [id], onDelete: SetNull)
 
   @@index([subscriptionId])
+}
+
+// Записи об отклонении дубликатов подписок.
+// Когда пользователь отмечает пару подписок как "это НЕ дубликаты",
+// сохраняем dismissal так чтобы предложение больше не всплывало для этой пары.
+model SubscriptionDuplicateDismissal {
+  id        String   @id @default(cuid())
+  userId    String
+  subAId    String // меньший идентификатор пары (пользователь отсортирует)
+  subBId    String // больший идентификатор пары
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, subAId, subBId])
+  @@index([userId])
 }
 
 // ─────────────────────────────────────────────────────────────

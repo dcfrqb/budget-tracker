@@ -8,6 +8,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { PayDialog } from "@/components/subscriptions/pay-dialog";
 import { deleteSubscriptionAction } from "@/app/(shell)/expenses/subscriptions/actions";
 import { useT } from "@/lib/i18n";
+import { useSubscriptionSelection } from "./selection-context";
 
 type Props = {
   card: SubscriptionCardView;
@@ -19,6 +20,8 @@ export function SubscriptionCard({ card, tz }: Props) {
   const router = useRouter();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [isPendingDelete, startDeleteTransition] = useTransition();
+  const { selected, toggle } = useSubscriptionSelection();
+  const isSelected = selected.has(card.id);
 
   const icoStyle: React.CSSProperties = {
     background: card.iconBg ?? "var(--panel-2)",
@@ -46,12 +49,45 @@ export function SubscriptionCard({ card, tz }: Props) {
 
   return (
     <article
-      className="sub-card"
+      className={`sub-card${isSelected ? " sub-card--selected" : ""}`}
       tabIndex={0}
       role="button"
       onClick={handleCardClick}
       onKeyDown={handleCardKeyDown}
     >
+      {/* Selection checkbox — stopPropagation so card click still navigates */}
+      <button
+        type="button"
+        aria-label={isSelected ? t("expenses.subscriptions.merge.deselect_label") : t("expenses.subscriptions.merge.select_label")}
+        aria-pressed={isSelected}
+        className="sub-select-btn"
+        onClick={(e) => { e.stopPropagation(); toggle(card.id); }}
+        onKeyDown={(e) => { e.stopPropagation(); }}
+        style={{
+          position: "absolute",
+          top: 8,
+          right: 8,
+          width: 18,
+          height: 18,
+          border: `1px solid ${isSelected ? "var(--accent)" : "var(--border)"}`,
+          borderRadius: 3,
+          background: isSelected ? "var(--accent)" : "var(--panel-2)",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 0,
+          opacity: isSelected ? 1 : 0,
+          transition: "opacity 0.1s",
+          zIndex: 2,
+        }}
+      >
+        {isSelected && (
+          <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+            <path d="M1 4L3.5 6.5L9 1" stroke="var(--bg)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+      </button>
       <div className="sub-top">
         <div className="sub-ico" style={icoStyle}>
           {card.icon ?? card.name.charAt(0).toUpperCase()}

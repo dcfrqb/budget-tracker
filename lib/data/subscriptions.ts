@@ -9,6 +9,7 @@ import { db } from "@/lib/db";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { convertToBase, getLatestRatesMap } from "@/lib/data/wallet";
 import { computeMyCost, estimateRecurringAmount } from "@/lib/subscription-share";
+import { normalizeMerchant } from "@/lib/integrations/merchant";
 
 // ─── Type exports ──────────────────────────────────────────
 
@@ -276,4 +277,68 @@ export async function getSubscriptionCharges(
     accountName: r.account.name ?? null,
     subscriptionLinkSource: r.subscriptionLinkSource,
   }));
+}
+
+// ─── Duplicate suggestions ──────────────────────────────────
+
+export type DuplicateSubItem = {
+  id: string;
+  name: string;
+  price: string;
+  currencyCode: string;
+  sharingType: string;
+};
+
+export type DuplicatePair = {
+  a: DuplicateSubItem;
+  b: DuplicateSubItem;
+};
+
+/**
+ * Returns pairs of active subscriptions that look like duplicates:
+ * same normalized name AND same currencyCode AND same price (exact).
+ * Pairs already dismissed by the user are excluded.
+ * Decimals serialized to strings for safe RSC→client pass-through.
+ */
+export async function getDuplicateSuggestions(userId: string): Promise<DuplicatePair[]> {
+  const [subs, dismissals] = await Promise.all([
+    db.subscription.findMany({
+      where: { userId, isActive: true, deletedAt: null },
+      select: { id: true, name: true, price: true, currencyCode: true, sharingType: true },
+    }),
+    db.subscriptionDuplicateDismissal.findMany({
+      where: { userId },
+      select: { subAId: true, subBId: true },
+    }),
+  ]);
+
+  const dismissedSet = new Set<string>(
+    dismissals.map((d) => `${d.subAId}:${d.subBId}`),
+  );
+
+  const pairs: DuplicatePair[] = [];
+
+  for (let i = 0; i < subs.length; i++) {
+    for (let j = i + 1; j < subs.length; j++) {
+      const a = subs[i];
+      const b = subs[j];
+
+      if (a.currencyCode !== b.currencyCode) continue;
+      if (!new Prisma.Decimal(a.price).equals(new Prisma.Decimal(b.price))) continue;
+
+      const normA = normalizeMerchant(a.name);
+      const normB = normalizeMerchant(b.name);
+      if (!normA || !normB || normA !== normB) continue;
+
+      const [minId, maxId] = a.id < b.id ? [a.id, b.id] : [b.id, a.id];
+      if (dismissedSet.has(`${minId}:${maxId}`)) continue;
+
+      pairs.push({
+        a: { id: a.id, name: a.name, price: new Prisma.Decimal(a.price).toFixed(2), currencyCode: a.currencyCode, sharingType: a.sharingType },
+        b: { id: b.id, name: b.name, price: new Prisma.Decimal(b.price).toFixed(2), currencyCode: b.currencyCode, sharingType: b.sharingType },
+      });
+    }
+  }
+
+  return pairs;
 }

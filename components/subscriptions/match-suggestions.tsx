@@ -16,6 +16,8 @@ export type SuggestionRow = {
   subscriptionPrice: string;
   subscriptionCurrencyCode: string;
   reason: "alias_ambiguous" | "similarity" | "amount_date";
+  /** Number of unlinked charges collapsed into this suggestion (>1 means confirming covers more) */
+  count: number;
 };
 
 type Props = {
@@ -124,20 +126,30 @@ export function MatchSuggestions({ suggestions }: Props) {
                 {reasonLabel(s.reason)}
               </span>
 
-              {/* Confirm */}
-              <button
-                type="button"
-                className="btn-primary"
-                style={{ fontSize: "var(--text-xs)", padding: "4px 10px", whiteSpace: "nowrap" }}
-                disabled={isPending || isConfirming}
-                onClick={() => handleConfirm(s)}
-              >
-                {isConfirming
-                  ? "..."
-                  : t("expenses.subscriptions.suggestions.confirm", {
-                      vars: { name: s.subscriptionName },
-                    })}
-              </button>
+              {/* Confirm + count note */}
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  style={{ fontSize: "var(--text-xs)", padding: "4px 10px", whiteSpace: "nowrap" }}
+                  disabled={isPending || isConfirming}
+                  onClick={() => handleConfirm(s)}
+                >
+                  {isConfirming
+                    ? "..."
+                    : t("expenses.subscriptions.suggestions.confirm", {
+                        vars: { name: s.subscriptionName },
+                      })}
+                </button>
+                {s.count > 1 && (
+                  <span
+                    className="mono"
+                    style={{ fontSize: "var(--text-xs)", color: "var(--dim)", whiteSpace: "nowrap" }}
+                  >
+                    {t("expenses.subscriptions.suggestions.count_more", { vars: { n: String(s.count - 1) } })}
+                  </span>
+                )}
+              </div>
 
               {/* Dismiss */}
               <button

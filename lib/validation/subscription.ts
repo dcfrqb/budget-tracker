@@ -121,3 +121,18 @@ export const confirmReimbursementSchema = z.object({
 });
 
 export type ConfirmReimbursementInput = z.infer<typeof confirmReimbursementSchema>;
+
+// ─── Merge / dismissal schemas ─────────────────────────────────
+
+export const mergeSubscriptionsSchema = z.object({
+  keepId: zCuid,
+  mergeId: zCuid,
+});
+
+export const dismissDuplicatePairSchema = z.object({
+  idA: zCuid,
+  idB: zCuid,
+});
+
+export type MergeSubscriptionsInput = z.infer<typeof mergeSubscriptionsSchema>;
+export type DismissDuplicatePairInput = z.infer<typeof dismissDuplicatePairSchema>;

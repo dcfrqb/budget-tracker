@@ -53,6 +53,8 @@ export type Suggestion = {
     isVariablePrice: boolean;
   };
   reason: "alias_ambiguous" | "similarity" | "amount_date";
+  /** Number of unlinked charges from the same merchant collapsed into this suggestion */
+  count: number;
 };
 
 export type AutoMatchResult = {
@@ -521,20 +523,21 @@ export async function getSubscriptionSuggestions(
     normalizedName: normalizeMerchant(sub.name),
   }));
 
-  const suggestions: Suggestion[] = [];
-  const seen = new Set<string>(); // txnId-subId pairs
+  // Group: merchantKey+subId → { best txn (most recent), count, reason }
+  type GroupEntry = {
+    txn: CandidateTxn;
+    count: number;
+    reason: Suggestion["reason"];
+  };
+  const groups = new Map<string, GroupEntry>();
 
   for (const txn of rawCandidates) {
     const txnKey = normalizeMerchant(txn.name);
     if (!txnKey) continue;
 
-    // Check for alias-ambiguous case (alias matches >1 sub — already skipped in auto)
     const aliasMatches = findMatchingSubsByAlias(txnKey, subsWithNames);
 
     for (const sub of subsWithNames) {
-      const pairKey = `${txn.id}:${sub.id}`;
-      if (seen.has(pairKey)) continue;
-
       const windowDays =
         sub.billingIntervalMonths >= 12
           ? DATE_WINDOW_DAYS_ANNUAL
@@ -567,28 +570,52 @@ export async function getSubscriptionSuggestions(
 
       if (!reason) continue;
 
-      seen.add(pairKey);
-      suggestions.push({
-        transaction: {
-          id: txn.id,
-          name: txn.name,
-          amount: new Prisma.Decimal(txn.amount).toFixed(2),
-          currencyCode: txn.currencyCode,
-          occurredAt: txn.occurredAt,
-          accountId: txn.accountId,
-        },
-        subscription: {
-          id: sub.id,
-          name: sub.name,
-          price: new Prisma.Decimal(sub.price).toFixed(2),
-          currencyCode: sub.currencyCode,
-          billingIntervalMonths: sub.billingIntervalMonths,
-          nextPaymentDate: sub.nextPaymentDate,
-          isVariablePrice: sub.isVariablePrice,
-        },
-        reason,
-      });
+      const groupKey = `${txnKey}\0${sub.id}`;
+      const existing = groups.get(groupKey);
+
+      if (!existing) {
+        groups.set(groupKey, { txn, count: 1, reason });
+      } else {
+        // Keep most recent transaction as representative
+        const representative =
+          txn.occurredAt >= existing.txn.occurredAt ? txn : existing.txn;
+        groups.set(groupKey, { txn: representative, count: existing.count + 1, reason: existing.reason });
+      }
     }
+  }
+
+  const subMap = new Map(subsWithNames.map((s) => [s.id, s]));
+
+  const suggestions: Suggestion[] = [];
+
+  for (const [groupKey, entry] of groups) {
+    const subId = groupKey.slice(groupKey.indexOf("\0") + 1);
+    const sub = subMap.get(subId);
+    if (!sub) continue;
+
+    const { txn, count, reason } = entry;
+
+    suggestions.push({
+      transaction: {
+        id: txn.id,
+        name: txn.name,
+        amount: new Prisma.Decimal(txn.amount).toFixed(2),
+        currencyCode: txn.currencyCode,
+        occurredAt: txn.occurredAt,
+        accountId: txn.accountId,
+      },
+      subscription: {
+        id: sub.id,
+        name: sub.name,
+        price: new Prisma.Decimal(sub.price).toFixed(2),
+        currencyCode: sub.currencyCode,
+        billingIntervalMonths: sub.billingIntervalMonths,
+        nextPaymentDate: sub.nextPaymentDate,
+        isVariablePrice: sub.isVariablePrice,
+      },
+      reason,
+      count,
+    });
   }
 
   return suggestions;
