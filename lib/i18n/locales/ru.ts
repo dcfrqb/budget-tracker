@@ -1233,6 +1233,11 @@ export const ruDict = {
         net:     "нетто",
       },
       y_axis_label: "тыс.",
+      curve: {
+        approx: "аппрокс.",
+        interp: "интерп.",
+        title:  "сглаживание кривой",
+      },
     },
     status_strip: {
       period_label:  "ПЕРИОД",

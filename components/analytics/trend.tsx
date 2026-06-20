@@ -1,9 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { useT, useLocale } from "@/lib/i18n/context";
 import { formatShortDate, formatMonthYear } from "@/lib/format/date";
 import type { TrendPoint } from "@/lib/data/analytics";
 import { monotonePath, monotoneAreaPath } from "@/lib/charts/monotone";
+import { bsplinePath, bsplineAreaPath } from "@/lib/charts/bspline";
+
+type CurveMode = "interp" | "approx";
 
 // ─────────────────────────────────────────────────────────────
 // Helpers
@@ -34,6 +38,12 @@ interface TrendChartsProps {
 export function TrendCharts({ points, granularity = "monthly", safeUntilDaysNow }: TrendChartsProps) {
   const t = useT();
   const locale = useLocale();
+
+  // Curve smoothing: interpolation (default, passes through points) vs
+  // approximation (B-spline — softer, runs near points). Just for fun.
+  const [curve, setCurve] = useState<CurveMode>("interp");
+  const linePath = curve === "approx" ? bsplinePath : monotonePath;
+  const areaPath = curve === "approx" ? bsplineAreaPath : monotoneAreaPath;
 
   const isEmpty = points.length === 0;
 
@@ -90,8 +100,26 @@ export function TrendCharts({ points, granularity = "monthly", safeUntilDaysNow 
           <span className="dim">· {t("analytics.trends.subtitle")}</span>
         </div>
         {!isEmpty && (
-          <div className="meta mono">
-            {yTicks[0]}
+          <div className="trend-hd-right">
+            <button
+              type="button"
+              className="curve-toggle mono"
+              data-mode={curve}
+              onClick={() => setCurve((c) => (c === "interp" ? "approx" : "interp"))}
+              title={t("analytics.trends.curve.title")}
+              aria-label={t("analytics.trends.curve.title")}
+            >
+              <span className="ct-opt" data-on={curve === "approx" ? "true" : "false"}>
+                {t("analytics.trends.curve.approx")}
+              </span>
+              <span className="ct-track" aria-hidden="true">
+                <span className="ct-knob" />
+              </span>
+              <span className="ct-opt" data-on={curve === "interp" ? "true" : "false"}>
+                {t("analytics.trends.curve.interp")}
+              </span>
+            </button>
+            <span className="meta mono">{yTicks[0]}</span>
           </div>
         )}
       </div>
@@ -138,13 +166,13 @@ export function TrendCharts({ points, granularity = "monthly", safeUntilDaysNow 
                 {/* Inflow fill + line */}
                 {n > 1 && (
                   <path
-                    d={monotoneAreaPath(xs, inflowYs, SVG_H)}
+                    d={areaPath(xs, inflowYs, SVG_H)}
                     style={{ fill: "var(--pos-fill)" }}
                     stroke="none"
                   />
                 )}
                 <path
-                  d={monotonePath(xs, inflowYs)}
+                  d={linePath(xs, inflowYs)}
                   fill="none"
                   stroke="var(--pos)"
                   strokeWidth={1.6}
@@ -156,13 +184,13 @@ export function TrendCharts({ points, granularity = "monthly", safeUntilDaysNow 
                 {/* Outflow fill + line */}
                 {n > 1 && (
                   <path
-                    d={monotoneAreaPath(xs, outflowYs, SVG_H)}
+                    d={areaPath(xs, outflowYs, SVG_H)}
                     style={{ fill: "var(--neg-fill)" }}
                     stroke="none"
                   />
                 )}
                 <path
-                  d={monotonePath(xs, outflowYs)}
+                  d={linePath(xs, outflowYs)}
                   fill="none"
                   stroke="var(--neg)"
                   strokeWidth={1.4}
@@ -173,7 +201,7 @@ export function TrendCharts({ points, granularity = "monthly", safeUntilDaysNow 
 
                 {/* Net line */}
                 <path
-                  d={monotonePath(xs, netYs)}
+                  d={linePath(xs, netYs)}
                   fill="none"
                   stroke="var(--accent)"
                   strokeWidth={1.8}

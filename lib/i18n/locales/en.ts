@@ -1225,6 +1225,11 @@ export const enDict: RuDictShape = {
         net:     "net",
       },
       y_axis_label: "k",
+      curve: {
+        approx: "approx.",
+        interp: "interp.",
+        title:  "curve smoothing",
+      },
     },
     status_strip: {
       period_label:  "PERIOD",
