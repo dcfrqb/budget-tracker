@@ -40,7 +40,6 @@ export type HomeObligationView = {
   date: string;        // "28.04 · 7д"
   amount: string;      // "₽ 57 400"
   meta: string;
-  isDuplicate?: boolean;
 };
 
 export type HomeTopCategoryView = {
@@ -284,23 +283,9 @@ export function toHomeView(dashboard: HomeDashboard, t: TFunc, tz: string = DEFA
       liquidBase,
     },
     planFact,
-    obligations: (() => {
-      const obls = dashboard.upcomingObligations30d;
-      const subSig = new Map<string, number>();
-      for (const ob of obls) {
-        if (ob.kind !== "subscription") continue;
-        const key = `${ob.label}|${ob.currencyCode}|${ob.amount}`;
-        subSig.set(key, (subSig.get(key) ?? 0) + 1);
-      }
-      return obls.map((ob) => {
-        const view = toObligationView(ob, t, tz);
-        if (ob.kind === "subscription") {
-          const key = `${ob.label}|${ob.currencyCode}|${ob.amount}`;
-          if ((subSig.get(key) ?? 0) > 1) view.isDuplicate = true;
-        }
-        return view;
-      });
-    })(),
+    obligations: dashboard.upcomingObligations30d.map((ob) =>
+      toObligationView(ob, t, tz),
+    ),
     topCategories: dashboard.topCategoriesDelta.map((c, i) => toTopCategoryView(c, i + 1)),
     // TODO Фаза 9: компонент summary-rail читает BALANCES из mock — передавай этот массив туда
     balances: dashboard.balances.map((b) => ({

@@ -34,11 +34,6 @@ export async function Obligations({ obligations }: { obligations: HomeObligation
                   {ob.meta}
                 </span>
               </div>
-              {ob.isDuplicate && (
-                <div className="mono" style={{ fontSize: "var(--text-2xs)", color: "var(--warn)", marginTop: 4 }}>
-                  {t("home.obligations.duplicate_hint")}
-                </div>
-              )}
             </div>
           ))}
           {obligations.length === 0 && (

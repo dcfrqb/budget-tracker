@@ -2451,7 +2451,6 @@ export const enDict: RuDictShape = {
         text: "no obligations in the next 30 days",
         cta: "+ obligation",
       },
-      duplicate_hint: "possible duplicate · check subscriptions",
     },
   },
 
