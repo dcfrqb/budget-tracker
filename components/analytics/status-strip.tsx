@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useOptimistic, useTransition } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Segmented } from "@/components/segmented";
 import { useT, useLocale } from "@/lib/i18n/context";
@@ -28,12 +28,24 @@ export function AnalyticsStatusStrip() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  const [isPending, startTransition] = useTransition();
+
   const now = new Date();
   const MONTH_DAY = now.getDate();
   const MONTH_DAYS = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
 
   const period = parseAnalyticsPeriod(searchParams.get("p") ?? undefined);
   const cmp = parseAnalyticsCompare(searchParams.get("cmp") ?? undefined);
+
+  const [optimisticPeriod, setOptimisticPeriod] = useOptimistic<AnalyticsPeriod, AnalyticsPeriod>(
+    period,
+    (_, next) => next,
+  );
+
+  const [optimisticCmp, setOptimisticCmp] = useOptimistic<AnalyticsCompare, AnalyticsCompare>(
+    cmp,
+    (_, next) => next,
+  );
 
   const PERIODS = [
     { id: "1m"  as AnalyticsPeriod, label: t("common.period.1m") },
@@ -49,8 +61,9 @@ export function AnalyticsStatusStrip() {
     { id: "none", label: t("analytics.compare.label_none") },
   ];
 
-  const handlePeriodChange = useCallback(
-    (next: AnalyticsPeriod) => {
+  function handlePeriodChange(next: AnalyticsPeriod) {
+    startTransition(() => {
+      setOptimisticPeriod(next);
       const params = new URLSearchParams(searchParams.toString());
       if (next === DEFAULT_ANALYTICS_PERIOD) {
         params.delete("p");
@@ -59,12 +72,12 @@ export function AnalyticsStatusStrip() {
       }
       const qs = params.toString();
       router.replace(qs ? `${pathname}?${qs}` : pathname);
-    },
-    [router, pathname, searchParams],
-  );
+    });
+  }
 
-  const handleCmpChange = useCallback(
-    (next: AnalyticsCompare) => {
+  function handleCmpChange(next: AnalyticsCompare) {
+    startTransition(() => {
+      setOptimisticCmp(next);
       const params = new URLSearchParams(searchParams.toString());
       if (next === DEFAULT_ANALYTICS_COMPARE) {
         params.delete("cmp");
@@ -73,18 +86,24 @@ export function AnalyticsStatusStrip() {
       }
       const qs = params.toString();
       router.replace(qs ? `${pathname}?${qs}` : pathname);
-    },
-    [router, pathname, searchParams],
-  );
+    });
+  }
 
   const monthLabel = formatMonthLong(now, locale);
 
   return (
-    <div className="status-strip fade-in" style={{ animationDelay: "0ms" }}>
+    <div
+      className="status-strip fade-in"
+      style={{
+        animationDelay: "0ms",
+        opacity: isPending ? 0.6 : 1,
+        transition: "opacity var(--d-fast) var(--e-out)",
+      }}
+    >
       <span className="lbl">{t("analytics.status_strip.period_label")}</span>
-      <Segmented options={PERIODS} value={period} onChange={handlePeriodChange} />
+      <Segmented options={PERIODS} value={optimisticPeriod} onChange={handlePeriodChange} />
       <span className="lbl">{t("analytics.status_strip.compare_label")}</span>
-      <Segmented options={CMP} value={cmp} onChange={handleCmpChange} />
+      <Segmented options={CMP} value={optimisticCmp} onChange={handleCmpChange} />
       <div className="clock-right">
         <span>{monthLabel} · <b title={t("analytics.status_strip.day_hint")}>{MONTH_DAY}/{MONTH_DAYS}</b></span>
       </div>
