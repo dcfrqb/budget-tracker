@@ -6,6 +6,8 @@ import { formatShortDate, formatMonthYear } from "@/lib/format/date";
 import type { TrendPoint } from "@/lib/data/analytics";
 import { monotonePath, monotoneAreaPath } from "@/lib/charts/monotone";
 import { bsplinePath, bsplineAreaPath } from "@/lib/charts/bspline";
+import { Segmented } from "@/components/segmented";
+import type { SegmentedOption } from "@/components/segmented";
 
 type CurveMode = "interp" | "approx";
 
@@ -44,6 +46,10 @@ export function TrendCharts({ points, granularity = "monthly", safeUntilDaysNow 
   const [curve, setCurve] = useState<CurveMode>("interp");
   const linePath = curve === "approx" ? bsplinePath : monotonePath;
   const areaPath = curve === "approx" ? bsplineAreaPath : monotoneAreaPath;
+  const curveOptions: readonly SegmentedOption<CurveMode>[] = [
+    { id: "approx", label: t("analytics.trends.curve.approx") },
+    { id: "interp", label: t("analytics.trends.curve.interp") },
+  ];
 
   const isEmpty = points.length === 0;
 
@@ -101,29 +107,11 @@ export function TrendCharts({ points, granularity = "monthly", safeUntilDaysNow 
         </div>
         {!isEmpty && (
           <div className="trend-hd-right">
-            <div
-              className="curve-toggle mono"
-              role="group"
-              aria-label={t("analytics.trends.curve.title")}
-              title={t("analytics.trends.curve.title")}
-            >
-              <button
-                type="button"
-                className={`ct-opt${curve === "approx" ? " on" : ""}`}
-                aria-pressed={curve === "approx"}
-                onClick={() => setCurve("approx")}
-              >
-                {t("analytics.trends.curve.approx")}
-              </button>
-              <button
-                type="button"
-                className={`ct-opt${curve === "interp" ? " on" : ""}`}
-                aria-pressed={curve === "interp"}
-                onClick={() => setCurve("interp")}
-              >
-                {t("analytics.trends.curve.interp")}
-              </button>
-            </div>
+            <Segmented<CurveMode>
+              options={curveOptions}
+              value={curve}
+              onChange={setCurve}
+            />
             <span className="meta mono">{yTicks[0]}</span>
           </div>
         )}

@@ -1782,22 +1782,8 @@ a { color: inherit; text-decoration: none; }
   margin-top: 8px;
 }
 
-/* Curve-smoothing toggle (interpolation / approximation) — top-right of trend */
+/* Trend header right cluster — universal Segmented control + max-value meta */
 .trend-hd-right { display: flex; align-items: center; gap: 12px; }
-.curve-toggle {
-  display: inline-flex; gap: 2px; padding: 2px;
-  border: 1px solid var(--border); border-radius: 3px;
-  background: var(--panel-2);
-}
-.curve-toggle .ct-opt {
-  cursor: pointer; padding: 4px 11px;
-  border: 1px solid transparent; border-radius: 3px;
-  font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
-  color: var(--dim);
-  transition: color var(--d-fast) var(--e-out), border-color var(--d-fast) var(--e-out);
-}
-.curve-toggle .ct-opt:hover { color: var(--muted); }
-.curve-toggle .ct-opt.on { color: var(--accent); border-color: var(--accent); }
 
 /* Pie + legend */
 .cat-breakdown { display: grid; grid-template-columns: 280px 1fr; gap: 1px; background: var(--border); }
