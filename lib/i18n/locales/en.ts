@@ -1238,9 +1238,9 @@ export const enDict: RuDictShape = {
       },
       y_axis_label: "k",
       curve: {
-        approx: "approx.",
-        interp: "interp.",
-        title:  "curve smoothing",
+        approx: "approximation",
+        interp: "interpolation",
+        title:  "graph smoothing type",
       },
     },
     status_strip: {

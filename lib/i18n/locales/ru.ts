@@ -1246,9 +1246,9 @@ export const ruDict = {
       },
       y_axis_label: "тыс.",
       curve: {
-        approx: "аппрокс.",
-        interp: "интерп.",
-        title:  "сглаживание кривой",
+        approx: "аппроксимация",
+        interp: "интерполяция",
+        title:  "тип сглаживания графика",
       },
     },
     status_strip: {
