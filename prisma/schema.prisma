@@ -706,6 +706,10 @@ model Subscription {
   matchKeywords         String[]    @default([])
   // Per-subscription kill-switch for the auto-matcher. True = auto-link transactions.
   autoMatch             Boolean     @default(true)
+  // Reimbursement tracking for PAID_FOR_OTHERS subscriptions
+  reimbursementExpected Decimal?    @db.Decimal(28, 10)
+  reimbursementCurrency String?
+  reimbursementFrom     String?
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
   deletedAt             DateTime?

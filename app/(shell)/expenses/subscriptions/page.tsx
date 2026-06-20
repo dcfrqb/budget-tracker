@@ -6,6 +6,7 @@ import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
 import { getSubscriptionsGrouped } from "@/lib/data/subscriptions";
 import { getLatestRatesMap } from "@/lib/data/wallet";
 import { getSubscriptionSuggestions } from "@/lib/data/_mutations/subscription-pairing";
+import { getReimbursementSuggestions } from "@/lib/data/_mutations/reimbursement-pairing";
 import {
   toSubscriptionGroupView,
   toSubscriptionsSummaryView,
@@ -15,6 +16,8 @@ import { SubscriptionGroup } from "@/components/expenses/subscriptions/group";
 import { SubscriptionImportButton } from "@/components/expenses/subscriptions/import-button";
 import { MatchSuggestions } from "@/components/subscriptions/match-suggestions";
 import type { SuggestionRow } from "@/components/subscriptions/match-suggestions";
+import { ReimbursementSuggestions } from "@/components/subscriptions/reimbursement-suggestions";
+import type { ReimbursementSuggestionRow } from "@/components/subscriptions/reimbursement-suggestions";
 import { formatDate } from "@/lib/format/date";
 
 export default async function SubscriptionsPage() {
@@ -25,9 +28,10 @@ export default async function SubscriptionsPage() {
     getCurrentUserTz(),
   ]);
 
-  const [grouped, rawSuggestions] = await Promise.all([
+  const [grouped, rawSuggestions, rawReimbursements] = await Promise.all([
     getSubscriptionsGrouped(userId),
     getSubscriptionSuggestions(userId),
+    getReimbursementSuggestions(userId),
   ]);
 
   const tFn = await getT(locale);
@@ -52,6 +56,23 @@ export default async function SubscriptionsPage() {
     reason: s.reason,
   }));
 
+  // Serialize reimbursement suggestions (convert Dates to formatted strings)
+  const reimbursementSuggestions: ReimbursementSuggestionRow[] = rawReimbursements.map((r) => ({
+    subscriptionId: r.subscription.id,
+    subscriptionName: r.subscription.name,
+    subscriptionReimbursementFrom: r.subscription.reimbursementFrom,
+    incomeId: r.income.id,
+    incomeName: r.income.name,
+    incomeAmount: r.income.amount,
+    incomeCurrencyCode: r.income.currencyCode,
+    incomeDate: formatDate(r.income.occurredAt, locale),
+    spendId: r.spend?.id ?? null,
+    spendAmount: r.spend?.amount ?? null,
+    spendCurrencyCode: r.spend?.currencyCode ?? null,
+    spendDate: r.spend ? formatDate(r.spend.occurredAt, locale) : null,
+    reason: r.reason,
+  }));
+
   return (
     <>
       <div className="section fade-in">
@@ -65,6 +86,10 @@ export default async function SubscriptionsPage() {
 
       {suggestions.length > 0 && (
         <MatchSuggestions suggestions={suggestions} />
+      )}
+
+      {reimbursementSuggestions.length > 0 && (
+        <ReimbursementSuggestions suggestions={reimbursementSuggestions} />
       )}
 
       <SubscriptionGroup group={personalGroup} tz={tz} />

@@ -273,7 +273,10 @@ export async function autoMatchSubscriptions(opts: {
 
   const claimed = new Set<string>();
   // Track which sub has been matched in which period (sub.id → Set<period-key>)
+  // Variable-price subs skip this dedup entirely.
   const subPeriodClaimed = new Map<string, Set<string>>();
+  // Track latest matched charge occurredAt per variable-price sub for deferred advance
+  const variableSubLatestCharge = new Map<string, Date>();
 
   let autoLinked = 0;
   let advanced = 0;
@@ -322,60 +325,83 @@ export async function autoMatchSubscriptions(opts: {
         if (!amtOk) continue;
       }
 
-      // Period deduplication: only link the earliest txn per period per sub
-      const periodKey = expectedDates
-        .find((d) => Math.abs(txn.occurredAt.getTime() - d.getTime()) <=
-          windowDays * 24 * 60 * 60 * 1000
-        )?.toISOString() ?? txn.occurredAt.toISOString();
+      if (!sub.isVariablePrice) {
+        // Fixed: period deduplication — only link the earliest txn per period per sub
+        const periodKey = expectedDates
+          .find((d) => Math.abs(txn.occurredAt.getTime() - d.getTime()) <=
+            windowDays * 24 * 60 * 60 * 1000
+          )?.toISOString() ?? txn.occurredAt.toISOString();
 
-      const subPeriods = subPeriodClaimed.get(sub.id) ?? new Set<string>();
-      if (subPeriods.has(periodKey)) {
-        // Already linked a txn for this period
-        continue;
-      }
+        const subPeriods = subPeriodClaimed.get(sub.id) ?? new Set<string>();
+        if (subPeriods.has(periodKey)) {
+          continue;
+        }
 
-      try {
-        await db.$transaction(async (tx) => {
-          await tx.transaction.update({
+        try {
+          await db.$transaction(async (tx) => {
+            await tx.transaction.update({
+              where: { id: txn.id },
+              data: {
+                subscriptionId: sub.id,
+                subscriptionLinkSource: "auto",
+              },
+            });
+
+            const newNext = advanceNextPaymentDate(
+              sub.nextPaymentDate,
+              sub.billingIntervalMonths,
+              txn.occurredAt,
+            );
+
+            let dateAdvanced = false;
+            if (newNext > sub.nextPaymentDate) {
+              await tx.subscription.update({
+                where: { id: sub.id },
+                data: { nextPaymentDate: newNext },
+              });
+              dateAdvanced = true;
+            }
+
+            return { dateAdvanced, newNext };
+          }).then(({ dateAdvanced, newNext }) => {
+            claimed.add(txn.id);
+            subPeriods.add(periodKey);
+            subPeriodClaimed.set(sub.id, subPeriods);
+            autoLinked++;
+            if (dateAdvanced) {
+              sub.nextPaymentDate = newNext;
+              advanced++;
+            }
+          });
+        } catch (err) {
+          console.error(
+            `[subscription-pairing] failed to link txn=${txn.id} sub=${sub.id}:`,
+            err,
+          );
+        }
+      } else {
+        // Variable: link ALL matching charges — no period dedup
+        try {
+          await db.transaction.update({
             where: { id: txn.id },
             data: {
               subscriptionId: sub.id,
               subscriptionLinkSource: "auto",
             },
           });
-
-          const newNext = advanceNextPaymentDate(
-            sub.nextPaymentDate,
-            sub.billingIntervalMonths,
-            txn.occurredAt,
-          );
-
-          let dateAdvanced = false;
-          if (newNext > sub.nextPaymentDate) {
-            await tx.subscription.update({
-              where: { id: sub.id },
-              data: { nextPaymentDate: newNext },
-            });
-            dateAdvanced = true;
-          }
-
-          return { dateAdvanced, newNext };
-        }).then(({ dateAdvanced, newNext }) => {
           claimed.add(txn.id);
-          subPeriods.add(periodKey);
-          subPeriodClaimed.set(sub.id, subPeriods);
           autoLinked++;
-          if (dateAdvanced) {
-            // Update in-memory reference only after successful commit
-            sub.nextPaymentDate = newNext;
-            advanced++;
+          // Track latest charge for deferred advance
+          const prev = variableSubLatestCharge.get(sub.id);
+          if (!prev || txn.occurredAt > prev) {
+            variableSubLatestCharge.set(sub.id, txn.occurredAt);
           }
-        });
-      } catch (err) {
-        console.error(
-          `[subscription-pairing] failed to link txn=${txn.id} sub=${sub.id}:`,
-          err,
-        );
+        } catch (err) {
+          console.error(
+            `[subscription-pairing] failed to link variable txn=${txn.id} sub=${sub.id}:`,
+            err,
+          );
+        }
       }
 
       continue;
@@ -407,6 +433,32 @@ export async function autoMatchSubscriptions(opts: {
         suggested++;
         break;
       }
+    }
+  }
+
+  // Deferred advance for variable-price subs: advance once against the latest matched charge
+  for (const [subId, latestChargeDate] of variableSubLatestCharge.entries()) {
+    const sub = subsWithNames.find((s) => s.id === subId);
+    if (!sub) continue;
+    try {
+      const newNext = advanceNextPaymentDate(
+        sub.nextPaymentDate,
+        sub.billingIntervalMonths,
+        latestChargeDate,
+      );
+      if (newNext > sub.nextPaymentDate) {
+        await db.subscription.update({
+          where: { id: subId },
+          data: { nextPaymentDate: newNext },
+        });
+        sub.nextPaymentDate = newNext;
+        advanced++;
+      }
+    } catch (err) {
+      console.error(
+        `[subscription-pairing] failed to advance variable sub=${subId}:`,
+        err,
+      );
     }
   }
 

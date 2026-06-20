@@ -81,17 +81,18 @@ export function computeMyCost({
 // ─────────────────────────────────────────────────────────────
 
 /**
- * For variable-price subscriptions: returns the average of the last `n`
- * recent charges (filtered to the subscription's currency).
+ * For variable-price subscriptions: groups recent charges by calendar month,
+ * sums each month, then averages the monthly sums (capped to last 3 months).
  * Falls back to `price` if no matching charges exist.
  * For fixed-price subscriptions: returns `price` unchanged.
  *
  * Amounts are stored as positive magnitude — no sign flip needed.
+ * `recentCharges` should include occurredAt for monthly grouping.
  */
 export function estimateRecurringAmount(args: {
   price: Prisma.Decimal;
   isVariablePrice: boolean;
-  recentCharges: { amount: Prisma.Decimal; currencyCode: string }[];
+  recentCharges: { amount: Prisma.Decimal; currencyCode: string; occurredAt?: Date }[];
   currency?: string;
   n?: number;
 }): Prisma.Decimal {
@@ -99,20 +100,41 @@ export function estimateRecurringAmount(args: {
     return new Prisma.Decimal(args.price);
   }
 
-  const n = args.n ?? 3;
+  const maxMonths = args.n ?? 3;
 
-  // Filter to same currency as the subscription (skip mismatched or empty currency charges)
+  // Filter to same currency as the subscription; drop undated charges to avoid
+  // binning them into month "1970-01" and skewing the monthly average.
   const matching = args.recentCharges
-    .slice(0, n)
-    .filter((c) => !args.currency || c.currencyCode === args.currency)
-    .map((c) => new Prisma.Decimal(c.amount).abs());
+    .filter((c) => !!c.occurredAt && (!args.currency || c.currencyCode === args.currency))
+    .map((c) => ({
+      amount: new Prisma.Decimal(c.amount).abs(),
+      occurredAt: c.occurredAt as Date,
+    }));
 
   if (matching.length === 0) {
     return new Prisma.Decimal(args.price);
   }
 
-  const sum = matching.reduce((acc, a) => acc.plus(a), new Prisma.Decimal(0));
-  return new Prisma.Decimal(sum.div(new Prisma.Decimal(matching.length)));
+  // Group charges by calendar month (YYYY-MM key) and sum each month
+  const monthMap = new Map<string, Prisma.Decimal>();
+  for (const charge of matching) {
+    const d = charge.occurredAt;
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    monthMap.set(key, (monthMap.get(key) ?? new Prisma.Decimal(0)).plus(charge.amount));
+  }
+
+  // Sort months descending, cap to maxMonths
+  const sortedMonths = Array.from(monthMap.keys()).sort().reverse().slice(0, maxMonths);
+
+  if (sortedMonths.length === 0) {
+    return new Prisma.Decimal(args.price);
+  }
+
+  const totalSum = sortedMonths.reduce(
+    (acc, k) => acc.plus(monthMap.get(k)!),
+    new Prisma.Decimal(0),
+  );
+  return totalSum.div(new Prisma.Decimal(sortedMonths.length));
 }
 
 export type BreakdownResult = {

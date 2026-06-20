@@ -576,6 +576,18 @@ export const enDict: RuDictShape = {
         confirm: "This is {name}",
         dismiss: "Dismiss",
       },
+      reimbursement: {
+        section_title: "Possible reimbursements",
+        reason_amount_match: "amount match",
+        reason_amount_and_name_match: "amount + name",
+        confirm: "This is a refund for {name}",
+        dismiss: "Dismiss",
+        no_spend_hint: "No spend to link yet",
+        income_label: "Income",
+        spend_label: "Spend",
+        sub_label: "Subscription",
+        from_label: "from {name}",
+      },
       pay: {
         mode_link: "Link a charge",
         mode_manual: "Record manually",
@@ -2142,6 +2154,13 @@ export const enDict: RuDictShape = {
         field_amount: "Amount",
         delete: "Delete",
         empty: "No participants",
+      },
+      reimbursement: {
+        section_title: "Reimbursement",
+        field_expected: "Expected reimbursement",
+        field_currency: "Reimbursement currency",
+        field_from: "From whom",
+        field_from_placeholder: "e.g. Victoria G.",
       },
     },
     loan: {

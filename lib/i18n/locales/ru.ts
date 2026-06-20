@@ -584,6 +584,18 @@ export const ruDict = {
         confirm: "Это {name}",
         dismiss: "Скрыть",
       },
+      reimbursement: {
+        section_title: "Возможные возвраты",
+        reason_amount_match: "сумма совпадает",
+        reason_amount_and_name_match: "сумма + имя",
+        confirm: "Это возврат за {name}",
+        dismiss: "Скрыть",
+        no_spend_hint: "Нет расхода для привязки",
+        income_label: "Поступление",
+        spend_label: "Расход",
+        sub_label: "Подписка",
+        from_label: "от {name}",
+      },
       pay: {
         mode_link: "Привязать списание",
         mode_manual: "Записать вручную",
@@ -2151,6 +2163,13 @@ export const ruDict = {
         field_amount: "Сумма",
         delete: "Удалить",
         empty: "Участников нет",
+      },
+      reimbursement: {
+        section_title: "Возврат",
+        field_expected: "Ожидаемый возврат",
+        field_currency: "Валюта возврата",
+        field_from: "От кого",
+        field_from_placeholder: "Например: Виктория Г.",
       },
     },
     loan: {

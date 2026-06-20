@@ -19,6 +19,9 @@ const subscriptionBaseSchema = z.object({
   isVariablePrice: z.boolean().optional(),
   autoMatch: z.boolean().optional(),
   matchKeywords: z.array(z.string().min(1).max(200)).optional(),
+  reimbursementExpected: zMoney.nullish(),
+  reimbursementCurrency: zCurrencyCode.nullish(),
+  reimbursementFrom: z.string().max(200).nullish(),
 });
 
 // JSON editor item: includes optional id for update/create diff semantics.
@@ -109,3 +112,12 @@ export type SubscriptionsBulkReplaceInput = z.infer<typeof subscriptionsBulkRepl
 export type MarkSubscriptionPaidInput = z.infer<typeof markSubscriptionPaidSchema>;
 export type ConfirmSubscriptionMatchInput = z.infer<typeof confirmSubscriptionMatchSchema>;
 export type UnlinkSubscriptionTxnInput = z.infer<typeof unlinkSubscriptionTxnSchema>;
+
+// ─── Reimbursement confirm schema ─────────────────────────────
+
+export const confirmReimbursementSchema = z.object({
+  incomeTransactionId: zCuid,
+  spendTransactionId: zCuid,
+});
+
+export type ConfirmReimbursementInput = z.infer<typeof confirmReimbursementSchema>;

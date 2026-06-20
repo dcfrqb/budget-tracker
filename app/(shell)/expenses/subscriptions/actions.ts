@@ -14,8 +14,10 @@ import {
   unlinkSubscriptionTxnSchema,
   subscriptionFromTransactionsSchema,
   linkTransactionsToSubscriptionSchema,
+  confirmReimbursementSchema,
   type SubscriptionJsonItem,
 } from "@/lib/validation/subscription";
+import { createCompensationGroup } from "@/lib/data/_mutations/compensations";
 import {
   subscriptionShareCreateSchema,
   subscriptionShareUpdateSchema,
@@ -443,4 +445,35 @@ export async function getActiveSubscriptionsAction(): Promise<
   } catch {
     return { ok: false, error: "internal_error" };
   }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Confirm reimbursement: link a PAID_FOR_OTHERS spend + incoming
+// reimbursement income into a CompensationGroup.
+// ─────────────────────────────────────────────────────────────
+
+export async function confirmReimbursementAction(rawData: unknown): Promise<
+  { ok: true; groupId: string } | { ok: false; error: string }
+> {
+  const parsed = confirmReimbursementSchema.safeParse(rawData);
+  if (!parsed.success) {
+    const first = parsed.error.issues[0];
+    return { ok: false, error: first?.message ?? "invalid_input" };
+  }
+
+  const { incomeTransactionId, spendTransactionId } = parsed.data;
+
+  const result = await createCompensationGroup({
+    txnIds: [spendTransactionId, incomeTransactionId],
+  });
+
+  if (!result.ok) {
+    return { ok: false, error: result.error };
+  }
+
+  revalidateTag("subscriptions", "default");
+  revalidateTag("transactions", "default");
+  revalidatePath("/", "layout");
+
+  return { ok: true, groupId: result.groupId };
 }

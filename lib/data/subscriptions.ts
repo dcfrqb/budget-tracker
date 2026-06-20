@@ -46,9 +46,14 @@ export const getSubscriptions = cache(async (
       shares: true,
       currency: true,
       transactions: {
-        where: { deletedAt: null },
+        where: {
+          deletedAt: null,
+          // Fetch ~120 days for variable-price monthly-sum averaging; fixed subs
+          // only look at the first few but filtering happens in estimateRecurringAmount.
+          occurredAt: { gte: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000) },
+        },
         orderBy: { occurredAt: "desc" },
-        take: 3,
+        take: 60,
         select: { amount: true, currencyCode: true, occurredAt: true },
       },
     },

@@ -120,6 +120,7 @@ export function SubscriptionForm({
 
   const watchedSharingType = watch("sharingType") as SharingType;
   const isSplit = watchedSharingType === SharingType.SPLIT;
+  const isPaidForOthers = watchedSharingType === SharingType.PAID_FOR_OTHERS;
   const watchedIsVariable = watch("isVariablePrice") as boolean | undefined;
 
   const intervalOptions = [
@@ -266,6 +267,46 @@ export function SubscriptionForm({
           {t("forms.sub.field_auto_match_help")}
         </span>
       </label>
+
+      {/* Reimbursement block — only for PAID_FOR_OTHERS */}
+      {isPaidForOthers && (
+        <div
+          style={{
+            borderTop: "1px solid var(--border)",
+            paddingTop: "var(--space-3)",
+            marginTop: "var(--space-1)",
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--space-3)",
+          }}
+        >
+          <div
+            className="mono"
+            style={{ fontSize: "var(--text-xs)", color: "var(--accent)", letterSpacing: "0.06em" }}
+          >
+            {t("forms.sub.reimbursement.section_title")}
+          </div>
+          <div className="form-row">
+            <MoneyInput
+              register={register("reimbursementExpected")}
+              label={t("forms.sub.reimbursement.field_expected")}
+              error={errMsg(errors.reimbursementExpected)}
+            />
+            <CurrencySelect
+              register={register("reimbursementCurrency")}
+              currencies={currencies}
+              label={t("forms.sub.reimbursement.field_currency")}
+              error={errMsg(errors.reimbursementCurrency)}
+            />
+          </div>
+          <TextField
+            register={register("reimbursementFrom")}
+            label={t("forms.sub.reimbursement.field_from")}
+            error={errMsg(errors.reimbursementFrom)}
+            placeholder={t("forms.sub.reimbursement.field_from_placeholder")}
+          />
+        </div>
+      )}
 
       {/* matchKeywords — read-only alias chips (Phase 1: display only) */}
       {matchKeywords.length > 0 && (
