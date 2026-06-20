@@ -9,6 +9,9 @@ import {
   subscriptionUpdateSchema,
   subscriptionPaySchema,
   subscriptionsBulkReplaceSchema,
+  markSubscriptionPaidSchema,
+  confirmSubscriptionMatchSchema,
+  unlinkSubscriptionTxnSchema,
   type SubscriptionJsonItem,
 } from "@/lib/validation/subscription";
 import {
@@ -20,6 +23,8 @@ import {
   updateSubscription,
   deleteSubscription,
   paySubscription,
+  markSubscriptionPaid,
+  unlinkSubscriptionTransaction,
 } from "@/lib/data/_mutations/subscriptions";
 import { db } from "@/lib/db";
 
@@ -102,6 +107,97 @@ export async function paySubscriptionAction(id: string, rawData: unknown) {
   }
   try {
     const result = await paySubscription(userId, id, parsed.data);
+    revalidateTag("subscriptions", "default");
+    revalidateTag("transactions", "default");
+    revalidatePath("/", "layout");
+    return actionOk(result);
+  } catch (e) {
+    const err = e as { code?: string };
+    if (err.code === "NOT_FOUND") return actionError("not_found");
+    if (err.code === "INVALID") return actionError("conflict");
+    return actionError("internal_error");
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Reconciliation actions
+// ─────────────────────────────────────────────────────────────
+
+export async function markSubscriptionPaidAction(rawData: unknown) {
+  const userId = await getCurrentUserId();
+  const parsed = markSubscriptionPaidSchema.safeParse(rawData);
+  if (!parsed.success) {
+    const fieldErrors: Record<string, string[]> = {};
+    for (const issue of parsed.error.issues) {
+      const key = issue.path.join(".");
+      if (!fieldErrors[key]) fieldErrors[key] = [];
+      fieldErrors[key].push(issue.message);
+    }
+    return { ok: false as const, fieldErrors };
+  }
+  try {
+    const result = await markSubscriptionPaid(userId, parsed.data.subscriptionId, {
+      paidAt: parsed.data.paidAt,
+      transactionId: parsed.data.transactionId,
+    });
+    revalidateTag("subscriptions", "default");
+    revalidateTag("transactions", "default");
+    revalidatePath("/", "layout");
+    return actionOk(result);
+  } catch (e) {
+    const err = e as { code?: string };
+    if (err.code === "NOT_FOUND") return actionError("not_found");
+    if (err.code === "INVALID") return actionError("conflict");
+    if (err.code === "CONFLICT") return actionError("conflict");
+    return actionError("internal_error");
+  }
+}
+
+export async function confirmSubscriptionMatchAction(rawData: unknown) {
+  const userId = await getCurrentUserId();
+  const parsed = confirmSubscriptionMatchSchema.safeParse(rawData);
+  if (!parsed.success) {
+    const fieldErrors: Record<string, string[]> = {};
+    for (const issue of parsed.error.issues) {
+      const key = issue.path.join(".");
+      if (!fieldErrors[key]) fieldErrors[key] = [];
+      fieldErrors[key].push(issue.message);
+    }
+    return { ok: false as const, fieldErrors };
+  }
+  try {
+    const result = await markSubscriptionPaid(userId, parsed.data.subscriptionId, {
+      transactionId: parsed.data.transactionId,
+    });
+    revalidateTag("subscriptions", "default");
+    revalidateTag("transactions", "default");
+    revalidatePath("/", "layout");
+    return actionOk(result);
+  } catch (e) {
+    const err = e as { code?: string };
+    if (err.code === "NOT_FOUND") return actionError("not_found");
+    if (err.code === "INVALID") return actionError("conflict");
+    if (err.code === "CONFLICT") return actionError("conflict");
+    return actionError("internal_error");
+  }
+}
+
+export async function unlinkSubscriptionTransactionAction(rawData: unknown) {
+  const userId = await getCurrentUserId();
+  const parsed = unlinkSubscriptionTxnSchema.safeParse(rawData);
+  if (!parsed.success) {
+    const fieldErrors: Record<string, string[]> = {};
+    for (const issue of parsed.error.issues) {
+      const key = issue.path.join(".");
+      if (!fieldErrors[key]) fieldErrors[key] = [];
+      fieldErrors[key].push(issue.message);
+    }
+    return { ok: false as const, fieldErrors };
+  }
+  try {
+    const result = await unlinkSubscriptionTransaction(userId, parsed.data.transactionId, {
+      rollbackNextPaymentDate: parsed.data.rollbackNextPaymentDate,
+    });
     revalidateTag("subscriptions", "default");
     revalidateTag("transactions", "default");
     revalidatePath("/", "layout");

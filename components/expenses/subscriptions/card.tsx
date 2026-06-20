@@ -83,6 +83,19 @@ export function SubscriptionCard({ card, tz }: Props) {
               {"+"}{card.sharesCount}
             </span>
           )}
+          {card.isVariablePrice && (
+            <span
+              className="mono"
+              style={{
+                color: "var(--muted)",
+                fontSize: "var(--text-xs)",
+                fontWeight: 400,
+                marginLeft: 6,
+              }}
+            >
+              {t("expenses.subscriptions.card.variable_badge")}
+            </span>
+          )}
         </span>
         <span className={`sub-next${card.nextToneOk ? " ok" : ""}`}>{card.nextDate}</span>
       </div>
@@ -96,6 +109,7 @@ export function SubscriptionCard({ card, tz }: Props) {
             currentNextPaymentDate={card.nextPaymentDateIso}
             onPaid={() => router.refresh()}
             tz={tz}
+            preferLinkMode={false}
           />
         </span>
         <Link

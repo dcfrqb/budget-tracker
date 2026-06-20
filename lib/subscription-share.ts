@@ -76,6 +76,45 @@ export function computeMyCost({
   return remainder.div(new Prisma.Decimal(implicitSlots));
 }
 
+// ─────────────────────────────────────────────────────────────
+// Variable-price estimate
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * For variable-price subscriptions: returns the average of the last `n`
+ * recent charges (filtered to the subscription's currency).
+ * Falls back to `price` if no matching charges exist.
+ * For fixed-price subscriptions: returns `price` unchanged.
+ *
+ * Amounts are stored as positive magnitude — no sign flip needed.
+ */
+export function estimateRecurringAmount(args: {
+  price: Prisma.Decimal;
+  isVariablePrice: boolean;
+  recentCharges: { amount: Prisma.Decimal; currencyCode: string }[];
+  currency?: string;
+  n?: number;
+}): Prisma.Decimal {
+  if (!args.isVariablePrice) {
+    return new Prisma.Decimal(args.price);
+  }
+
+  const n = args.n ?? 3;
+
+  // Filter to same currency as the subscription (skip mismatched or empty currency charges)
+  const matching = args.recentCharges
+    .slice(0, n)
+    .filter((c) => !args.currency || c.currencyCode === args.currency)
+    .map((c) => new Prisma.Decimal(c.amount).abs());
+
+  if (matching.length === 0) {
+    return new Prisma.Decimal(args.price);
+  }
+
+  const sum = matching.reduce((acc, a) => acc.plus(a), new Prisma.Decimal(0));
+  return new Prisma.Decimal(sum.div(new Prisma.Decimal(matching.length)));
+}
+
 export type BreakdownResult = {
   mine: Prisma.Decimal;
   personal: Prisma.Decimal;

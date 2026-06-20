@@ -346,18 +346,21 @@ model Transaction {
   source     String?
 
   // Связи с доменными объектами
-  transferId          String?
-  loanId              String?
-  loanPaymentId       String?
-  subscriptionId      String?
-  longProjectId       String?
-  fundId              String?
-  workSourceId        String?
-  freelanceOrderId    String?
-  personalDebtId      String?
-  plannedEventId      String?
+  transferId             String?
+  loanId                 String?
+  loanPaymentId          String?
+  subscriptionId         String?
+  // Provenance of subscription link: null | "manual" | "auto" | "unlinked".
+  // Prevents auto-matcher from overwriting manual links or re-grabbing unlinked rows.
+  subscriptionLinkSource String?
+  longProjectId          String?
+  fundId                 String?
+  workSourceId           String?
+  freelanceOrderId       String?
+  personalDebtId         String?
+  plannedEventId         String?
   // Compensation group: never updated by sync adapters — only by createCompensationGroup / breakCompensationGroup server actions
-  compensationGroupId String?
+  compensationGroupId    String?
 
   // Trip Planner: optional link to a trip
   tripId String?
@@ -689,6 +692,7 @@ model Subscription {
   iconColor             String?
   iconBg                String?
   price                 Decimal     @db.Decimal(28, 10)
+  isVariablePrice       Boolean     @default(false)
   currencyCode          String
   categoryId            String? // опциональная связь с категорией расходов
   billingIntervalMonths Int         @default(1) // 1 / 3 / 6 / 12 / custom
@@ -697,6 +701,11 @@ model Subscription {
   totalUsers            Int? // для SPLIT: всего участников (включая меня)
   familyId              String? // если шеринг внутри семьи
   isActive              Boolean     @default(true)
+  // Auto-reconciliation: normalized merchant aliases for transaction matching.
+  // Empty array = no auto-matching. Mirrors Category.mccCodes pattern.
+  matchKeywords         String[]    @default([])
+  // Per-subscription kill-switch for the auto-matcher. True = auto-link transactions.
+  autoMatch             Boolean     @default(true)
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
   deletedAt             DateTime?

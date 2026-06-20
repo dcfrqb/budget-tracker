@@ -16,6 +16,9 @@ const subscriptionBaseSchema = z.object({
   totalUsers: z.number().int().min(2).nullish(),
   familyId: zCuid.nullish(),
   isActive: z.boolean().optional(),
+  isVariablePrice: z.boolean().optional(),
+  autoMatch: z.boolean().optional(),
+  matchKeywords: z.array(z.string().min(1).max(200)).optional(),
 });
 
 // JSON editor item: includes optional id for update/create diff semantics.
@@ -57,6 +60,24 @@ export const subscriptionPaySchema = z.object({
   categoryId: zCuid.nullish(),
 });
 
+// ─── Reconciliation schemas ─────────────────────────────────
+
+export const markSubscriptionPaidSchema = z.object({
+  subscriptionId: zCuid,
+  paidAt: zIsoDate.optional(),
+  transactionId: zCuid.nullish(),
+});
+
+export const confirmSubscriptionMatchSchema = z.object({
+  transactionId: zCuid,
+  subscriptionId: zCuid,
+});
+
+export const unlinkSubscriptionTxnSchema = z.object({
+  transactionId: zCuid,
+  rollbackNextPaymentDate: z.boolean().optional(),
+});
+
 export const subscriptionsBulkImportSchema = z.array(subscriptionCreateSchema).min(1).max(500);
 
 export type SubscriptionCreateInput = z.infer<typeof subscriptionCreateSchema>;
@@ -65,3 +86,6 @@ export type SubscriptionPayInput = z.infer<typeof subscriptionPaySchema>;
 export type SubscriptionsBulkImportInput = z.infer<typeof subscriptionsBulkImportSchema>;
 export type SubscriptionJsonItem = z.infer<typeof subscriptionJsonItemSchema>;
 export type SubscriptionsBulkReplaceInput = z.infer<typeof subscriptionsBulkReplaceSchema>;
+export type MarkSubscriptionPaidInput = z.infer<typeof markSubscriptionPaidSchema>;
+export type ConfirmSubscriptionMatchInput = z.infer<typeof confirmSubscriptionMatchSchema>;
+export type UnlinkSubscriptionTxnInput = z.infer<typeof unlinkSubscriptionTxnSchema>;

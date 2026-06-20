@@ -1,5 +1,6 @@
 import { AccountKind, CategoryKind, IntegrationStatus, TransactionKind, TransactionStatus, Prisma } from "@prisma/client";
 import { autoPairTransfers } from "./transfer-pairing";
+import { autoMatchSubscriptions } from "@/lib/data/_mutations/subscription-pairing";
 import { db } from "@/lib/db";
 import { encrypt, decrypt } from "@/lib/integrations/crypto";
 import { assertAdminIntegrations } from "@/lib/integrations/guard";
@@ -923,6 +924,10 @@ export async function syncCredential(
   await autoPairTransfers({ userId }).catch((err) => {
     console.error("[orchestrator] autoPairTransfers failed:", err);
   });
+
+  await autoMatchSubscriptions({ userId }).catch((err) =>
+    console.error("[orchestrator] autoMatchSubscriptions failed:", err),
+  );
 
   return {
     created: rowsCreated,

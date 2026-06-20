@@ -47,6 +47,7 @@ export interface SubscriptionFormProps {
   subscriptionId?: string;
   onSuccess?: () => void;
   tz?: string;
+  matchKeywords?: string[];
 }
 
 export function SubscriptionForm({
@@ -57,6 +58,7 @@ export function SubscriptionForm({
   subscriptionId,
   onSuccess,
   tz,
+  matchKeywords = [],
 }: SubscriptionFormProps) {
   const t = useT();
   const router = useRouter();
@@ -118,6 +120,7 @@ export function SubscriptionForm({
 
   const watchedSharingType = watch("sharingType") as SharingType;
   const isSplit = watchedSharingType === SharingType.SPLIT;
+  const watchedIsVariable = watch("isVariablePrice") as boolean | undefined;
 
   const intervalOptions = [
     { value: "1", label: t("forms.sub.interval_options.m1") },
@@ -183,11 +186,20 @@ export function SubscriptionForm({
         />
       </div>
 
+      {/* isVariablePrice */}
+      <label className="form-checkbox-label">
+        <input type="checkbox" {...register("isVariablePrice")} />
+        <span>{t("forms.sub.field_is_variable")}</span>
+        <span className="mono" style={{ color: "var(--muted)", fontSize: "var(--text-xs)", marginLeft: 6 }}>
+          {t("forms.sub.field_is_variable_help")}
+        </span>
+      </label>
+
       {/* Price + Currency */}
       <div className="form-row">
         <MoneyInput
           register={register("price")}
-          label={t("forms.sub.field.price")}
+          label={watchedIsVariable ? t("expenses.subscriptions.variable.price_label_estimate") : t("forms.sub.field.price")}
           error={errMsg(errors.price)}
           required
         />
@@ -245,6 +257,42 @@ export function SubscriptionForm({
         label={t("forms.sub.field.note")}
         error={errMsg(errors.note)}
       />
+
+      {/* autoMatch */}
+      <label className="form-checkbox-label">
+        <input type="checkbox" {...register("autoMatch")} />
+        <span>{t("forms.sub.field_auto_match")}</span>
+        <span className="mono" style={{ color: "var(--muted)", fontSize: "var(--text-xs)", marginLeft: 6 }}>
+          {t("forms.sub.field_auto_match_help")}
+        </span>
+      </label>
+
+      {/* matchKeywords — read-only alias chips (Phase 1: display only) */}
+      {matchKeywords.length > 0 && (
+        <div>
+          <div className="mono" style={{ fontSize: "var(--text-xs)", color: "var(--muted)", marginBottom: 6 }}>
+            {t("expenses.subscriptions.variable.keywords_caption")}
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {matchKeywords.map((kw) => (
+              <span
+                key={kw}
+                className="mono"
+                style={{
+                  fontSize: "var(--text-xs)",
+                  color: "var(--text)",
+                  background: "var(--panel-2)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 4,
+                  padding: "2px 8px",
+                }}
+              >
+                {kw}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       <SubmitRow
         isSubmitting={isPending}

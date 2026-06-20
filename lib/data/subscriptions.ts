@@ -8,13 +8,22 @@ import type { Currency, SharingType, Subscription, SubscriptionShare } from "@pr
 import { db } from "@/lib/db";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { convertToBase, getLatestRatesMap } from "@/lib/data/wallet";
-import { computeMyCost } from "@/lib/subscription-share";
+import { computeMyCost, estimateRecurringAmount } from "@/lib/subscription-share";
 
 // ─── Type exports ──────────────────────────────────────────
+
+export type SubscriptionRecentCharge = {
+  amount: Prisma.Decimal;
+  currencyCode: string;
+  occurredAt: Date;
+};
 
 export type SubscriptionWithDetails = Subscription & {
   shares: SubscriptionShare[];
   currency: Currency;
+  transactions: SubscriptionRecentCharge[];
+  /** Effective monthly amount after variable-price estimation */
+  effectiveMonthly: string;
 };
 
 // ─── Queries ───────────────────────────────────────────────
@@ -27,7 +36,7 @@ export type SubscriptionWithDetails = Subscription & {
 export const getSubscriptions = cache(async (
   userId: string,
 ): Promise<SubscriptionWithDetails[]> => {
-  return db.subscription.findMany({
+  const raw = await db.subscription.findMany({
     where: {
       userId,
       isActive: true,
@@ -36,11 +45,30 @@ export const getSubscriptions = cache(async (
     include: {
       shares: true,
       currency: true,
+      transactions: {
+        where: { deletedAt: null },
+        orderBy: { occurredAt: "desc" },
+        take: 3,
+        select: { amount: true, currencyCode: true, occurredAt: true },
+      },
     },
     orderBy: [
       { sharingType: "asc" },
       { nextPaymentDate: "asc" },
     ],
+  });
+
+  return raw.map((sub) => {
+    const effective = estimateRecurringAmount({
+      price: sub.price,
+      isVariablePrice: sub.isVariablePrice ?? false,
+      recentCharges: sub.transactions,
+      currency: sub.currencyCode,
+    });
+    const effectiveMonthly = effective
+      .div(new Prisma.Decimal(sub.billingIntervalMonths))
+      .toFixed(2);
+    return { ...sub, effectiveMonthly };
   });
 });
 
@@ -100,8 +128,14 @@ export const getSubscriptionsGrouped = cache(async (
     else if (sub.sharingType === "SPLIT") split.push(sub);
     else paidForOthers.push(sub);
 
-    // Monthly cost normalisation
-    const monthly = sub.price.div(new Prisma.Decimal(sub.billingIntervalMonths));
+    // Monthly cost normalisation — use effective amount (variable-price aware)
+    const effectivePrice = estimateRecurringAmount({
+      price: sub.price,
+      isVariablePrice: sub.isVariablePrice ?? false,
+      recentCharges: sub.transactions,
+      currency: sub.currencyCode,
+    });
+    const monthly = effectivePrice.div(new Prisma.Decimal(sub.billingIntervalMonths));
 
     // Convert to RUB
     const monthlyRub = convertToBase(monthly, sub.currencyCode, BASE_CCY, rates);
@@ -146,3 +180,95 @@ export const getSubscriptionsGrouped = cache(async (
 });
 
 // paySubscription was moved to lib/data/_mutations/subscriptions.ts
+
+// ─── Recent unlinked expenses (for Pay dialog link mode) ─────
+
+export type RecentUnlinkedExpense = {
+  id: string;
+  name: string;
+  amount: string;
+  currencyCode: string;
+  occurredAt: Date;
+  accountName: string | null;
+};
+
+/**
+ * Returns recent EXPENSE transactions that are not yet linked to any subscription.
+ * Used for the "link a real charge" mode in the Pay dialog.
+ */
+export async function getRecentUnlinkedExpenses(
+  userId: string,
+  subId: string,
+  limit = 20,
+): Promise<RecentUnlinkedExpense[]> {
+  const sub = await db.subscription.findFirst({
+    where: { id: subId, userId, deletedAt: null },
+    select: { price: true, currencyCode: true, nextPaymentDate: true, billingIntervalMonths: true },
+  });
+
+  // Search within ±60 days of next payment date or last 90 days
+  const windowTo = new Date();
+  const windowFrom = new Date(windowTo.getTime() - 90 * 24 * 60 * 60 * 1000);
+
+  const rows = await db.transaction.findMany({
+    where: {
+      userId,
+      deletedAt: null,
+      kind: "EXPENSE",
+      subscriptionId: null,
+      transferId: null,
+      occurredAt: { gte: windowFrom, lte: windowTo },
+      ...(sub ? { currencyCode: sub.currencyCode } : {}),
+      OR: [
+        { subscriptionLinkSource: null },
+        { subscriptionLinkSource: { not: "unlinked" } },
+      ],
+    },
+    orderBy: { occurredAt: "desc" },
+    take: limit,
+    include: { account: { select: { name: true } } },
+  });
+
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    amount: new Prisma.Decimal(r.amount).toFixed(2),
+    currencyCode: r.currencyCode,
+    occurredAt: r.occurredAt,
+    accountName: r.account.name ?? null,
+  }));
+}
+
+// ─── Subscription charge history ────────────────────────────
+
+export type SubscriptionCharge = {
+  id: string;
+  occurredAt: Date;
+  amount: string;
+  currencyCode: string;
+  accountName: string | null;
+  subscriptionLinkSource: string | null;
+};
+
+/**
+ * Returns all linked transactions for a subscription, serialized for RSC→client safety.
+ */
+export async function getSubscriptionCharges(
+  userId: string,
+  subId: string,
+): Promise<SubscriptionCharge[]> {
+  const rows = await db.transaction.findMany({
+    where: { subscriptionId: subId, userId, deletedAt: null },
+    orderBy: { occurredAt: "desc" },
+    include: { account: { select: { name: true } } },
+  });
+
+  return rows.map((r) => ({
+    id: r.id,
+    occurredAt: r.occurredAt,
+    amount: new Prisma.Decimal(r.amount).toFixed(2),
+    currencyCode: r.currencyCode,
+    accountName: r.account.name ?? null,
+    subscriptionLinkSource: r.subscriptionLinkSource,
+  }));
+}

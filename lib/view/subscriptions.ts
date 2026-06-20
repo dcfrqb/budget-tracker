@@ -26,7 +26,7 @@ export type SubscriptionCardView = {
   /** "личные" / "шеринг" / "за других" */
   badgeLabel: string;
   badgeClass: "personal" | "split" | "pays";
-  /** Price string e.g. "900 ₽" */
+  /** Price string e.g. "900 ₽" or "~900 ₽" for variable subs */
   price: string;
   /** My share label if different from full price, e.g. "моя доля 450 ₽" */
   myShare: string | null;
@@ -42,6 +42,16 @@ export type SubscriptionCardView = {
   nextPaymentDateIso: string;
   /** Billing interval months for optimistic shift */
   billingIntervalMonths: number;
+  /** Whether the sub has a variable price */
+  isVariablePrice: boolean;
+  /** Whether the displayed price is an estimate (effectiveMonthly-derived) */
+  priceIsEstimated: boolean;
+  /** The effective monthly display string (always per month) */
+  effectiveMonthlyStr: string;
+  /** matchKeywords for display in the form */
+  matchKeywords: string[];
+  /** autoMatch setting */
+  autoMatch: boolean;
 };
 
 function intervalLabel(months: number, t: TFn): string {
@@ -68,18 +78,31 @@ export function toSubscriptionCardView(
     amount: s.amount ? new Prisma.Decimal(s.amount) : null,
   }));
 
-  const myCost = computeMyCost({
-    price: new Prisma.Decimal(sub.price),
+  const isVariablePrice = sub.isVariablePrice ?? false;
+  const effectivePrice = sub.effectiveMonthly
+    ? new Prisma.Decimal(sub.effectiveMonthly).times(new Prisma.Decimal(sub.billingIntervalMonths))
+    : new Prisma.Decimal(sub.price);
+  const priceIsEstimated = isVariablePrice;
+  const displayPrice = isVariablePrice ? effectivePrice : new Prisma.Decimal(sub.price);
+
+  const rawPriceStr = formatMoney(displayPrice, sub.currency.code);
+  const priceStr = priceIsEstimated ? `~${rawPriceStr}` : rawPriceStr;
+  const effectiveMonthlyStr = formatMoney(
+    new Prisma.Decimal(sub.effectiveMonthly ?? sub.price).div(new Prisma.Decimal(1)),
+    sub.currency.code,
+  );
+
+  // Recompute myCost using the display price for consistent share display
+  const myCostDisplay = computeMyCost({
+    price: displayPrice,
     shareMode: sub.sharingType,
     totalUsers: sub.totalUsers,
     shares: sharesInput,
   });
-
-  const priceStr = formatMoney(sub.price, sub.currency.code);
-  const myCostStr = formatMoney(myCost, sub.currency.code);
+  const myCostStr = formatMoney(myCostDisplay, sub.currency.code);
 
   const myShareStr =
-    sub.sharingType !== "PERSONAL" && !myCost.equals(new Prisma.Decimal(sub.price))
+    sub.sharingType !== "PERSONAL" && !myCostDisplay.equals(displayPrice)
       ? t("expenses.subscriptions.card.myShare", { vars: { amount: myCostStr } })
       : null;
 
@@ -115,6 +138,11 @@ export function toSubscriptionCardView(
     sharingType: sub.sharingType,
     nextPaymentDateIso: dayKeyInTz(sub.nextPaymentDate, tz),
     billingIntervalMonths: sub.billingIntervalMonths,
+    isVariablePrice,
+    priceIsEstimated,
+    effectiveMonthlyStr,
+    matchKeywords: sub.matchKeywords ?? [],
+    autoMatch: sub.autoMatch ?? true,
   };
 }
 
