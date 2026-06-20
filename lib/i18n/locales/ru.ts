@@ -556,7 +556,7 @@ export const ruDict = {
         intervalQuarterly: "раз в квартал",
         intervalYearly: "раз в год",
         intervalCustom: "каждые {n} мес",
-        variable_badge: "плавающая",
+        variable_badge: "ср. за 3 мес",
       },
       variable: {
         field_label: "Плавающая цена",

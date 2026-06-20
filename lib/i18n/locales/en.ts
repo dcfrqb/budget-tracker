@@ -548,7 +548,7 @@ export const enDict: RuDictShape = {
         intervalQuarterly: "quarterly",
         intervalYearly: "yearly",
         intervalCustom: "every {n} mo",
-        variable_badge: "variable",
+        variable_badge: "3-mo avg",
       },
       variable: {
         field_label: "Variable price",
