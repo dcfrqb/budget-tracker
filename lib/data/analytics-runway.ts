@@ -1,10 +1,10 @@
 import { cache } from "react";
 import { Prisma, BudgetMode } from "@prisma/client";
-import { db } from "@/lib/db";
 import { dayKeyInTz } from "@/lib/format/date";
 import { DEFAULT_TZ, MODE_LIMIT_MULTIPLIER, RUNWAY_AVG_MONTHS } from "@/lib/constants";
 import { getAvailableNow } from "@/lib/data/_shared/period-aggregates";
 import { getCompareSparklines } from "@/lib/data/analytics";
+import { getExpenseCategoryLimitRefs } from "@/lib/data/_shared/category-refs";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -166,17 +166,8 @@ export const getRunwayByMode = cache(async (
   const asOf = new Date();
 
   const [categories, sparklines, availableNowResult] = await Promise.all([
-    db.category.findMany({
-      where: { userId, kind: "EXPENSE", archivedAt: null },
-      select: {
-        id: true,
-        name: true,
-        limitEconomy: true,
-        limitNormal: true,
-        limitFree: true,
-      },
-    }),
-    getCompareSparklines(userId, baseCcy, tz, RUNWAY_AVG_MONTHS),
+    getExpenseCategoryLimitRefs(userId),
+    getCompareSparklines(userId, baseCcy, tz, RUNWAY_AVG_MONTHS, asOf.getTime()),
     getAvailableNow(userId, baseCcy, asOf),
   ]);
 

@@ -14,6 +14,7 @@ import { computeSafeUntil } from "@/lib/forecast";
 import { getAvailableNow } from "@/lib/data/_shared/period-aggregates";
 import { getCompensationProjection } from "@/lib/data/_shared/compensation-projection";
 import { getBudgetSettings } from "@/lib/data/settings";
+import { getExpenseCategoryRefs } from "@/lib/data/_shared/category-refs";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -146,10 +147,7 @@ export const getHomeDashboard = cache(async (
     // prevMonthStart / prevMonthEnd — Date objects
     Promise.resolve(startOfMonth(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)))),
     Promise.resolve(endOfMonth(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)))),
-    db.category.findMany({
-      where: { userId, kind: "EXPENSE", archivedAt: null },
-      select: { id: true, name: true, icon: true },
-    }),
+    getExpenseCategoryRefs(userId),
     getCompensationProjection(userId),
   ]);
 

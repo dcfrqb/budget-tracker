@@ -96,10 +96,10 @@ export default async function AnalyticsPage({
     getRunwayByMode(userId, DEFAULT_CURRENCY, tz),
     getTrendPoints(userId, currentRange, DEFAULT_CURRENCY, granularity, tz),
     getHomeDashboard(userId, DEFAULT_CURRENCY),
-    getCompareSparklines(userId, DEFAULT_CURRENCY, tz, 6),
+    getCompareSparklines(userId, DEFAULT_CURRENCY, tz, 6, now.getTime()),
     getAvailableNow(userId, DEFAULT_CURRENCY, now),
     getBurnRate(userId, DEFAULT_CURRENCY, tz, now),
-    getShrinkableCategories(userId, DEFAULT_CURRENCY, tz),
+    getShrinkableCategories(userId, DEFAULT_CURRENCY, tz, now),
     getObligatoryDiscretionarySplit(userId, currentRange, DEFAULT_CURRENCY, tz),
     getEconomyExitScenario(userId, DEFAULT_CURRENCY, tz, now),
   ]);

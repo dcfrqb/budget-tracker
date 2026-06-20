@@ -1,19 +1,16 @@
 export const dynamic = "force-dynamic";
 
 import { getCurrentUserId } from "@/lib/api/auth";
-import { db } from "@/lib/db";
 import { LongProjectForm } from "@/components/forms/long-project-form";
 import { listAllCurrencies } from "@/lib/data/currencies";
+import { getActiveExpenseCategoriesFull } from "@/lib/data/_shared/category-refs";
 
 export default async function NewLongProjectPage() {
   const userId = await getCurrentUserId();
 
   const [currencies, categories] = await Promise.all([
     listAllCurrencies(),
-    db.category.findMany({
-      where: { userId, archivedAt: null, kind: "EXPENSE" },
-      orderBy: { name: "asc" },
-    }),
+    getActiveExpenseCategoriesFull(userId),
   ]);
 
   return (

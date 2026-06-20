@@ -9,6 +9,8 @@ import { getLatestRatesMap, convertToBase } from "@/lib/data/wallet";
 import { getCompensationProjection } from "@/lib/data/_shared/compensation-projection";
 import { effectiveLimitBase } from "@/lib/data/analytics-runway";
 import type { DateRange } from "@/lib/data/analytics";
+import { loadPeriodTxns } from "@/lib/data/_shared/period-txn-loader";
+import { getExpenseCategoryRefs, getExpenseCategoryLimitRefs } from "@/lib/data/_shared/category-refs";
 
 export type BurnRate = {
   perDay30dBase: string;
@@ -81,13 +83,11 @@ export const getShrinkableCategories = cache(async (
   userId: string,
   baseCcy: string,
   tz: string = DEFAULT_TZ,
+  now: Date = new Date(),
 ): Promise<ShrinkableCategory[]> => {
   const [sparklines, categories] = await Promise.all([
-    getCompareSparklines(userId, baseCcy, tz, RUNWAY_AVG_MONTHS),
-    db.category.findMany({
-      where: { userId, kind: "EXPENSE" },
-      select: { id: true, name: true, icon: true },
-    }),
+    getCompareSparklines(userId, baseCcy, tz, RUNWAY_AVG_MONTHS, now.getTime()),
+    getExpenseCategoryRefs(userId),
   ]);
 
   const catMap = new Map(categories.map((c) => [c.id, c]));
@@ -149,11 +149,8 @@ export const getEconomyExitScenario = cache(async (
   now: Date = new Date(),
 ): Promise<EconomyExitScenario> => {
   const [sparklines, categories, availableNow] = await Promise.all([
-    getCompareSparklines(userId, baseCcy, tz, RUNWAY_AVG_MONTHS),
-    db.category.findMany({
-      where: { userId, kind: "EXPENSE", archivedAt: null },
-      select: { id: true, limitEconomy: true },
-    }),
+    getCompareSparklines(userId, baseCcy, tz, RUNWAY_AVG_MONTHS, now.getTime()),
+    getExpenseCategoryLimitRefs(userId),
     getAvailableNow(userId, baseCcy, now),
   ]);
 
@@ -229,38 +226,24 @@ export const getObligatoryDiscretionarySplit = cache(async (
   baseCcy: string,
   _tz: string = DEFAULT_TZ,
 ): Promise<ObligatoryDiscretionarySplit> => {
-  const [proj, rates, categories] = await Promise.all([
+  const fromISO = range.from.toISOString();
+  const toISO = range.to.toISOString();
+
+  const [proj, rates, categories, allRows] = await Promise.all([
     getCompensationProjection(userId),
     getLatestRatesMap(),
     db.category.findMany({
       where: { userId, kind: "EXPENSE" },
       select: { id: true, essential: true },
     }),
+    loadPeriodTxns(userId, fromISO, toISO, "flow"),
   ]);
 
   const essentialSet = new Set(
     categories.filter((c) => c.essential).map((c) => c.id),
   );
 
-  const rows = await db.transaction.findMany({
-    where: {
-      userId,
-      deletedAt: null,
-      occurredAt: { gte: range.from, lte: range.to },
-      kind: TransactionKind.EXPENSE,
-      transferId: null,
-      status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
-      ...proj.whereExcludeNonMain,
-    },
-    select: {
-      id: true,
-      categoryId: true,
-      status: true,
-      amount: true,
-      currencyCode: true,
-      facts: { select: { amount: true } },
-    },
-  });
+  const rows = allRows.filter((t) => t.kind === TransactionKind.EXPENSE);
 
   let obligatory = new Prisma.Decimal(0);
   let discretionary = new Prisma.Decimal(0);

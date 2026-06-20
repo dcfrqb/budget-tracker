@@ -9,6 +9,7 @@ import {
   resolveCreditState,
 } from "@/lib/data/wallet";
 import { getCompensationProjection } from "@/lib/data/_shared/compensation-projection";
+import { loadPeriodTxns, loadPeriodFlowCount } from "@/lib/data/_shared/period-txn-loader";
 import { getLoans } from "@/lib/data/loans";
 import { getSubscriptions } from "@/lib/data/subscriptions";
 import { getFundsWithProgress } from "@/lib/data/funds";
@@ -56,40 +57,14 @@ export const getPeriodFlow = cache(async (
   range: DateRange,
   baseCcy: string,
 ): Promise<PeriodFlow> => {
-  const rangeWhere = {
-    userId,
-    deletedAt: null,
-    occurredAt: { gte: range.from, lte: range.to },
-  } as const;
+  const fromISO = range.from.toISOString();
+  const toISO = range.to.toISOString();
 
-  const [proj, rates] = await Promise.all([
+  const [proj, rates, sumRows, flowCount] = await Promise.all([
     getCompensationProjection(userId),
     getLatestRatesMap(),
-  ]);
-
-  const [sumRows, countRows] = await Promise.all([
-    db.transaction.findMany({
-      where: {
-        ...rangeWhere,
-        kind: { in: [TransactionKind.INCOME, TransactionKind.EXPENSE] },
-        transferId: null,
-        status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
-        ...proj.whereExcludeNonMain,
-      },
-      select: {
-        id: true,
-        kind: true,
-        status: true,
-        amount: true,
-        currencyCode: true,
-        transferId: true,
-        facts: { select: { amount: true } },
-      },
-    }),
-    db.transaction.findMany({
-      where: rangeWhere,
-      select: { id: true, transferId: true, kind: true },
-    }),
+    loadPeriodTxns(userId, fromISO, toISO, "flow"),
+    loadPeriodFlowCount(userId, fromISO, toISO),
   ]);
 
   const zero = new Prisma.Decimal(0);
@@ -114,13 +89,7 @@ export const getPeriodFlow = cache(async (
     }
   }
 
-  const distinctTransferIds = new Set(
-    countRows.filter((r) => r.transferId !== null).map((r) => r.transferId),
-  );
-  const nonTransferCount = countRows.filter(
-    (r) => r.transferId === null && r.kind !== TransactionKind.TRANSFER,
-  ).length;
-  const txCount = nonTransferCount + distinctTransferIds.size;
+  const txCount = flowCount.txCount;
 
   return {
     inflowBase: inflow,
@@ -147,32 +116,16 @@ export const getCategoryBreakdown = cache(async (
 ): Promise<Map<string, Prisma.Decimal>> => {
   const txKind = kind === "INCOME" ? TransactionKind.INCOME : TransactionKind.EXPENSE;
 
-  const [proj, rates] = await Promise.all([
+  const fromISO = range.from.toISOString();
+  const toISO = range.to.toISOString();
+
+  const [proj, rates, allRows] = await Promise.all([
     getCompensationProjection(userId),
     getLatestRatesMap(),
+    loadPeriodTxns(userId, fromISO, toISO, "flow"),
   ]);
 
-  const rows = await db.transaction.findMany({
-    where: {
-      userId,
-      deletedAt: null,
-      occurredAt: { gte: range.from, lte: range.to },
-      kind: txKind,
-      transferId: null,
-      status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
-      categoryId: { not: null },
-      ...proj.whereExcludeNonMain,
-    },
-    select: {
-      id: true,
-      categoryId: true,
-      status: true,
-      amount: true,
-      currencyCode: true,
-      transferId: true,
-      facts: { select: { amount: true } },
-    },
-  });
+  const rows = allRows.filter((t) => t.kind === txKind && t.categoryId !== null);
 
   const byCat = new Map<string, Prisma.Decimal>();
   for (const t of rows) {

@@ -7,6 +7,7 @@ import { dayKeyInTz } from "@/lib/format/date";
 import { db } from "@/lib/db";
 import { LongProjectForm } from "@/components/forms/long-project-form";
 import { listAllCurrencies } from "@/lib/data/currencies";
+import { getActiveExpenseCategoriesFull } from "@/lib/data/_shared/category-refs";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -20,10 +21,7 @@ export default async function EditLongProjectPage({ params }: Props) {
   const [project, currencies, categories] = await Promise.all([
     db.longProject.findFirst({ where: { id, userId } }),
     listAllCurrencies(),
-    db.category.findMany({
-      where: { userId, archivedAt: null, kind: "EXPENSE" },
-      orderBy: { name: "asc" },
-    }),
+    getActiveExpenseCategoriesFull(userId),
   ]);
 
   if (!project) notFound();

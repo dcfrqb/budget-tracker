@@ -5,6 +5,8 @@ import { getLatestRatesMap, convertToBase } from "@/lib/data/wallet";
 import { startOfWeekInTzKey, monthKeyInTz } from "@/lib/format/date";
 import { DEFAULT_TZ } from "@/lib/constants";
 import { getCompensationProjection } from "@/lib/data/_shared/compensation-projection";
+import { loadPeriodTxns } from "@/lib/data/_shared/period-txn-loader";
+import { getExpenseCategoryRefs } from "@/lib/data/_shared/category-refs";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -130,30 +132,14 @@ export const getPeriodKpis = cache(async (
   range: DateRange,
   baseCcy: string,
 ): Promise<PeriodKpis> => {
-  const [proj, rates] = await Promise.all([
+  const fromISO = range.from.toISOString();
+  const toISO = range.to.toISOString();
+
+  const [proj, rates, rows] = await Promise.all([
     getCompensationProjection(userId),
     getLatestRatesMap(),
+    loadPeriodTxns(userId, fromISO, toISO, "flow"),
   ]);
-
-  const rows = await db.transaction.findMany({
-    where: {
-      userId,
-      deletedAt: null,
-      occurredAt: { gte: range.from, lte: range.to },
-      kind: { in: [TransactionKind.INCOME, TransactionKind.EXPENSE] },
-      transferId: null,
-      status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
-      ...proj.whereExcludeNonMain,
-    },
-    select: {
-      id: true,
-      kind: true,
-      status: true,
-      amount: true,
-      currencyCode: true,
-      facts: { select: { amount: true } },
-    },
-  });
 
   const zero = new Prisma.Decimal(0);
   let inflow = zero;
@@ -195,35 +181,19 @@ export const getCategoryPie = cache(async (
   range: DateRange,
   baseCcy: string,
 ): Promise<CategoryPieSlice[]> => {
-  const [proj, rates, categories] = await Promise.all([
+  const fromISO = range.from.toISOString();
+  const toISO = range.to.toISOString();
+
+  const [proj, rates, categories, allRows] = await Promise.all([
     getCompensationProjection(userId),
     getLatestRatesMap(),
-    db.category.findMany({
-      where: { userId, kind: "EXPENSE" },
-      select: { id: true, name: true, icon: true },
-    }),
+    getExpenseCategoryRefs(userId),
+    loadPeriodTxns(userId, fromISO, toISO, "flow"),
   ]);
 
-  const rows = await db.transaction.findMany({
-    where: {
-      userId,
-      deletedAt: null,
-      occurredAt: { gte: range.from, lte: range.to },
-      kind: TransactionKind.EXPENSE,
-      transferId: null,
-      status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
-      categoryId: { not: null },
-      ...proj.whereExcludeNonMain,
-    },
-    select: {
-      id: true,
-      categoryId: true,
-      status: true,
-      amount: true,
-      currencyCode: true,
-      facts: { select: { amount: true } },
-    },
-  });
+  const rows = allRows.filter(
+    (t) => t.kind === TransactionKind.EXPENSE && t.categoryId !== null,
+  );
 
   const catMap = new Map(categories.map((c) => [c.id, c]));
   const byCat = new Map<string, Prisma.Decimal>();
@@ -281,57 +251,25 @@ export const getPeriodCompare = cache(async (
     to: new Date(range.to.getTime() - rangeLen),
   };
 
-  const [proj, rates, categories] = await Promise.all([
+  const fromISO = range.from.toISOString();
+  const toISO = range.to.toISOString();
+  const prevFromISO = prevRange.from.toISOString();
+  const prevToISO = prevRange.to.toISOString();
+
+  const [proj, rates, categories, allCurrentRows, allPrevRows] = await Promise.all([
     getCompensationProjection(userId),
     getLatestRatesMap(),
-    db.category.findMany({
-      where: { userId, kind: "EXPENSE" },
-      select: { id: true, name: true, icon: true },
-    }),
+    getExpenseCategoryRefs(userId),
+    loadPeriodTxns(userId, fromISO, toISO, "flow"),
+    loadPeriodTxns(userId, prevFromISO, prevToISO, "flow"),
   ]);
 
-  const [currentRows, prevRows] = await Promise.all([
-    db.transaction.findMany({
-      where: {
-        userId,
-        deletedAt: null,
-        occurredAt: { gte: range.from, lte: range.to },
-        kind: TransactionKind.EXPENSE,
-        transferId: null,
-        status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
-        categoryId: { not: null },
-        ...proj.whereExcludeNonMain,
-      },
-      select: {
-        id: true,
-        categoryId: true,
-        status: true,
-        amount: true,
-        currencyCode: true,
-        facts: { select: { amount: true } },
-      },
-    }),
-    db.transaction.findMany({
-      where: {
-        userId,
-        deletedAt: null,
-        occurredAt: { gte: prevRange.from, lte: prevRange.to },
-        kind: TransactionKind.EXPENSE,
-        transferId: null,
-        status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
-        categoryId: { not: null },
-        ...proj.whereExcludeNonMain,
-      },
-      select: {
-        id: true,
-        categoryId: true,
-        status: true,
-        amount: true,
-        currencyCode: true,
-        facts: { select: { amount: true } },
-      },
-    }),
-  ]);
+  const currentRows = allCurrentRows.filter(
+    (t) => t.kind === TransactionKind.EXPENSE && t.categoryId !== null,
+  );
+  const prevRows = allPrevRows.filter(
+    (t) => t.kind === TransactionKind.EXPENSE && t.categoryId !== null,
+  );
 
   const catMap = new Map(categories.map((c) => [c.id, c]));
 
@@ -413,32 +351,18 @@ export const getTrendPoints = cache(async (
   granularity: "weekly" | "monthly" = "monthly",
   tz: string = DEFAULT_TZ,
 ): Promise<TrendPoint[]> => {
-  const [proj, rates] = await Promise.all([
+  const fromISO = range.from.toISOString();
+  const toISO = range.to.toISOString();
+
+  const [proj, rates, unsortedRows] = await Promise.all([
     getCompensationProjection(userId),
     getLatestRatesMap(),
+    loadPeriodTxns(userId, fromISO, toISO, "flow"),
   ]);
 
-  const rows = await db.transaction.findMany({
-    where: {
-      userId,
-      deletedAt: null,
-      occurredAt: { gte: range.from, lte: range.to },
-      kind: { in: [TransactionKind.INCOME, TransactionKind.EXPENSE] },
-      transferId: null,
-      status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
-      ...proj.whereExcludeNonMain,
-    },
-    select: {
-      id: true,
-      kind: true,
-      status: true,
-      amount: true,
-      currencyCode: true,
-      occurredAt: true,
-      facts: { select: { amount: true } },
-    },
-    orderBy: { occurredAt: "asc" },
-  });
+  const rows = [...unsortedRows].sort(
+    (a, b) => a.occurredAt.getTime() - b.occurredAt.getTime(),
+  );
 
   type Bucket = { inflow: Prisma.Decimal; outflow: Prisma.Decimal };
   const buckets = new Map<string, Bucket>();
@@ -495,37 +419,22 @@ export const getCompareSparklines = cache(async (
   baseCcy: string,
   tz: string = DEFAULT_TZ,
   months: number = 6,
+  nowMs: number = Date.now(),
 ): Promise<Map<string, number[]>> => {
-  const now = new Date();
+  const now = new Date(nowMs);
   const from = new Date(now.getTime() - months * 30 * 24 * 60 * 60 * 1000);
+  const fromISO = from.toISOString();
+  const toISO = now.toISOString();
 
-  const [proj, rates] = await Promise.all([
+  const [proj, rates, allRows] = await Promise.all([
     getCompensationProjection(userId),
     getLatestRatesMap(),
+    loadPeriodTxns(userId, fromISO, toISO, "flow"),
   ]);
 
-  const rows = await db.transaction.findMany({
-    where: {
-      userId,
-      deletedAt: null,
-      occurredAt: { gte: from, lte: now },
-      kind: TransactionKind.EXPENSE,
-      transferId: null,
-      status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
-      categoryId: { not: null },
-      ...proj.whereExcludeNonMain,
-    },
-    select: {
-      id: true,
-      categoryId: true,
-      status: true,
-      amount: true,
-      currencyCode: true,
-      occurredAt: true,
-      facts: { select: { amount: true } },
-    },
-    orderBy: { occurredAt: "asc" },
-  });
+  const rows = allRows.filter(
+    (t) => t.kind === TransactionKind.EXPENSE && t.categoryId !== null,
+  );
 
   // Collect all month keys in order (oldest → newest)
   const monthKeySet = new Set<string>();
@@ -583,31 +492,14 @@ export const getWeather = cache(async (
   tz: string = DEFAULT_TZ,
   range: DateRange,
 ): Promise<WeatherResult> => {
-  const [proj, rates] = await Promise.all([
+  const fromISO = range.from.toISOString();
+  const toISO = range.to.toISOString();
+
+  const [proj, rates, rows] = await Promise.all([
     getCompensationProjection(userId),
     getLatestRatesMap(),
+    loadPeriodTxns(userId, fromISO, toISO, "flow"),
   ]);
-
-  const rows = await db.transaction.findMany({
-    where: {
-      userId,
-      deletedAt: null,
-      occurredAt: { gte: range.from, lte: range.to },
-      kind: { in: [TransactionKind.INCOME, TransactionKind.EXPENSE] },
-      transferId: null,
-      status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
-      ...proj.whereExcludeNonMain,
-    },
-    select: {
-      id: true,
-      kind: true,
-      status: true,
-      amount: true,
-      currencyCode: true,
-      occurredAt: true,
-      facts: { select: { amount: true } },
-    },
-  });
 
   // Single pass: bucket by month for storm check, accumulate totals for savingsRate
   type MonthlyBucket = { inflow: Prisma.Decimal; outflow: Prisma.Decimal };
@@ -702,28 +594,14 @@ export const getForecastMonth = cache(async (
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999));
 
-  const [proj, rates] = await Promise.all([
+  const fromISO = monthStart.toISOString();
+  const toISO = monthEnd.toISOString();
+
+  const [proj, rates, rows] = await Promise.all([
     getCompensationProjection(userId),
     getLatestRatesMap(),
+    loadPeriodTxns(userId, fromISO, toISO, "forecastMonth"),
   ]);
-
-  const rows = await db.transaction.findMany({
-    where: {
-      userId,
-      deletedAt: null,
-      occurredAt: { gte: monthStart, lte: monthEnd },
-      kind: { in: [TransactionKind.INCOME, TransactionKind.EXPENSE] },
-      transferId: null,
-      status: { notIn: [TransactionStatus.CANCELLED] },
-      ...proj.whereExcludeNonMain,
-    },
-    select: {
-      id: true,
-      kind: true,
-      amount: true,
-      currencyCode: true,
-    },
-  });
 
   let inflow = new Prisma.Decimal(0);
   let outflow = new Prisma.Decimal(0);
@@ -763,31 +641,14 @@ export const getForecastYear = cache(async (
   const now = new Date();
   const from = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
 
-  const [proj, rates] = await Promise.all([
+  const fromISO = from.toISOString();
+  const toISO = now.toISOString();
+
+  const [proj, rates, rows] = await Promise.all([
     getCompensationProjection(userId),
     getLatestRatesMap(),
+    loadPeriodTxns(userId, fromISO, toISO, "flow"),
   ]);
-
-  const rows = await db.transaction.findMany({
-    where: {
-      userId,
-      deletedAt: null,
-      occurredAt: { gte: from, lte: now },
-      kind: { in: [TransactionKind.INCOME, TransactionKind.EXPENSE] },
-      transferId: null,
-      status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
-      ...proj.whereExcludeNonMain,
-    },
-    select: {
-      id: true,
-      kind: true,
-      status: true,
-      amount: true,
-      currencyCode: true,
-      occurredAt: true,
-      facts: { select: { amount: true } },
-    },
-  });
 
   type Bucket = { inflow: Prisma.Decimal; outflow: Prisma.Decimal };
   const buckets = new Map<string, Bucket>();
