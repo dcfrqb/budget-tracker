@@ -3,7 +3,7 @@ import { PlanFact } from "@/components/home/plan-fact";
 import { QuickActions } from "@/components/home/quick-actions";
 import { StatusStrip } from "@/components/home/status-strip";
 import { TopCategories } from "@/components/home/top-categories";
-import { getHomeDashboard, parseHomePeriod } from "@/lib/data/dashboard";
+import { getHomeDashboard } from "@/lib/data/dashboard";
 import { toHomeView } from "@/lib/view/home";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { getCurrentUserId } from "@/lib/api/auth";
@@ -14,15 +14,11 @@ import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
 
 export const dynamic = "force-dynamic";
 
-type PageProps = { searchParams: Promise<{ period?: string }> };
-
-export default async function HomePage({ searchParams }: PageProps) {
+export default async function HomePage() {
   const userId = await getCurrentUserId();
-  const { period: rawPeriod } = await searchParams;
-  const period = parseHomePeriod(rawPeriod);
 
   const [dashboard, categories, activeAccounts, t, tz] = await Promise.all([
-    getHomeDashboard(userId, DEFAULT_CURRENCY, period),
+    getHomeDashboard(userId, DEFAULT_CURRENCY),
     getCategories(userId),
     db.account.findMany({
       where: { userId, deletedAt: null, isArchived: false },
@@ -40,7 +36,7 @@ export default async function HomePage({ searchParams }: PageProps) {
 
   return (
     <>
-      <StatusStrip activePeriod={period} />
+      <StatusStrip />
       <QuickActions
         defaultAccountId={defaultAccount?.id}
         defaultCurrency={defaultAccount?.currencyCode ?? DEFAULT_CURRENCY}
