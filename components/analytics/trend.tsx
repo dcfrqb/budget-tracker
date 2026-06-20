@@ -101,24 +101,29 @@ export function TrendCharts({ points, granularity = "monthly", safeUntilDaysNow 
         </div>
         {!isEmpty && (
           <div className="trend-hd-right">
-            <button
-              type="button"
+            <div
               className="curve-toggle mono"
-              data-mode={curve}
-              onClick={() => setCurve((c) => (c === "interp" ? "approx" : "interp"))}
-              title={t("analytics.trends.curve.title")}
+              role="group"
               aria-label={t("analytics.trends.curve.title")}
+              title={t("analytics.trends.curve.title")}
             >
-              <span className="ct-opt" data-on={curve === "approx" ? "true" : "false"}>
+              <button
+                type="button"
+                className={`ct-opt${curve === "approx" ? " on" : ""}`}
+                aria-pressed={curve === "approx"}
+                onClick={() => setCurve("approx")}
+              >
                 {t("analytics.trends.curve.approx")}
-              </span>
-              <span className="ct-track" aria-hidden="true">
-                <span className="ct-knob" />
-              </span>
-              <span className="ct-opt" data-on={curve === "interp" ? "true" : "false"}>
+              </button>
+              <button
+                type="button"
+                className={`ct-opt${curve === "interp" ? " on" : ""}`}
+                aria-pressed={curve === "interp"}
+                onClick={() => setCurve("interp")}
+              >
                 {t("analytics.trends.curve.interp")}
-              </span>
-            </button>
+              </button>
+            </div>
             <span className="meta mono">{yTicks[0]}</span>
           </div>
         )}
