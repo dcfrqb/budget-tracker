@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState, useTransition } from "react";
+import { useLayoutEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import { useT } from "@/lib/i18n";
 import { updateBudgetSettingsAction } from "@/app/(shell)/settings/actions";
 import type { BudgetMode } from "@prisma/client";
@@ -19,7 +19,10 @@ const MODES: { id: BudgetMode; labelKey: "settings.budget.mode_economy" | "setti
 
 export function BudgetSection({ activeMode, primaryCurrencyCode }: Props) {
   const t = useT();
-  const [mode, setMode] = useState<BudgetMode>(activeMode);
+  const [optimisticMode, setOptimisticMode] = useOptimistic<BudgetMode, BudgetMode>(
+    activeMode,
+    (_state, newMode) => newMode,
+  );
   const [currency, setCurrency] = useState(primaryCurrencyCode);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,14 +33,14 @@ export function BudgetSection({ activeMode, primaryCurrencyCode }: Props) {
 
   useLayoutEffect(() => {
     const seg = segRef.current;
-    const btn = btnRefs.current[mode];
+    const btn = btnRefs.current[optimisticMode];
     if (!seg || !btn) return;
     const segR = seg.getBoundingClientRect();
     const btnR = btn.getBoundingClientRect();
     seg.style.setProperty("--seg-w", `${btnR.width}px`);
     seg.style.setProperty("--seg-x", `${btnR.left - segR.left - 2}px`);
     seg.style.setProperty("--seg-color", "var(--accent)");
-  }, [mode]);
+  }, [optimisticMode]);
 
   function save(newMode: BudgetMode, newCurrency: string) {
     setSaved(false);
@@ -57,14 +60,27 @@ export function BudgetSection({ activeMode, primaryCurrencyCode }: Props) {
   }
 
   function handleModeClick(m: BudgetMode) {
-    setMode(m);
-    save(m, currency);
+    setError(null);
+    setSaved(false);
+    const fd = new FormData();
+    fd.set("activeMode", m);
+    fd.set("primaryCurrencyCode", currency);
+    startTransition(async () => {
+      setOptimisticMode(m);
+      const result = await updateBudgetSettingsAction(fd);
+      if (result?.error) {
+        setError(t("settings.budget.error_save"));
+      } else {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      }
+    });
   }
 
   function handleCurrencyChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const c = e.target.value;
     setCurrency(c);
-    save(mode, c);
+    save(optimisticMode, c);
   }
 
   return (
@@ -83,8 +99,8 @@ export function BudgetSection({ activeMode, primaryCurrencyCode }: Props) {
                 key={m.id}
                 type="button"
                 ref={(el) => { btnRefs.current[m.id] = el; }}
-                className={mode === m.id ? "on" : undefined}
-                aria-pressed={mode === m.id}
+                className={optimisticMode === m.id ? "on" : undefined}
+                aria-pressed={optimisticMode === m.id}
                 onClick={() => handleModeClick(m.id)}
                 disabled={isPending}
               >
