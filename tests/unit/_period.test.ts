@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mapDefaultPeriod, startOfMonthUtcInTz, periodBounds, addMonths } from "@/lib/data/_period";
+import { mapDefaultPeriod, startOfMonthUtcInTz, startOfMonthUtcInTzOffset, periodBounds, addMonths } from "@/lib/data/_period";
 
 // ── mapDefaultPeriod ─────────────────────────────────────────────────────────
 
@@ -178,5 +178,58 @@ describe("periodBounds", () => {
     const { from } = periodBounds("3m", "America/Los_Angeles", aprNow);
     // February is PST (UTC-8): Feb 1 00:00 LA = Feb 1 08:00 UTC
     expect(from.toISOString()).toBe("2026-02-01T08:00:00.000Z");
+  });
+
+  it("overflow guard: now on day 31 shifting to a shorter month does not overflow", () => {
+    // Jan 31 in UTC; 3m: -(3-1)=-2 months → November 2025. Nov has 30 days, so day-31 UTC would overflow.
+    // periodBounds must produce start of November 2025, not December 1.
+    const jan31 = new Date("2026-01-31T12:00:00Z");
+    const { from } = periodBounds("3m", "UTC", jan31);
+    expect(from.toISOString()).toBe("2025-11-01T00:00:00.000Z");
+  });
+});
+
+// ── startOfMonthUtcInTzOffset ─────────────────────────────────────────────────
+
+describe("startOfMonthUtcInTzOffset", () => {
+  it("offset 0: same result as startOfMonthUtcInTz", () => {
+    const anchor = new Date("2026-06-15T12:00:00Z");
+    const direct = startOfMonthUtcInTz("Europe/Moscow", anchor);
+    const offset = startOfMonthUtcInTzOffset("Europe/Moscow", 0, anchor);
+    expect(offset.toISOString()).toBe(direct.toISOString());
+  });
+
+  it("Moscow: offset -3 from June 2026 → March 2026 start (2026-02-28T21:00Z)", () => {
+    // June 2026 in Moscow; -3 months → March 2026; midnight Mar 1 MSK = Feb 28 21:00 UTC
+    const anchor = new Date("2026-06-15T12:00:00Z");
+    const result = startOfMonthUtcInTzOffset("Europe/Moscow", -3, anchor);
+    expect(result.toISOString()).toBe("2026-02-28T21:00:00.000Z");
+  });
+
+  it("Moscow: offset +1 from May 2026 → June 2026 start (2026-05-31T21:00Z)", () => {
+    // May 2026 in Moscow; +1 month → June 2026; midnight Jun 1 MSK = May 31 21:00 UTC
+    const anchor = new Date("2026-05-15T12:00:00Z");
+    const result = startOfMonthUtcInTzOffset("Europe/Moscow", 1, anchor);
+    expect(result.toISOString()).toBe("2026-05-31T21:00:00.000Z");
+  });
+
+  it("year boundary: offset -3 from February 2026 → November 2025 start (not overflow)", () => {
+    // Feb 2026 in UTC; -3 months → November 2025
+    const anchor = new Date("2026-02-15T12:00:00Z");
+    const result = startOfMonthUtcInTzOffset("UTC", -3, anchor);
+    expect(result.toISOString()).toBe("2025-11-01T00:00:00.000Z");
+  });
+
+  it("LA negative offset: offset -1 from Jan 2026 → December 2025", () => {
+    // Jan 2026 in LA; -1 month → December 2025; PST = UTC-8; midnight Dec 1 = 08:00 UTC
+    const anchor = new Date("2026-01-15T12:00:00Z");
+    const result = startOfMonthUtcInTzOffset("America/Los_Angeles", -1, anchor);
+    expect(result.toISOString()).toBe("2025-12-01T08:00:00.000Z");
+  });
+
+  it("positive overflow: offset +2 from November 2026 → January 2027", () => {
+    const anchor = new Date("2026-11-15T12:00:00Z");
+    const result = startOfMonthUtcInTzOffset("UTC", 2, anchor);
+    expect(result.toISOString()).toBe("2027-01-01T00:00:00.000Z");
   });
 });

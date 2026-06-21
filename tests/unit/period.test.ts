@@ -317,21 +317,51 @@ describe("formatPeriodLabel", () => {
     expect(label).toMatch(/jun/i);
   });
 
-  it("tz-aware: Moscow UTC+3 — addMonths on May 31 overflows to July 1 (SUSPECTED BUG)", () => {
+  it("tz-aware: Moscow UTC+3 — June range is exactly June (no overflow to July)", () => {
     // resolveCalendarRange for June in Moscow:
     //   from = startOfMonthUtcInTz("Europe/Moscow", ...) = 2026-05-31T21:00:00Z (midnight Jun 1 MSK)
-    //   to = addMonths(from, 1): addMonths uses setUTCMonth on 2026-05-31 → sets month to 6 (July) because
-    //     June 31 doesn't exist, JS overflows to July 1. Result: 2026-07-01T21:00:00Z
-    //   inclusiveTo = 2026-07-01T20:59:59.999Z = 2026-07-01T23:59:59.999 MSK = July
-    // So the label shows "jun — jul" instead of just "jun".
-    // SUSPECTED BUG: addMonths does UTC month arithmetic on a tz-offset date,
-    // causing overflow when the start-of-month UTC timestamp has day=31.
+    //   to = startOfMonthUtcInTz("Europe/Moscow", mid-July anchor) = 2026-06-30T21:00:00Z (midnight Jul 1 MSK)
+    //   inclusiveTo = 2026-06-30T20:59:59.999Z = last instant of June in MSK
+    // Label must show exactly "jun 2026" with no "—".
     const range = resolveCalendarRange({ kind: "month", year: 2026, month: 6 }, "Europe/Moscow");
     const label = formatPeriodLabel(range, t, "Europe/Moscow");
-    // Documenting ACTUAL behavior (buggy): shows jun — jul instead of just jun
     expect(label).toMatch(/jun/i);
-    // The bug: label contains "—" when it should not for a single-month range
-    // expect(label).not.toContain("—"); // this would fail — bug confirmed
+    expect(label).not.toContain("—");
+    expect(label).not.toMatch(/jul/i);
+    expect(label).not.toMatch(/may/i);
+  });
+
+  it("tz-aware: Moscow UTC+3 — March range is exactly March (clamp would give wrong day)", () => {
+    // Moscow March starts at 2026-02-28T21:00Z (UTC day 28, not 31).
+    // A naive clamp would not produce the wrong result here, but component math must still
+    // yield the correct to boundary: midnight April 1 MSK = 2026-03-31T21:00:00Z.
+    const range = resolveCalendarRange({ kind: "month", year: 2026, month: 3 }, "Europe/Moscow");
+    const label = formatPeriodLabel(range, t, "Europe/Moscow");
+    expect(label).toMatch(/mar/i);
+    expect(label).not.toContain("—");
+  });
+
+  it("tz-aware: Q2 2026 in Moscow — April–June only (no bleed into July)", () => {
+    const range = resolveCalendarRange({ kind: "quarter", year: 2026, quarter: 2 }, "Europe/Moscow");
+    const label = formatPeriodLabel(range, t, "Europe/Moscow");
+    expect(label).toMatch(/apr/i);
+    expect(label).toMatch(/jun/i);
+    expect(label).not.toMatch(/jul/i);
+  });
+
+  it("tz-aware: year 2025 in Moscow — Jan–Dec 2025 only (no bleed into 2026)", () => {
+    const range = resolveCalendarRange({ kind: "year", year: 2025 }, "Europe/Moscow");
+    const label = formatPeriodLabel(range, t, "Europe/Moscow");
+    expect(label).toContain("2025");
+    expect(label).not.toContain("2026");
+  });
+
+  it("tz-aware: December 2026 in Moscow — Dec range rolls over to Jan 2027 correctly", () => {
+    // December 2026: to must be midnight Jan 1 2027 MSK, not some 2027 overflow
+    const range = resolveCalendarRange({ kind: "month", year: 2026, month: 12 }, "Europe/Moscow");
+    const label = formatPeriodLabel(range, t, "Europe/Moscow");
+    expect(label).toMatch(/dec/i);
+    expect(label).not.toContain("—");
   });
 
   it("tz-aware: LA (negative offset) — range is tz-correct", () => {

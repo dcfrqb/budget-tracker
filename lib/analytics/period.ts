@@ -1,6 +1,6 @@
 import type { DateRange } from "@/lib/data/analytics";
 import type { TKey } from "@/lib/i18n/t";
-import { startOfMonthUtcInTz, addMonths } from "@/lib/data/_period";
+import { startOfMonthUtcInTz } from "@/lib/data/_period";
 import { DEFAULT_TZ } from "@/lib/constants";
 
 export type AnalyticsPeriod = "1m" | "3m" | "6m" | "12m" | "ytd";
@@ -109,20 +109,27 @@ export function resolveCalendarRange(cal: CalendarPeriod, tz: string): DateRange
   if (cal.kind === "month") {
     const anchor = new Date(Date.UTC(cal.year, cal.month - 1, 15));
     const from = startOfMonthUtcInTz(tz, anchor);
-    const to = addMonths(from, 1);
+    // `to` = start of NEXT month in tz, derived from components (not addMonths on a tz-offset instant)
+    // cal.month is 1-based; Date.UTC(year, cal.month, 15) gives next month's mid anchor; JS handles Dec→Jan rollover
+    const toAnchor = new Date(Date.UTC(cal.year, cal.month, 15));
+    const to = startOfMonthUtcInTz(tz, toAnchor);
     return { from, to };
   }
   if (cal.kind === "quarter") {
-    const firstMonth = (cal.quarter - 1) * 3 + 1;
+    const firstMonth = (cal.quarter - 1) * 3 + 1; // 1-based
     const anchor = new Date(Date.UTC(cal.year, firstMonth - 1, 15));
     const from = startOfMonthUtcInTz(tz, anchor);
-    const to = addMonths(from, 3);
+    // `to` = start of the month 3 months after firstMonth (0-based: firstMonth - 1 + 3 = firstMonth + 2)
+    const toAnchor = new Date(Date.UTC(cal.year, firstMonth + 2, 15));
+    const to = startOfMonthUtcInTz(tz, toAnchor);
     return { from, to };
   }
   // year
   const anchor = new Date(Date.UTC(cal.year, 0, 15));
   const from = startOfMonthUtcInTz(tz, anchor);
-  const to = addMonths(from, 12);
+  // `to` = start of January of next year
+  const toAnchor = new Date(Date.UTC(cal.year + 1, 0, 15));
+  const to = startOfMonthUtcInTz(tz, toAnchor);
   return { from, to };
 }
 

@@ -13,8 +13,8 @@ const TLD_RE = /\.(com|net|org|io|ru|co|app|ai|dev|biz|info)(\b|$)/gi;
 const BILLING_WORDS_RE =
   /\b(subscr(?:iption)?|payment|recurring|monthly|billing|inc|ltd|llc|gmbh)\b/gi;
 
-// Non-alphanumeric collapse (keep spaces for word boundary purposes)
-const NON_ALNUM_RE = /[^a-z0-9\s]/g;
+// Non-alphanumeric collapse (keep spaces for word boundary purposes; \p{L}\p{N} keeps Cyrillic/Unicode letters+digits)
+const NON_ALNUM_RE = /[^\p{L}\p{N}\s]/gu;
 
 const MULTI_SPACE_RE = /\s{2,}/g;
 

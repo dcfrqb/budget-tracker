@@ -31,12 +31,14 @@ export function findDuplicates(
     if (tx.externalId) {
       externalIdSet.add(tx.externalId);
     }
-    // Fuzzy key: accountId + amount + minute-level timestamp bucket
+    // Fuzzy key: tx.accountId (not the param) + amount + minute-level timestamp bucket
+    // Keying by tx.accountId ensures existing transactions from a different account
+    // cannot be matched against rows being imported into `accountId`.
     const bucket = Math.floor(tx.occurredAt.getTime() / 60_000);
-    fuzzyKeys.add(`${accountId}:${tx.amount}:${bucket}`);
+    fuzzyKeys.add(`${tx.accountId}:${tx.amount}:${bucket}`);
     // Also add adjacent buckets for ±60s tolerance
-    fuzzyKeys.add(`${accountId}:${tx.amount}:${bucket - 1}`);
-    fuzzyKeys.add(`${accountId}:${tx.amount}:${bucket + 1}`);
+    fuzzyKeys.add(`${tx.accountId}:${tx.amount}:${bucket - 1}`);
+    fuzzyKeys.add(`${tx.accountId}:${tx.amount}:${bucket + 1}`);
   }
 
   for (let i = 0; i < rows.length; i++) {
