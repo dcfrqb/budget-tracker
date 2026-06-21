@@ -1,6 +1,7 @@
 import type { DateRange } from "@/lib/data/analytics";
 import type { TKey } from "@/lib/i18n/t";
 import { startOfMonthUtcInTz, addMonths } from "@/lib/data/_period";
+import { DEFAULT_TZ } from "@/lib/constants";
 
 export type AnalyticsPeriod = "1m" | "3m" | "6m" | "12m" | "ytd";
 export type AnalyticsCompare = "prev" | "yoy" | "none";
@@ -259,21 +260,33 @@ export function resolveCompareRange(
 
 const MONTH_KEYS = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"] as const;
 
-export function formatPeriodLabel(range: DateRange, t: (key: TKey) => string): string {
-  const from = range.from;
-  const to = range.to;
+function monthYearInTz(d: Date, tz: string): { month: number; year: number } {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    year: "numeric",
+    month: "numeric",
+  }).formatToParts(d);
+  const month = parseInt(parts.find((p) => p.type === "month")?.value ?? "1", 10) - 1;
+  const year = parseInt(parts.find((p) => p.type === "year")?.value ?? "2000", 10);
+  return { month, year };
+}
 
-  const fromMon = t(`common.month.short.${MONTH_KEYS[from.getUTCMonth()]}` as TKey);
-  const toMon = t(`common.month.short.${MONTH_KEYS[to.getUTCMonth()]}` as TKey);
+export function formatPeriodLabel(range: DateRange, t: (key: TKey) => string, tz?: string): string {
+  const resolvedTz = tz ?? DEFAULT_TZ;
 
-  const fromYear = from.getUTCFullYear();
-  const toYear = to.getUTCFullYear();
+  const fromParts = monthYearInTz(range.from, resolvedTz);
+  // Use inclusive last instant: range.to is exclusive start of next period
+  const inclusiveTo = new Date(range.to.getTime() - 1);
+  const toParts = monthYearInTz(inclusiveTo, resolvedTz);
 
-  if (fromYear === toYear) {
-    if (from.getUTCMonth() === to.getUTCMonth()) {
-      return `${fromMon} ${fromYear}`;
+  const fromMon = t(`common.month.short.${MONTH_KEYS[fromParts.month]}` as TKey);
+  const toMon = t(`common.month.short.${MONTH_KEYS[toParts.month]}` as TKey);
+
+  if (fromParts.year === toParts.year) {
+    if (fromParts.month === toParts.month) {
+      return `${fromMon} ${fromParts.year}`;
     }
-    return `${fromMon} — ${toMon} ${toYear}`;
+    return `${fromMon} — ${toMon} ${fromParts.year}`;
   }
-  return `${fromMon} ${fromYear} — ${toMon} ${toYear}`;
+  return `${fromMon} ${fromParts.year} — ${toMon} ${toParts.year}`;
 }

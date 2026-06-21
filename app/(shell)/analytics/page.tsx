@@ -89,8 +89,8 @@ export default async function AnalyticsPage({
 
   const compareRange = resolveCompareRange(currentRange, compareMode, rawPeriod, tz);
 
-  const currentPeriodLabel = formatPeriodLabel(currentRange, t);
-  const previousPeriodLabel = compareRange ? formatPeriodLabel(compareRange, t) : null;
+  const currentPeriodLabel = formatPeriodLabel(currentRange, t, tz);
+  const previousPeriodLabel = compareRange ? formatPeriodLabel(compareRange, t, tz) : null;
 
   const now = new Date();
 

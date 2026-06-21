@@ -60,8 +60,8 @@ export default async function AnalyticsSummary({
   const net = new Prisma.Decimal(kpis.netBase);
   const avgNet = net.div(monthCount);
 
-  const currentPeriodLabel = formatPeriodLabel(currentRange, t);
-  const comparePeriodLabel = compareRange ? formatPeriodLabel(compareRange, t) : null;
+  const currentPeriodLabel = formatPeriodLabel(currentRange, t, tz);
+  const comparePeriodLabel = compareRange ? formatPeriodLabel(compareRange, t, tz) : null;
 
   const topDeltas = compareRows
     .filter((r) => r.deltaPct !== null)

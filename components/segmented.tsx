@@ -18,8 +18,12 @@ export function Segmented<T extends string>({ options, value, onChange, markerCo
 
   useLayoutEffect(() => {
     const seg = segRef.current;
+    if (!seg) return;
     const btn = btnRefs.current[value];
-    if (!seg || !btn) return;
+    if (!btn) {
+      seg.style.setProperty("--seg-w", "0px");
+      return;
+    }
     const segR = seg.getBoundingClientRect();
     const btnR = btn.getBoundingClientRect();
     seg.style.setProperty("--seg-w", `${btnR.width}px`);
