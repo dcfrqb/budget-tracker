@@ -52,12 +52,12 @@ describe("findDuplicates", () => {
   });
 
   it("flags row even with different externalId if amount+timestamp fuzzy-matches (externalId check skipped, fuzzy fires)", () => {
-    // SUSPECTED BUG: A row with a different externalId is still flagged as duplicate
-    // when amount+timestamp match via fuzzy. The externalId mismatch does NOT protect
-    // the row — only the externalId match is checked first; if no externalId match,
-    // fuzzy is also evaluated. Both checks are OR'd, not XOR'd.
-    // This means: different externalId + same amount/time → still marked duplicate.
-    // Actual behavior is documented here as-is.
+    // BEHAVIOR (intentional): externalId match is checked first; on no match, the
+    // fuzzy amount+timestamp check still runs. So a different externalId does NOT
+    // shield a row whose amount+time collide — this is deliberate, since a re-import
+    // of a transaction originally stored without an externalId must still be caught.
+    // (The accountId-keying bug that previously let cross-account rows collide here
+    // is fixed separately — see the cross-account test above.)
     const rows = [
       makeRow({ amount: "100.00", occurredAt: "2024-06-15T12:00:00.000Z", externalId: "tinkoff:abc:999" }),
     ];
@@ -103,26 +103,29 @@ describe("findDuplicates", () => {
     expect(result.has(0)).toBe(false);
   });
 
-  it("fuzzy key uses the accountId parameter (not existing.accountId) for both existing and row lookups", () => {
-    // The dedupe function builds fuzzy keys using the passed-in accountId for ALL existing transactions.
-    // This means existing.accountId field is NOT used for fuzzy dedup keying.
-    // If the caller passes "acc1", ALL existing transactions get fuzzy keys prefixed "acc1:".
-    // Same applies to row lookup. So rows are always compared against the same accountId namespace.
+  it("does NOT flag as duplicate when same amount+time but existing.accountId differs from import accountId", () => {
+    // BUG FIX: fuzzy keys are now built from tx.accountId (not the param).
+    // A transaction from a different account cannot falsely match a row being imported into ACC.
     const rows = [
       makeRow({ amount: "100.00", occurredAt: "2024-06-15T12:00:00.000Z" }),
     ];
     const existing = [
       makeExisting({ amount: "100.00", occurredAt: new Date("2024-06-15T12:00:00.000Z"), accountId: "acc_other" }),
     ];
-    // When called with ACC="acc1", existing gets key "acc1:100.00:bucket"
-    // Row also checks "acc1:100.00:bucket" → they match regardless of existing.accountId
+    // existing.accountId="acc_other" ≠ ACC="acc1" → fuzzy key won't match → not a duplicate
+    const result = findDuplicates(rows, existing, ACC);
+    expect(result.has(0)).toBe(false);
+  });
+
+  it("flags as duplicate when existing.accountId matches import accountId (positive case)", () => {
+    const rows = [
+      makeRow({ amount: "100.00", occurredAt: "2024-06-15T12:00:00.000Z" }),
+    ];
+    const existing = [
+      makeExisting({ amount: "100.00", occurredAt: new Date("2024-06-15T12:00:00.000Z"), accountId: ACC }),
+    ];
     const result = findDuplicates(rows, existing, ACC);
     expect(result.has(0)).toBe(true);
-
-    // When called with a completely different accountId, existing keys use "acc_x:..."
-    // and row checks "acc_x:..." → still match (same namespace)
-    const resultX = findDuplicates(rows, existing, "acc_x");
-    expect(resultX.has(0)).toBe(true);
   });
 
   it("handles multiple rows — only flags matching ones", () => {

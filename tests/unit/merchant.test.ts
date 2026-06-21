@@ -39,14 +39,11 @@ describe("normalizeMerchant", () => {
     expect(result).toBe("ym 4vps");
   });
 
-  it("Cyrillic: еТелеком — SUSPECTED BUG: Cyrillic chars stripped to empty string", () => {
-    // NON_ALNUM_RE = /[^a-z0-9\s]/g strips all non-ASCII characters including Cyrillic.
-    // SUSPECTED BUG: Cyrillic merchant names are fully erased, making matching impossible.
-    // Actual behavior: returns "" (empty).
+  it("Cyrillic: еТелеком — normalizes to lowercased Cyrillic (not stripped)", () => {
+    // NON_ALNUM_RE now uses /[^\p{L}\p{N}\s]/gu to keep Unicode letters including Cyrillic.
     const result = normalizeMerchant("еТелеком");
-    // Documenting actual (buggy) behavior:
-    expect(result).toBe("");
-    // What it SHOULD return (if fixed): something like "телеком" (lowercased Cyrillic)
+    expect(result).toBe("етелеком");
+    expect(result).not.toBe("");
   });
 
   it("strips billing words: subscription, payment, recurring, monthly, billing, inc, ltd, llc", () => {
@@ -130,11 +127,9 @@ describe("merchantSimilarity", () => {
     }
   });
 
-  it("Cyrillic: еТелеком similarity to itself = 0 (SUSPECTED BUG: Cyrillic stripped to empty)", () => {
-    // normalizeMerchant("еТелеком") = "" (all Cyrillic stripped by NON_ALNUM_RE)
-    // merchantSimilarity returns 0 when either normalized string is empty.
-    // SUSPECTED BUG: same as normalizeMerchant Cyrillic issue above.
-    expect(merchantSimilarity("еТелеком", "еТелеком")).toBe(0);
+  it("Cyrillic: еТелеком similarity to itself = 1 (Cyrillic preserved after fix)", () => {
+    // normalizeMerchant("еТелеком") = "етелеком"; Jaccard of identical token sets = 1.
+    expect(merchantSimilarity("еТелеком", "еТелеком")).toBe(1);
   });
 
   it("Cyrillic: еТелеком vs latin telecom: low score", () => {

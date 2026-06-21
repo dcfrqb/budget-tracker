@@ -2,7 +2,7 @@ import { cache } from "react";
 import { db } from "@/lib/db";
 import { Prisma, TransactionKind, TransactionStatus, FreelanceOrderStatus, FreelanceOrderStageStatus } from "@prisma/client";
 import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
-import { startOfMonthUtcInTz, addMonths, periodBounds } from "@/lib/data/_period";
+import { startOfMonthUtcInTz, startOfMonthUtcInTzOffset, periodBounds } from "@/lib/data/_period";
 import type { PeriodCode } from "@/lib/data/_period";
 import { convertToBase, getLatestRatesMap } from "@/lib/data/wallet";
 import { HOURS_PER_MONTH_DEFAULT } from "@/lib/constants";
@@ -58,9 +58,9 @@ export const getWorkSourceCardSummaries = cache(
     const now = new Date();
     const mtdStart = startOfMonthUtcInTz(tz, now);
 
-    // 3 full calendar months back (for typicalMonthly) — derived from the
-    // tz-correct mtdStart so the boundary is exact in the user's timezone.
-    const typical3Start = addMonths(mtdStart, -3);
+    // 3 full calendar months back (for typicalMonthly) — use component math
+    // to avoid overflow when mtdStart is a tz-offset instant (e.g. MSK May 31 21:00Z).
+    const typical3Start = startOfMonthUtcInTzOffset(tz, -3, now);
 
     const sources = await db.workSource.findMany({
       where: { userId },

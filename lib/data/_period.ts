@@ -70,6 +70,30 @@ export function addMonths(d: Date, n: number): Date {
   return result;
 }
 
+/**
+ * Start (UTC instant) of the tz-local month that is `n` months offset from
+ * the tz-local month containing `now`. Handles overflow correctly by using
+ * component arithmetic (year carry) and a mid-month anchor for startOfMonthUtcInTz.
+ */
+export function startOfMonthUtcInTzOffset(tz: string, n: number, now: Date = new Date()): Date {
+  const ymFmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+  });
+  const parts = ymFmt.formatToParts(now);
+  const year = Number(parts.find((p) => p.type === "year")!.value);
+  const month = Number(parts.find((p) => p.type === "month")!.value); // 1-based
+
+  // Component arithmetic: month-1 to 0-based, add n, normalize with year carry
+  let m0 = (month - 1) + n; // 0-based month after offset
+  let y = year + Math.floor(m0 / 12);
+  m0 = ((m0 % 12) + 12) % 12; // handle negative modulo
+
+  // Mid-month anchor avoids any day-of-month overflow in startOfMonthUtcInTz
+  return startOfMonthUtcInTz(tz, new Date(Date.UTC(y, m0, 15)));
+}
+
 export function periodBounds(
   period: PeriodCode,
   tz: string,
@@ -85,9 +109,7 @@ export function periodBounds(
     "12m": 12,
   };
   const months = monthsMap[period as Exclude<PeriodCode, "all">];
-  // Start from N months ago at TZ-local month boundary
-  const pivot = new Date(now);
-  pivot.setUTCMonth(pivot.getUTCMonth() - (months - 1));
-  const from = startOfMonthUtcInTz(tz, pivot);
+  // Start from N months ago at TZ-local month boundary — use component math to avoid overflow
+  const from = startOfMonthUtcInTzOffset(tz, -(months - 1), now);
   return { from, to: now };
 }
