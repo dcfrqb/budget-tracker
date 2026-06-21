@@ -97,7 +97,7 @@ export function advanceNextPaymentDate(
  * Generates expected payment dates stepping backward from nextPaymentDate by billingIntervalMonths.
  * Returns dates within [windowFrom, windowTo] plus neighbours for boundary cases.
  */
-function getExpectedPaymentDates(
+export function getExpectedPaymentDates(
   sub: Subscription,
   windowFrom: Date,
   windowTo: Date,
@@ -129,7 +129,7 @@ function getExpectedPaymentDates(
 // Sign convention: EXPENSE Transaction.amount is stored as positive magnitude.
 // Adapters use Math.abs() before persisting (see tinkoff-retail-playwright.ts:544,880).
 // Therefore txnAmount passed here is always >= 0; no .abs() needed.
-function amountInTolerance(
+export function amountInTolerance(
   txnAmount: Prisma.Decimal,
   txnCcy: string,
   subPrice: Prisma.Decimal,
