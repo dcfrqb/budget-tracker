@@ -1282,6 +1282,17 @@ export const ruDict = {
       },
       day_hint: "день месяца / дней в месяце",
     },
+    period: {
+      calendar: {
+        month:     "месяц",
+        quarter:   "квартал",
+        year:      "год",
+        pick:      "период",
+        title:     "выбор периода",
+        prev_year: "предыдущий год",
+        next_year: "следующий год",
+      },
+    },
     compare: {
       label_prev: "к предыдущему периоду",
       label_yoy: "год к году",

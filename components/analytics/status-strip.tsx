@@ -12,7 +12,9 @@ import {
   DEFAULT_ANALYTICS_COMPARE,
   parseAnalyticsPeriod,
   parseAnalyticsCompare,
+  isCalendarPeriod,
 } from "@/lib/analytics/period";
+import { CalendarPeriodPicker } from "./calendar-period-picker";
 
 export type { AnalyticsPeriod };
 export { DEFAULT_ANALYTICS_PERIOD, parseAnalyticsPeriod };
@@ -34,7 +36,12 @@ export function AnalyticsStatusStrip() {
   const MONTH_DAY = now.getDate();
   const MONTH_DAYS = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
 
-  const period = parseAnalyticsPeriod(searchParams.get("p") ?? undefined);
+  const rawP = searchParams.get("p") ?? undefined;
+  const calendarActive = rawP ? isCalendarPeriod(rawP) : false;
+
+  const period = calendarActive
+    ? DEFAULT_ANALYTICS_PERIOD
+    : parseAnalyticsPeriod(rawP);
   const cmp = parseAnalyticsCompare(searchParams.get("cmp") ?? undefined);
 
   const [optimisticPeriod, setOptimisticPeriod] = useOptimistic<AnalyticsPeriod, AnalyticsPeriod>(
@@ -75,6 +82,15 @@ export function AnalyticsStatusStrip() {
     });
   }
 
+  function handleCalendarSelect(calCode: string) {
+    startTransition(() => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("p", calCode);
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname);
+    });
+  }
+
   function handleCmpChange(next: AnalyticsCompare) {
     startTransition(() => {
       setOptimisticCmp(next);
@@ -91,6 +107,12 @@ export function AnalyticsStatusStrip() {
 
   const monthLabel = formatMonthLong(now, locale);
 
+  // When calendar is active, render Segmented with a value not in the options list
+  // so no option appears highlighted. Cast needed since the type is constrained.
+  const displayedPeriod = calendarActive
+    ? ("" as AnalyticsPeriod)
+    : optimisticPeriod;
+
   return (
     <div
       className="status-strip fade-in"
@@ -101,7 +123,11 @@ export function AnalyticsStatusStrip() {
       }}
     >
       <span className="lbl">{t("analytics.status_strip.period_label")}</span>
-      <Segmented options={PERIODS} value={optimisticPeriod} onChange={handlePeriodChange} />
+      <Segmented options={PERIODS} value={displayedPeriod} onChange={handlePeriodChange} />
+      <CalendarPeriodPicker
+        currentP={calendarActive ? (rawP ?? null) : null}
+        onSelect={handleCalendarSelect}
+      />
       <span className="lbl">{t("analytics.status_strip.compare_label")}</span>
       <Segmented options={CMP} value={optimisticCmp} onChange={handleCmpChange} />
       <div className="clock-right">

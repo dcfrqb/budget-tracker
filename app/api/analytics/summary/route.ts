@@ -4,7 +4,7 @@ import { ok, serverError } from "@/lib/api/response";
 import { parseWith } from "@/lib/api/validate";
 import { analyticsQuerySchema } from "@/lib/validation/analytics";
 import {
-  resolveRange,
+  resolveAnalyticsRange,
   getPeriodKpis,
   getCategoryPie,
   getPeriodCompare,
@@ -42,10 +42,10 @@ export async function GET(req: Request) {
       baseCcy = settings?.primaryCurrencyCode ?? DEFAULT_CURRENCY;
     }
 
-    const range = resolveRange(period, from, to);
+    const range = resolveAnalyticsRange(period, tz, from, to);
 
-    // Granularity: '1m' → weekly, иначе monthly
-    const granularity = period === "1m" ? "weekly" as const : "monthly" as const;
+    // Granularity: month-level calendar periods or '1m' rolling → weekly, otherwise monthly
+    const granularity = (period === "1m" || period.startsWith("m")) ? "weekly" as const : "monthly" as const;
 
     // Параллельные запросы
     const [kpis, pie, compare, trend, weather, forecast, dashboard] = await Promise.all([

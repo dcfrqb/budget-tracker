@@ -9,7 +9,7 @@ import {
 import { Sparkline } from "@/components/shell/sparkline";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { getCurrentUserId } from "@/lib/api/auth";
-import { resolveRange, getPeriodKpis, getPeriodCompare, getWeather, getTrendPoints } from "@/lib/data/analytics";
+import { resolveAnalyticsRange, getPeriodKpis, getPeriodCompare, getWeather, getTrendPoints } from "@/lib/data/analytics";
 import {
   parseAnalyticsPeriod,
   parseAnalyticsCompare,
@@ -31,18 +31,19 @@ export default async function AnalyticsSummary({
   searchParams?: SearchParams;
 }) {
   const sp = searchParams ? await searchParams : {};
-  const period = parseAnalyticsPeriod(sp.p);
+  const rawPeriod = sp.p ?? "3m";
+  const period = parseAnalyticsPeriod(rawPeriod);
   const compareMode = parseAnalyticsCompare(sp.cmp);
 
   const [userId, t, tz] = await Promise.all([getCurrentUserId(), getT(), getCurrentUserTz()]);
 
-  const currentRange = resolveRange(period);
-  const compareRange = resolveCompareRange(currentRange, compareMode);
+  const currentRange = resolveAnalyticsRange(rawPeriod, tz);
+  const compareRange = resolveCompareRange(currentRange, compareMode, rawPeriod, tz);
 
-  const periodShort = periodShortLabel(period, t);
+  const periodShort = periodShortLabel(rawPeriod, t);
   const monthCount = periodMonthCount(period, currentRange);
 
-  const granularity = period === "1m" ? "weekly" : "monthly";
+  const granularity = (rawPeriod === "1m" || rawPeriod.startsWith("m")) ? "weekly" : "monthly";
 
   const [kpis, compareRows, weather, trendPoints] = await Promise.all([
     getPeriodKpis(userId, currentRange, DEFAULT_CURRENCY),

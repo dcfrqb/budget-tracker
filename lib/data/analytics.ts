@@ -7,6 +7,7 @@ import { DEFAULT_TZ } from "@/lib/constants";
 import { getCompensationProjection } from "@/lib/data/_shared/compensation-projection";
 import { loadPeriodTxns } from "@/lib/data/_shared/period-txn-loader";
 import { getExpenseCategoryRefs } from "@/lib/data/_shared/category-refs";
+import { parseCalendarPeriod, resolveCalendarRange, parseAnalyticsPeriod } from "@/lib/analytics/period";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -121,6 +122,27 @@ export function resolveRange(
   const d = days[period];
   const rangeFrom = new Date(now.getTime() - d * 24 * 60 * 60 * 1000);
   return { from: rangeFrom, to: now };
+}
+
+// ─────────────────────────────────────────────────────────────
+// resolveAnalyticsRange — unified resolver (calendar + rolling)
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Resolve a DateRange from any period code string.
+ * - Calendar codes (m2026-04, q2026-1, y2025) → tz-aware calendar boundaries.
+ * - Rolling codes (1m/3m/6m/12m/ytd) or unknown → existing resolveRange behaviour.
+ * - "custom" with from/to → pass through to resolveRange.
+ */
+export function resolveAnalyticsRange(
+  rawPeriod: string,
+  tz: string,
+  from?: Date,
+  to?: Date,
+): DateRange {
+  const cal = parseCalendarPeriod(rawPeriod);
+  if (cal) return resolveCalendarRange(cal, tz);
+  return resolveRange(parseAnalyticsPeriod(rawPeriod), from, to);
 }
 
 // ─────────────────────────────────────────────────────────────

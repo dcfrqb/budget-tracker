@@ -20,7 +20,7 @@ import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { getCurrentUserId } from "@/lib/api/auth";
 import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
 import {
-  resolveRange,
+  resolveAnalyticsRange,
   getPeriodKpis,
   getCategoryPie,
   getPeriodCompare,
@@ -58,7 +58,7 @@ const BAR_COLORS = [
 // Period → days mapping for resolveRange.
 // Granularity: 1m uses weekly buckets (more detail), others use monthly.
 function trendGranularity(period: string): "weekly" | "monthly" {
-  return period === "1m" ? "weekly" : "monthly";
+  return (period === "1m" || period.startsWith("m")) ? "weekly" : "monthly";
 }
 
 
@@ -72,13 +72,14 @@ export default async function AnalyticsPage({
   const [userId, t, locale, tz] = await Promise.all([getCurrentUserId(), getT(), getLocale(), getCurrentUserTz()]);
 
   const sp = searchParams ? await searchParams : {};
-  const trendPeriod = parseAnalyticsPeriod(sp.p);
+  const rawPeriod = sp.p ?? "3m";
+  const trendPeriod = parseAnalyticsPeriod(rawPeriod);
   const compareMode = parseAnalyticsCompare(sp.cmp);
 
-  const currentRange = resolveRange(trendPeriod);
-  const granularity = trendGranularity(trendPeriod);
+  const currentRange = resolveAnalyticsRange(rawPeriod, tz);
+  const granularity = trendGranularity(rawPeriod);
 
-  const compareRange = resolveCompareRange(currentRange, compareMode);
+  const compareRange = resolveCompareRange(currentRange, compareMode, rawPeriod, tz);
 
   const currentPeriodLabel = formatPeriodLabel(currentRange, t);
   const previousPeriodLabel = compareRange ? formatPeriodLabel(compareRange, t) : null;
@@ -105,7 +106,7 @@ export default async function AnalyticsPage({
   ]);
 
   const safeUntilDays = homeDash.safeUntilDays;
-  const periodShort = periodShortLabel(trendPeriod, t);
+  const periodShort = periodShortLabel(rawPeriod, t);
 
   // ── KPI items ────────────────────────────────────────────────
   const inflow = new Prisma.Decimal(kpis.inflowBase);

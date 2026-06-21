@@ -1274,6 +1274,17 @@ export const enDict: RuDictShape = {
       },
       day_hint: "day of month / days in month",
     },
+    period: {
+      calendar: {
+        month:     "month",
+        quarter:   "quarter",
+        year:      "year",
+        pick:      "period",
+        title:     "pick period",
+        prev_year: "previous year",
+        next_year: "next year",
+      },
+    },
     compare: {
       label_prev: "vs previous period",
       label_yoy: "year over year",
