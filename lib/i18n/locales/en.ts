@@ -2416,6 +2416,93 @@ export const enDict: RuDictShape = {
     active_count: "{n} active",
     empty: "no active signals",
     empty_hint: "they'll appear on spending anomalies and upcoming charges",
+    dismiss: "dismiss",
+    item: {
+      free_negative: {
+        title: "no free funds",
+        body: "spending from reserves — obligations exceed your free balance",
+      },
+      safe_until_critical: {
+        title: "funds run out in {n} days",
+        body: "at current burn rate the balance reaches zero — cut spending now",
+      },
+      month_deficit: {
+        title: "monthly deficit: {amt}",
+        body: "expenses exceed income — negative cash flow this month",
+      },
+      safe_until_low: {
+        title: "runway: {n} days",
+        body: "free funds will last less than three weeks",
+      },
+      obligation_due_soon: {
+        title: "{label} in {n} days",
+        body: "payment of {amt} — make sure funds are available",
+      },
+      obligation_load_high: {
+        title: "obligations: {pct}% of free funds",
+        body: "upcoming charges total {amt} — more than half of free balance",
+      },
+      category_overspend: {
+        title: "{cat} +{pct}% vs last month",
+        body: "spent {amt} — notable increase in this category",
+      },
+      expense_over_plan: {
+        title: "expenses at {pct}% of plan",
+        body: "actual {fact} already exceeds plan {plan}",
+      },
+      income_under_plan: {
+        title: "income at {pct}% of plan",
+        body: "actual {fact} is well below plan {plan}",
+      },
+      shrinkable: {
+        title: "{cat}: overspend {pct}%",
+        body: "{amt} above average — candidate for reduction",
+      },
+      discretionary_high: {
+        title: "discretionary spending: {pct}%",
+        body: "over half of expenses are flexible — room to optimise",
+      },
+      economy_exit_slow: {
+        title: "economy exit: {n} months",
+        body: "in Economy mode it will take several months to restore your balance",
+      },
+      mode_free_risky: {
+        title: "free mode with unstable finances",
+        body: "current status is not stable — consider switching to Normal or Economy",
+      },
+      no_outflow_plan: {
+        title: "no expense plan set",
+        body: "actual {amt} is tracked but there is nothing to compare against — add a budget",
+      },
+      no_inflow_plan: {
+        title: "no income plan set",
+        body: "without a planned income it is hard to assess deviations",
+      },
+      category_new: {
+        title: "new category: {cat}",
+        body: "first spend of {amt} in this category this month",
+      },
+      multi_currency: {
+        title: "multi-currency wallet: {n} currencies",
+        body: "watch exchange rates — changes affect the total balance in base currency",
+      },
+      burn_rate: {
+        title: "daily spend: {amt}",
+        body: "average daily burn derived from free funds and remaining runway",
+      },
+      safe_until_good: {
+        title: "financial runway is healthy",
+        body: "free funds will last more than 90 days at current pace",
+      },
+      month_surplus: {
+        title: "monthly surplus: {amt}",
+        body: "income exceeds expenses — consider directing the remainder to goals",
+      },
+      obligations_clear: {
+        title: "no charges in the next 30 days",
+        body: "no mandatory payments due within the month horizon",
+      },
+    },
   },
 
   home: {

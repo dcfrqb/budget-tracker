@@ -4,7 +4,9 @@ import { dayKeyInTz } from "@/lib/format/date";
 import { DEFAULT_TZ } from "@/lib/constants";
 import type { HomeDashboard, UpcomingObligation, TopCategoryDelta } from "@/lib/data/dashboard";
 import type { TKey } from "@/lib/i18n/t";
-import type { TOptions } from "@/lib/i18n/types";
+import type { TOptions, TVars } from "@/lib/i18n/types";
+import type { RawSignal } from "@/lib/data/signals";
+import type { SignalView } from "@/components/home/signals";
 
 type TFunc = (key: TKey, options?: TOptions) => string;
 
@@ -78,6 +80,7 @@ export type HomeView = {
   topCategories: HomeTopCategoryView[];
   balances: HomeBalanceView[];
   budgetMode: "ECONOMY" | "NORMAL" | "FREE";
+  signals: SignalView[];
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -182,10 +185,29 @@ function toTopCategoryView(cat: TopCategoryDelta, rank: number): HomeTopCategory
 }
 
 // ─────────────────────────────────────────────────────────────
+// Signal view mapper
+// ─────────────────────────────────────────────────────────────
+
+export function rawSignalsToViews(signals: RawSignal[], t: TFunc): SignalView[] {
+  return signals.map((s) => ({
+    id: s.key,
+    key: s.key,
+    kind: s.kind,
+    title: t(s.titleKey as TKey, s.vars ? { vars: s.vars as TVars } : undefined),
+    body: t(s.bodyKey as TKey, s.vars ? { vars: s.vars as TVars } : undefined),
+  }));
+}
+
+// ─────────────────────────────────────────────────────────────
 // Main mapper
 // ─────────────────────────────────────────────────────────────
 
-export function toHomeView(dashboard: HomeDashboard, t: TFunc, tz: string = DEFAULT_TZ): HomeView {
+export function toHomeView(
+  dashboard: HomeDashboard,
+  t: TFunc,
+  tz: string = DEFAULT_TZ,
+  signalViews: SignalView[] = [],
+): HomeView {
   const totalBase = Number(new Prisma.Decimal(dashboard.totalBalanceBase).toFixed(0));
   const reservedBase = Number(new Prisma.Decimal(dashboard.reservedBase).toFixed(0));
   const freeBase = Number(new Prisma.Decimal(dashboard.freeBase).toFixed(0));
@@ -299,5 +321,6 @@ export function toHomeView(dashboard: HomeDashboard, t: TFunc, tz: string = DEFA
       })(),
     })),
     budgetMode: dashboard.budgetMode,
+    signals: signalViews,
   };
 }

@@ -1,7 +1,9 @@
 import { getT } from "@/lib/i18n/server";
+import { SignalDismiss } from "./signal-dismiss";
 
 export type SignalView = {
   id: string;
+  key: string;
   kind: "acc" | "warn" | "info";
   title: string;
   body: string;
@@ -24,7 +26,8 @@ export async function Signals({ signals }: { signals: SignalView[] }) {
       <div className="section-body">
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {signals.map((s) => (
-            <div key={s.id} className={`signal ${s.kind === "acc" ? "" : s.kind}`}>
+            <div key={s.id} className={`signal ${s.kind === "acc" ? "" : s.kind}`} style={{ position: "relative" }}>
+              <SignalDismiss signalKey={s.key} dismissLabel={t("signals.dismiss")} />
               <div className="hd">{s.title}</div>
               <div className="body mono">{s.body}</div>
             </div>

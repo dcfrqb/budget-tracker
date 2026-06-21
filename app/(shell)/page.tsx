@@ -3,21 +3,39 @@ import { PlanFact } from "@/components/home/plan-fact";
 import { QuickActions } from "@/components/home/quick-actions";
 import { StatusStrip } from "@/components/home/status-strip";
 import { TopCategories } from "@/components/home/top-categories";
+import { Signals } from "@/components/home/signals";
 import { getHomeDashboard } from "@/lib/data/dashboard";
-import { toHomeView } from "@/lib/view/home";
+import { toHomeView, rawSignalsToViews } from "@/lib/view/home";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { getCurrentUserId } from "@/lib/api/auth";
 import { getCategories } from "@/lib/data/categories";
 import { db } from "@/lib/db";
 import { getT } from "@/lib/i18n/server";
 import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
+import {
+  getShrinkableCategories,
+  getObligatoryDiscretionarySplit,
+  getEconomyExitScenario,
+} from "@/lib/data/analytics-prescriptive";
+import { getDismissedSignals, computeSignals } from "@/lib/data/signals";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const userId = await getCurrentUserId();
+  const now = new Date();
 
-  const [dashboard, categories, activeAccounts, t, tz] = await Promise.all([
+  const currentMonthRange = {
+    from: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)),
+    to: now,
+  };
+
+  const [tz, t] = await Promise.all([
+    getCurrentUserTz(),
+    getT(),
+  ]);
+
+  const [dashboard, categories, activeAccounts, shrinkable, discretionary, economyExit, dismissedSet] = await Promise.all([
     getHomeDashboard(userId, DEFAULT_CURRENCY),
     getCategories(userId),
     db.account.findMany({
@@ -25,11 +43,28 @@ export default async function HomePage() {
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
       select: { id: true, name: true, currencyCode: true },
     }),
-    getT(),
-    getCurrentUserTz(),
+    getShrinkableCategories(userId, DEFAULT_CURRENCY, tz, now),
+    getObligatoryDiscretionarySplit(userId, currentMonthRange, DEFAULT_CURRENCY),
+    getEconomyExitScenario(userId, DEFAULT_CURRENCY, tz, now),
+    getDismissedSignals(userId),
   ]);
 
-  const view = toHomeView(dashboard, t, tz);
+  const rawSignals = computeSignals({
+    dashboard,
+    shrinkable,
+    discretionary,
+    economyExit,
+    baseCcy: DEFAULT_CURRENCY,
+  });
+
+  const top5 = rawSignals
+    .filter((s) => !dismissedSet.has(s.key))
+    .sort((a, b) => b.priority - a.priority)
+    .slice(0, 5);
+
+  const signalViews = rawSignalsToViews(top5, t);
+
+  const view = toHomeView(dashboard, t, tz, signalViews);
 
   // First non-archived account as default for quick input
   const defaultAccount = activeAccounts[0];
@@ -47,6 +82,7 @@ export default async function HomePage() {
         }))}
         accountName={defaultAccount?.name}
       />
+      <Signals signals={view.signals} />
       <PlanFact cells={view.planFact} />
       <Obligations obligations={view.obligations} />
       <TopCategories categories={view.topCategories} />

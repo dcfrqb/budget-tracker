@@ -50,6 +50,7 @@ model User {
   budgetSettings                  BudgetSettings?
   familyMemberships               FamilyMember[]
   subscriptionDuplicateDismissals SubscriptionDuplicateDismissal[]
+  dismissedSignals                DismissedSignal[]
   ownedFamilies                   Family[]                         @relation("FamilyOwner")
   integrationCredentials          IntegrationCredential[]
   trips                           Trip[]
@@ -759,6 +760,23 @@ model SubscriptionDuplicateDismissal {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, subAId, subBId])
+  @@index([userId])
+}
+
+// Dismissed Home dashboard signal hints — for snoozing notifications.
+// signalKey = stable signal identity (e.g. "free_negative", "category_overspend:<catId>").
+// dismissedAt = when the user dismissed it.
+// dismissUntil = suppress until this time; null = until manually cleared.
+model DismissedSignal {
+  id           String    @id @default(cuid())
+  userId       String
+  signalKey    String // stable signal identity, e.g. "free_negative" or "category_overspend:<catId>"
+  dismissedAt  DateTime  @default(now())
+  dismissUntil DateTime? // suppress until this time; null = until manually cleared
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, signalKey])
   @@index([userId])
 }
 
