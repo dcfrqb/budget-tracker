@@ -1,20 +1,28 @@
 "use client";
 
-import { useCallback } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useTransition } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useT } from "@/lib/i18n";
 import { Segmented } from "@/components/segmented";
+import { CalendarPeriodPicker } from "@/components/period/calendar-period-picker";
+import { isCalendarPeriod } from "@/lib/analytics/period";
 
 type TxnType = "all" | "inc" | "exp" | "xfr" | "loan";
 type Period = "7d" | "30d" | "90d" | "1y";
 
+const ROLLING_PERIODS = new Set<string>(["7d", "30d", "90d", "1y"]);
+
 export function TxnStatusStrip() {
   const t = useT();
   const router = useRouter();
+  const pathname = usePathname();
   const sp = useSearchParams();
+  const [, startTransition] = useTransition();
 
   const type = (sp.get("type") as TxnType) ?? "all";
-  const period = (sp.get("period") as Period) ?? "30d";
+  const rawPeriod = sp.get("period") ?? null;
+  const calendarActive = rawPeriod ? isCalendarPeriod(rawPeriod) : false;
+  const period = (rawPeriod && ROLLING_PERIODS.has(rawPeriod) ? rawPeriod : "30d") as Period;
 
   const TYPES: { id: TxnType; label: string }[] = [
     { id: "all",  label: t("transactions.filter.type_all") },
@@ -40,6 +48,17 @@ export function TxnStatusStrip() {
     [sp, router],
   );
 
+  function handleCalendarSelect(calCode: string) {
+    startTransition(() => {
+      const params = new URLSearchParams(sp.toString());
+      params.set("period", calCode);
+      const qs = params.toString();
+      router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    });
+  }
+
+  const displayedPeriod = calendarActive ? ("" as Period) : period;
+
   const now = new Date();
   const monthLabel = `${now.getFullYear()}`;
   const monthDay = now.getDate();
@@ -57,8 +76,12 @@ export function TxnStatusStrip() {
       <span className="lbl">{t("transactions.filter.label_period")}</span>
       <Segmented
         options={PERIODS}
-        value={period}
+        value={displayedPeriod}
         onChange={(v) => push("period", v)}
+      />
+      <CalendarPeriodPicker
+        currentP={calendarActive ? rawPeriod : null}
+        onSelect={handleCalendarSelect}
       />
 
       <div className="clock-right">

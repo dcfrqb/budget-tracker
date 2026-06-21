@@ -14,7 +14,7 @@ import {
   parseAnalyticsCompare,
   isCalendarPeriod,
 } from "@/lib/analytics/period";
-import { CalendarPeriodPicker } from "./calendar-period-picker";
+import { CalendarPeriodPicker } from "@/components/period/calendar-period-picker";
 
 export type { AnalyticsPeriod };
 export { DEFAULT_ANALYTICS_PERIOD, parseAnalyticsPeriod };

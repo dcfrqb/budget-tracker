@@ -7,7 +7,7 @@ import { DEFAULT_TZ } from "@/lib/constants";
 import { getCompensationProjection } from "@/lib/data/_shared/compensation-projection";
 import { loadPeriodTxns } from "@/lib/data/_shared/period-txn-loader";
 import { getExpenseCategoryRefs } from "@/lib/data/_shared/category-refs";
-import { parseCalendarPeriod, resolveCalendarRange, parseAnalyticsPeriod } from "@/lib/analytics/period";
+import { resolveAnyCalendarRange, parseAnalyticsPeriod } from "@/lib/analytics/period";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -140,8 +140,8 @@ export function resolveAnalyticsRange(
   from?: Date,
   to?: Date,
 ): DateRange {
-  const cal = parseCalendarPeriod(rawPeriod);
-  if (cal) return resolveCalendarRange(cal, tz);
+  const calRange = resolveAnyCalendarRange(rawPeriod, tz);
+  if (calRange) return calRange;
   return resolveRange(parseAnalyticsPeriod(rawPeriod), from, to);
 }
 

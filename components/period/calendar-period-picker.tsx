@@ -3,7 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n/context";
 import type { TKey } from "@/lib/i18n/t";
-import { parseCalendarPeriod, periodShortLabel } from "@/lib/analytics/period";
+import {
+  parseCalendarPeriod,
+  periodShortLabel,
+  isDynamicCalendarCode,
+} from "@/lib/analytics/period";
 
 type PickerMode = "month" | "quarter" | "year";
 
@@ -26,7 +30,8 @@ export function CalendarPeriodPicker({ currentP, onSelect }: Props) {
   const nowMonth = now.getMonth() + 1; // 1-based
   const nowQuarter = Math.ceil(nowMonth / 3);
 
-  const cal = currentP ? parseCalendarPeriod(currentP) : null;
+  const isDynamic = currentP ? isDynamicCalendarCode(currentP) : false;
+  const cal = currentP && !isDynamic ? parseCalendarPeriod(currentP) : null;
 
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<PickerMode>(
@@ -59,7 +64,7 @@ export function CalendarPeriodPicker({ currentP, onSelect }: Props) {
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [open]);
 
-  const isActive = cal !== null;
+  const isActive = cal !== null || isDynamic;
   const label = isActive && currentP
     ? periodShortLabel(currentP, t)
     : t("analytics.period.calendar.pick");
@@ -110,6 +115,25 @@ export function CalendarPeriodPicker({ currentP, onSelect }: Props) {
 
       {open && (
         <div className="cal-popover">
+          {/* "This period" row: dynamic tm/tq/ty */}
+          <div className="cal-this-row">
+            {(
+              [
+                { code: "tm", labelKey: "common.period.this_month" },
+                { code: "tq", labelKey: "common.period.this_quarter" },
+                { code: "ty", labelKey: "common.period.this_year" },
+              ] as const
+            ).map(({ code, labelKey }) => (
+              <button
+                key={code}
+                className={`cal-mode-btn${currentP === code ? " on" : ""}`}
+                onClick={() => { onSelect(code); setOpen(false); }}
+              >
+                {t(labelKey as TKey)}
+              </button>
+            ))}
+          </div>
+
           {/* Mode tabs */}
           <div className="cal-mode-row">
             {MODE_TABS.map(({ id, labelKey }) => (

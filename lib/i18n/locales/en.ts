@@ -53,6 +53,9 @@ export const enDict: RuDictShape = {
       "6m":  "6m",
       "12m": "12m",
       ytd:   "YTD",
+      this_month:   "this month",
+      this_quarter: "this quarter",
+      this_year:    "this year",
     },
     weekday: {
       short: {
@@ -98,6 +101,11 @@ export const enDict: RuDictShape = {
         "24h": "24 h",
         off: "Off",
       },
+    },
+    default_period: {
+      section_title: "Default period",
+      hint: "Applied to all sections when no period is explicitly selected.",
+      option_all: "all",
     },
     profile: {
       section_title: "Profile",

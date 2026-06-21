@@ -13,6 +13,9 @@ import { DangerZone } from "@/components/settings/danger-zone";
 import { LocaleSwitcher } from "@/components/settings/locale-switcher";
 import { TimezoneSwitcher } from "@/components/settings/timezone-switcher";
 import { AutosyncCadence } from "@/components/settings/autosync-cadence";
+import { DefaultPeriod } from "@/components/settings/default-period";
+import type { CuratedDefaultPeriod } from "@/lib/data/_period";
+import { CURATED_DEFAULT_PERIODS } from "@/lib/data/_period";
 
 export const dynamic = "force-dynamic";
 
@@ -121,7 +124,18 @@ export default async function SettingsPage() {
 
           <div className="settings-divider" />
 
-          {/* 4. Categories */}
+          {/* 5. Default period */}
+          {(() => {
+            const raw = budgetSettings?.defaultPeriod ?? "3m";
+            const safe: CuratedDefaultPeriod = (CURATED_DEFAULT_PERIODS as readonly string[]).includes(raw)
+              ? (raw as CuratedDefaultPeriod)
+              : "3m";
+            return <DefaultPeriod current={safe} />;
+          })()}
+
+          <div className="settings-divider" />
+
+          {/* 5. Categories (was 4) */}
           <LinkSection
             title={t("settings.categories_summary.section_title")}
             summary={categorySummary}

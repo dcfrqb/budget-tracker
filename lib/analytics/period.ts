@@ -43,8 +43,61 @@ export function parseCalendarPeriod(raw: string): CalendarPeriod | null {
   return null;
 }
 
+export type DynamicCalendarCode = "tm" | "tq" | "ty";
+
+export function isDynamicCalendarCode(raw: string): raw is DynamicCalendarCode {
+  return raw === "tm" || raw === "tq" || raw === "ty";
+}
+
 export function isCalendarPeriod(raw: string): boolean {
-  return parseCalendarPeriod(raw) !== null;
+  return parseCalendarPeriod(raw) !== null || isDynamicCalendarCode(raw);
+}
+
+/**
+ * Resolve "tm" / "tq" / "ty" to a CalendarPeriod representing the current
+ * month / quarter / year in the given timezone.
+ */
+export function resolveDynamicCalendar(
+  code: DynamicCalendarCode,
+  tz: string,
+  now: Date = new Date(),
+): CalendarPeriod {
+  // Determine current year and month in tz by reading back from the UTC anchor
+  const ymFmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+  });
+  const parts = ymFmt.formatToParts(now);
+  const year = Number(parts.find((p) => p.type === "year")!.value);
+  const month = Number(parts.find((p) => p.type === "month")!.value);
+
+  if (code === "tm") {
+    return { kind: "month", year, month };
+  }
+  if (code === "tq") {
+    const quarter = Math.ceil(month / 3);
+    return { kind: "quarter", year, quarter };
+  }
+  // ty
+  return { kind: "year", year };
+}
+
+/**
+ * Resolve any calendar code (frozen or dynamic) to a DateRange, or null if
+ * the raw string is not a calendar code (caller should try rolling resolver).
+ */
+export function resolveAnyCalendarRange(
+  raw: string,
+  tz: string,
+  now: Date = new Date(),
+): DateRange | null {
+  if (isDynamicCalendarCode(raw)) {
+    return resolveCalendarRange(resolveDynamicCalendar(raw, tz, now), tz);
+  }
+  const cal = parseCalendarPeriod(raw);
+  if (cal) return resolveCalendarRange(cal, tz);
+  return null;
 }
 
 /**
@@ -77,6 +130,9 @@ export function resolveCalendarRange(cal: CalendarPeriod, tz: string): DateRange
 const MONTH_SHORT_KEYS = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"] as const;
 
 export function periodShortLabel(periodCode: string, t: (key: TKey) => string): string {
+  if (periodCode === "tm") return t("common.period.this_month");
+  if (periodCode === "tq") return t("common.period.this_quarter");
+  if (periodCode === "ty") return t("common.period.this_year");
   const cal = parseCalendarPeriod(periodCode);
   if (cal) {
     if (cal.kind === "month") {

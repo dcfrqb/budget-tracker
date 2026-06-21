@@ -267,6 +267,8 @@ model BudgetSettings {
   shownFxPairs        String[]   @default([])
   // Global autosync cadence (ms). null = off; allowed values: 43_200_000 (12h), 86_400_000 (24h).
   autosyncIntervalMs  Int?
+  // User's preferred default period for pages (curated: 30d/90d/3m/6m/12m/tm/tq/ty/all).
+  defaultPeriod       String     @default("3m")
   createdAt           DateTime   @default(now())
   updatedAt           DateTime   @updatedAt
 

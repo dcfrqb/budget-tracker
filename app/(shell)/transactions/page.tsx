@@ -17,11 +17,14 @@ import { getLatestRatesMap } from "@/lib/data/wallet";
 import { getCompensationProjection } from "@/lib/data/_shared/compensation-projection";
 import { getCategories } from "@/lib/data/categories";
 import { getConnectedCredentials } from "@/lib/data/_queries/integrations";
+import { getBudgetSettings } from "@/lib/data/settings";
 import { db } from "@/lib/db";
 import { toPeriodSummaryView, toTxnDayView } from "@/lib/view/transactions";
 import { toDebtView } from "@/lib/view/debts";
 import { Prisma, TransactionKind } from "@prisma/client";
 import { formatMoney } from "@/lib/format/money";
+import { mapDefaultPeriod } from "@/lib/data/_period";
+import { isCalendarPeriod, resolveAnyCalendarRange } from "@/lib/analytics/period";
 import type { ListFilters } from "@/lib/data/transactions";
 
 export const dynamic = "force-dynamic";
@@ -34,8 +37,8 @@ type SearchParams = Promise<{
   accountId?: string;
 }>;
 
-// Maps URL period param to a date range (from, to).
-function parsePeriod(period: string | undefined): { from: Date; to: Date } {
+// Maps rolling period code to a date range (from, to).
+function parseRollingPeriod(period: string): { from: Date; to: Date } {
   const to = new Date();
   let from: Date;
   switch (period) {
@@ -80,9 +83,20 @@ export default async function TransactionsPage({
 }) {
   const sp = await searchParams;
   const locale = await getLocale();
-  const [userId, t, tz] = await Promise.all([getCurrentUserId(), getT(locale), getCurrentUserTz()]);
+  const userId = await getCurrentUserId();
+  const [t, tz, settings] = await Promise.all([
+    getT(locale),
+    getCurrentUserTz(),
+    getBudgetSettings(userId),
+  ]);
 
-  const { from, to } = parsePeriod(sp.period);
+  const defaultPeriodCode = mapDefaultPeriod(settings?.defaultPeriod ?? "3m", "txn");
+  const period = sp.period ?? defaultPeriodCode;
+
+  const { from, to } = isCalendarPeriod(period)
+    ? (resolveAnyCalendarRange(period, tz) ?? parseRollingPeriod(defaultPeriodCode))
+    : parseRollingPeriod(period);
+
   const kindFilter = parseKindFilter(sp.type);
 
   const filters: ListFilters = {

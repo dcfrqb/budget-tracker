@@ -135,6 +135,23 @@ export async function setTimezoneAction(
   }
 }
 
+/** Server action: updates the default period setting. */
+export async function updateDefaultPeriodAction(
+  formData: FormData,
+): Promise<{ error: true } | undefined> {
+  try {
+    const userId = await getCurrentUserId();
+    const raw = { defaultPeriod: formData.get("defaultPeriod") ?? undefined };
+    const parsed = budgetSettingsUpdateSchema.safeParse(raw);
+    if (!parsed.success) return { error: true };
+
+    await updateBudgetSettings(userId, parsed.data);
+    revalidatePath("/", "layout");
+  } catch {
+    return { error: true };
+  }
+}
+
 /** Server action: wipes all user data, then redirects to /. */
 export async function wipeAllDataAction(): Promise<{ error: true } | undefined> {
   try {

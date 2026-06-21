@@ -2,7 +2,9 @@ import { notFound } from "next/navigation";
 import { getCurrentUserId } from "@/lib/api/auth";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
-import { periodBounds } from "@/lib/data/_period";
+import { periodBounds, mapDefaultPeriod } from "@/lib/data/_period";
+import { isCalendarPeriod, resolveAnyCalendarRange } from "@/lib/analytics/period";
+import { getBudgetSettings } from "@/lib/data/settings";
 import type { PeriodCode } from "@/lib/data/_period";
 import {
   getWorkSourceWithCounts,
@@ -46,10 +48,11 @@ interface Props {
 }
 
 export default async function WorkSourceDetailPage({ params, searchParams }: Props) {
-  const [userId, tz, t] = await Promise.all([
-    getCurrentUserId(),
+  const userId = await getCurrentUserId();
+  const [tz, t, settings] = await Promise.all([
     getCurrentUserTz(),
     getT(),
+    getBudgetSettings(userId),
   ]);
 
   const { id } = await params;
@@ -60,11 +63,22 @@ export default async function WorkSourceDetailPage({ params, searchParams }: Pro
 
   const { source } = detail;
 
-  const period: PeriodCode = VALID_PERIODS.includes(sp.period as PeriodCode)
-    ? (sp.period as PeriodCode)
-    : "3m";
+  const defaultPeriodCode = mapDefaultPeriod(settings?.defaultPeriod ?? "3m", "income") as PeriodCode;
+  const rawPeriodParam = sp.period;
 
-  const bounds = periodBounds(period, tz);
+  let period: PeriodCode;
+  let bounds: { from: Date; to: Date };
+
+  if (rawPeriodParam && isCalendarPeriod(rawPeriodParam)) {
+    // `period` is only the rolling fallback for periodBounds below; the active period is rawPeriodParam (passed to DetailPeriodTabs and used for the calendar branch).
+    period = VALID_PERIODS.includes(defaultPeriodCode) ? defaultPeriodCode : "3m";
+    bounds = resolveAnyCalendarRange(rawPeriodParam, tz) ?? periodBounds(period, tz);
+  } else {
+    period = VALID_PERIODS.includes(rawPeriodParam as PeriodCode)
+      ? (rawPeriodParam as PeriodCode)
+      : defaultPeriodCode;
+    bounds = periodBounds(period, tz);
+  }
   const basePath = `/income/work-sources/${id}`;
 
   const statusFilter = STATUS_MAP[sp.status ?? ""] ?? undefined;
@@ -107,7 +121,7 @@ export default async function WorkSourceDetailPage({ params, searchParams }: Pro
   return (
     <div className="page-content">
       <DetailHeader source={source} />
-      <DetailPeriodTabs active={period} />
+      <DetailPeriodTabs active={period} rawPeriod={rawPeriodParam ?? null} />
       <DetailKpiGrid
         kpis={kpis}
         taxRatePct={taxRatePct}

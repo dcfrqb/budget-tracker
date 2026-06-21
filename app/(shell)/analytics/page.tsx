@@ -39,6 +39,7 @@ import { pluralRu, pluralEn } from "@/lib/i18n/plural";
 import { ruPluralForms } from "@/lib/i18n/locales/ru";
 import { enPluralForms } from "@/lib/i18n/locales/en";
 import { getBudgetSettings } from "@/lib/data/settings";
+import { mapDefaultPeriod } from "@/lib/data/_period";
 import { Prisma } from "@prisma/client";
 import { formatMoney } from "@/lib/format/money";
 import type { AnalyticsKpiItem } from "@/components/analytics/kpi-row";
@@ -58,7 +59,7 @@ const BAR_COLORS = [
 // Period → days mapping for resolveRange.
 // Granularity: 1m uses weekly buckets (more detail), others use monthly.
 function trendGranularity(period: string): "weekly" | "monthly" {
-  return (period === "1m" || period.startsWith("m")) ? "weekly" : "monthly";
+  return (period === "1m" || period === "tm" || period.startsWith("m")) ? "weekly" : "monthly";
 }
 
 
@@ -69,10 +70,17 @@ export default async function AnalyticsPage({
 }: {
   searchParams?: SearchParams;
 }) {
-  const [userId, t, locale, tz] = await Promise.all([getCurrentUserId(), getT(), getLocale(), getCurrentUserTz()]);
+  const [userId, t, locale, tz, sp] = await Promise.all([
+    getCurrentUserId(),
+    getT(),
+    getLocale(),
+    getCurrentUserTz(),
+    searchParams ? searchParams : Promise.resolve({} as { p?: string; cmp?: string }),
+  ]);
 
-  const sp = searchParams ? await searchParams : {};
-  const rawPeriod = sp.p ?? "3m";
+  const settings = await getBudgetSettings(userId);
+  const defaultAnalyticsPeriod = mapDefaultPeriod(settings?.defaultPeriod ?? "3m", "analytics");
+  const rawPeriod = sp.p ?? defaultAnalyticsPeriod;
   const trendPeriod = parseAnalyticsPeriod(rawPeriod);
   const compareMode = parseAnalyticsCompare(sp.cmp);
 

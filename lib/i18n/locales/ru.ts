@@ -61,6 +61,9 @@ export const ruDict = {
       "6m":  "6м",
       "12m": "12м",
       ytd:   "YTD",
+      this_month:   "этот месяц",
+      this_quarter: "этот квартал",
+      this_year:    "этот год",
     },
     weekday: {
       short: {
@@ -106,6 +109,11 @@ export const ruDict = {
         "24h": "24 ч",
         off: "Выкл",
       },
+    },
+    default_period: {
+      section_title: "Период по умолчанию",
+      hint: "Применяется ко всем разделам, когда период не выбран явно.",
+      option_all: "всё",
     },
     profile: {
       section_title: "Профиль",

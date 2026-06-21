@@ -1,5 +1,34 @@
 export type PeriodCode = "1m" | "3m" | "6m" | "12m" | "all";
 
+export const CURATED_DEFAULT_PERIODS = [
+  "30d", "90d", "3m", "6m", "12m", "tm", "tq", "ty", "all",
+] as const;
+export type CuratedDefaultPeriod = typeof CURATED_DEFAULT_PERIODS[number];
+
+export function mapDefaultPeriod(
+  stored: string,
+  surface: "txn" | "income" | "analytics",
+): string {
+  if (stored === "tm" || stored === "tq" || stored === "ty") return stored;
+  if (surface === "txn") {
+    const map: Record<string, string> = {
+      "30d": "30d", "90d": "90d", "3m": "90d", "6m": "1y", "12m": "1y", "all": "1y",
+    };
+    return map[stored] ?? "30d";
+  }
+  if (surface === "income") {
+    const map: Record<string, string> = {
+      "30d": "1m", "90d": "3m", "3m": "3m", "6m": "6m", "12m": "12m", "all": "all",
+    };
+    return map[stored] ?? "3m";
+  }
+  // analytics
+  const map: Record<string, string> = {
+    "30d": "1m", "90d": "3m", "3m": "3m", "6m": "6m", "12m": "12m", "all": "12m",
+  };
+  return map[stored] ?? "3m";
+}
+
 export function startOfMonthUtcInTz(tz: string, now: Date = new Date()): Date {
   const ymFmt = new Intl.DateTimeFormat("en-US", {
     timeZone: tz,

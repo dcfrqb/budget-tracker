@@ -18,6 +18,8 @@ import {
   periodShortLabel,
   periodMonthCount,
 } from "@/lib/analytics/period";
+import { mapDefaultPeriod } from "@/lib/data/_period";
+import { getBudgetSettings } from "@/lib/data/settings";
 import { Prisma } from "@prisma/client";
 import { formatMoney } from "@/lib/format/money";
 import { getT } from "@/lib/i18n/server";
@@ -31,11 +33,14 @@ export default async function AnalyticsSummary({
   searchParams?: SearchParams;
 }) {
   const sp = searchParams ? await searchParams : {};
-  const rawPeriod = sp.p ?? "3m";
-  const period = parseAnalyticsPeriod(rawPeriod);
-  const compareMode = parseAnalyticsCompare(sp.cmp);
 
   const [userId, t, tz] = await Promise.all([getCurrentUserId(), getT(), getCurrentUserTz()]);
+
+  const settings = await getBudgetSettings(userId);
+  const defaultAnalyticsPeriod = mapDefaultPeriod(settings?.defaultPeriod ?? "3m", "analytics");
+  const rawPeriod = sp.p ?? defaultAnalyticsPeriod;
+  const period = parseAnalyticsPeriod(rawPeriod);
+  const compareMode = parseAnalyticsCompare(sp.cmp);
 
   const currentRange = resolveAnalyticsRange(rawPeriod, tz);
   const compareRange = resolveCompareRange(currentRange, compareMode, rawPeriod, tz);
@@ -43,7 +48,7 @@ export default async function AnalyticsSummary({
   const periodShort = periodShortLabel(rawPeriod, t);
   const monthCount = periodMonthCount(period, currentRange);
 
-  const granularity = (rawPeriod === "1m" || rawPeriod.startsWith("m")) ? "weekly" : "monthly";
+  const granularity = (rawPeriod === "1m" || rawPeriod === "tm" || rawPeriod.startsWith("m")) ? "weekly" : "monthly";
 
   const [kpis, compareRows, weather, trendPoints] = await Promise.all([
     getPeriodKpis(userId, currentRange, DEFAULT_CURRENCY),
