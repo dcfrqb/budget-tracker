@@ -1,9 +1,10 @@
 export const dynamic = "force-dynamic";
 
+import React from "react";
 import { getLocale, getT } from "@/lib/i18n/server";
 import { getCurrentUserId } from "@/lib/api/auth";
 import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
-import { getSubscriptionsGrouped, getDuplicateSuggestions } from "@/lib/data/subscriptions";
+import { getSubscriptionsGrouped, getDuplicateSuggestions, getSubscriptionCharges } from "@/lib/data/subscriptions";
 import { getLatestRatesMap } from "@/lib/data/wallet";
 import { getSubscriptionSuggestions } from "@/lib/data/_mutations/subscription-pairing";
 import { getReimbursementSuggestions } from "@/lib/data/_mutations/reimbursement-pairing";
@@ -21,14 +22,27 @@ import type { ReimbursementSuggestionRow } from "@/components/subscriptions/reim
 import { DuplicateSuggestions } from "@/components/expenses/subscriptions/duplicate-suggestions";
 import type { DuplicatePairRow } from "@/components/expenses/subscriptions/duplicate-suggestions";
 import type { MergeSubItem } from "@/components/expenses/subscriptions/merge-dialog";
-import { formatDate } from "@/lib/format/date";
+import { formatDate, dayKeyInTz } from "@/lib/format/date";
+import { formatMoney } from "@/lib/format/money";
+import { listAllCurrencies } from "@/lib/data/currencies";
+import { db } from "@/lib/db";
+import { Prisma } from "@prisma/client";
+import { estimateRecurringAmount } from "@/lib/subscription-share";
+import { SubscriptionSheetHost } from "@/components/expenses/subscriptions/subscription-sheet-host";
+import type { ShareItem } from "@/components/subscriptions/shares-editor";
+import type { ChargeRow } from "@/components/subscriptions/payment-history";
 
-export default async function SubscriptionsPage() {
-  const [userId, rates, locale, tz] = await Promise.all([
+interface PageProps {
+  searchParams: Promise<{ new?: string; edit?: string }>;
+}
+
+export default async function SubscriptionsPage({ searchParams }: PageProps) {
+  const [userId, rates, locale, tz, params] = await Promise.all([
     getCurrentUserId(),
     getLatestRatesMap(),
     getLocale(),
     getCurrentUserTz(),
+    searchParams,
   ]);
 
   const [grouped, rawSuggestions, rawReimbursements, duplicatePairs] = await Promise.all([
@@ -93,6 +107,112 @@ export default async function SubscriptionsPage() {
     b: { id: p.b.id, name: p.b.name, price: p.b.price, currencyCode: p.b.currencyCode },
   }));
 
+  // ── Sheet: lazy-fetch only when ?new=sub or ?edit=sub:<id> ─────────────────
+  const isSubCreate = params.new === "sub";
+  const isSubEdit =
+    typeof params.edit === "string" && params.edit.startsWith("sub:");
+  const editSubId = isSubEdit ? (params.edit as string).slice("sub:".length) : null;
+
+  let sheetNode: React.ReactNode = null;
+
+  if (isSubCreate || isSubEdit) {
+    const [sheetCurrencies, editSub, editCharges] = await Promise.all([
+      listAllCurrencies(),
+      editSubId
+        ? db.subscription.findFirst({
+            where: { id: editSubId, userId, deletedAt: null },
+            include: { shares: true },
+          })
+        : Promise.resolve(null),
+      editSubId
+        ? getSubscriptionCharges(userId, editSubId)
+        : Promise.resolve([]),
+    ]);
+
+    let sheetInitialValues: Record<string, unknown> | undefined;
+    let sheetInitialShares: ShareItem[] | undefined;
+    let sheetCharges: ChargeRow[] | undefined;
+    let sheetIsSplit = false;
+    let sheetMatchKeywords: string[] | undefined;
+
+    if (editSub) {
+      sheetInitialValues = {
+        name: editSub.name,
+        icon: editSub.icon ?? undefined,
+        iconColor: editSub.iconColor ?? undefined,
+        iconBg: editSub.iconBg ?? undefined,
+        price: String(editSub.price),
+        currencyCode: editSub.currencyCode,
+        billingIntervalMonths: editSub.billingIntervalMonths,
+        nextPaymentDate: dayKeyInTz(editSub.nextPaymentDate, tz),
+        sharingType: editSub.sharingType,
+        totalUsers: editSub.totalUsers ?? undefined,
+        isActive: editSub.isActive,
+        isVariablePrice: editSub.isVariablePrice ?? false,
+        autoMatch: editSub.autoMatch ?? true,
+      };
+
+      sheetInitialShares = editSub.shares.map((s) => ({
+        id: s.id,
+        person: s.person,
+        amount: s.amount != null ? String(s.amount) : null,
+      }));
+
+      sheetIsSplit =
+        editSub.sharingType === "SPLIT" ||
+        editSub.sharingType === "PAID_FOR_OTHERS";
+
+      sheetMatchKeywords = editSub.matchKeywords;
+
+      const effectiveMonthly = estimateRecurringAmount({
+        price: new Prisma.Decimal(editSub.price),
+        isVariablePrice: editSub.isVariablePrice ?? false,
+        recentCharges: editCharges.map((c) => ({
+          amount: new Prisma.Decimal(c.amount),
+          currencyCode: c.currencyCode,
+        })),
+        currency: editSub.currencyCode,
+      });
+
+      sheetCharges = editCharges.map((c) => {
+        let varianceLabel: string | null = null;
+        if (editSub.isVariablePrice && editCharges.length > 0) {
+          const chargeAmt = new Prisma.Decimal(c.amount);
+          const eff = effectiveMonthly;
+          if (!eff.isZero()) {
+            const pct = chargeAmt.minus(eff).div(eff).times(100).toFixed(0);
+            const pctNum = Number(pct);
+            if (Math.abs(pctNum) >= 2) {
+              varianceLabel = pctNum >= 0 ? `+${pctNum}%` : `${pctNum}%`;
+            }
+          }
+        }
+        return {
+          id: c.id,
+          occurredAtFormatted: formatDate(c.occurredAt, locale),
+          amount: formatMoney(c.amount, c.currencyCode),
+          currencyCode: c.currencyCode,
+          accountName: c.accountName,
+          subscriptionLinkSource: c.subscriptionLinkSource,
+          varianceLabel,
+        };
+      });
+    }
+
+    sheetNode = (
+      <SubscriptionSheetHost
+        currencies={sheetCurrencies.map((c) => ({ code: c.code, symbol: c.symbol }))}
+        tz={tz}
+        subscriptionId={editSubId ?? undefined}
+        initialValues={sheetInitialValues}
+        initialShares={sheetInitialShares}
+        charges={sheetCharges}
+        isSplit={sheetIsSplit}
+        matchKeywords={sheetMatchKeywords}
+      />
+    );
+  }
+
   return (
     <>
       <div className="section fade-in">
@@ -123,6 +243,8 @@ export default async function SubscriptionsPage() {
         subMetas={subMetas}
         tz={tz}
       />
+
+      {sheetNode}
     </>
   );
 }

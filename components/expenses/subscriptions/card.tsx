@@ -37,7 +37,7 @@ export function SubscriptionCard({ card, tz }: Props) {
   }
 
   function handleCardClick() {
-    router.push(`/expenses/subscriptions/${card.id}/edit`);
+    router.push(`?edit=sub:${card.id}`, { scroll: false });
   }
 
   function handleCardKeyDown(e: React.KeyboardEvent<HTMLElement>) {
@@ -149,7 +149,8 @@ export function SubscriptionCard({ card, tz }: Props) {
           />
         </span>
         <Link
-          href={`/expenses/subscriptions/${card.id}/edit`}
+          href={`?edit=sub:${card.id}`}
+          scroll={false}
           className="btn"
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => e.stopPropagation()}
