@@ -1,20 +1,28 @@
 "use client";
 
-import { useCallback } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useTransition } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useT } from "@/lib/i18n";
 import { Segmented } from "@/components/segmented";
+import { CalendarPeriodPicker } from "@/components/period/calendar-period-picker";
+import { isCalendarPeriod } from "@/lib/analytics/period";
 
 type View = "sources" | "expected" | "other";
 type Period = "30d" | "90d" | "1y" | "all";
 
+const ROLLING_PERIODS = new Set<string>(["30d", "90d", "1y", "all"]);
+
 export function IncomeStatusStrip() {
   const t = useT();
   const router = useRouter();
+  const pathname = usePathname();
   const sp = useSearchParams();
+  const [, startTransition] = useTransition();
 
   const view = (sp.get("tab") as View) ?? "sources";
-  const period = (sp.get("period") as Period) ?? "90d";
+  const rawPeriod = sp.get("period") ?? null;
+  const calendarActive = rawPeriod ? isCalendarPeriod(rawPeriod) : false;
+  const period = (rawPeriod && ROLLING_PERIODS.has(rawPeriod) ? rawPeriod : "90d") as Period;
 
   const VIEWS: { id: View; label: string }[] = [
     { id: "sources",  label: t("income.filter.view_sources") },
@@ -38,6 +46,17 @@ export function IncomeStatusStrip() {
     [sp, router],
   );
 
+  function handleCalendarSelect(calCode: string) {
+    startTransition(() => {
+      const params = new URLSearchParams(sp.toString());
+      params.set("period", calCode);
+      const qs = params.toString();
+      router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    });
+  }
+
+  const displayedPeriod = calendarActive ? ("" as Period) : period;
+
   const now = new Date();
   const monthDay = now.getDate();
   const monthDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
@@ -53,8 +72,12 @@ export function IncomeStatusStrip() {
       <span className="lbl">{t("income.filter.label_period")}</span>
       <Segmented
         options={PERIODS}
-        value={period}
+        value={displayedPeriod}
         onChange={(v) => push("period", v)}
+      />
+      <CalendarPeriodPicker
+        currentP={calendarActive ? rawPeriod : null}
+        onSelect={handleCalendarSelect}
       />
       <div className="clock-right">
         <span title={t("income.filter.day_of_month_hint")}>

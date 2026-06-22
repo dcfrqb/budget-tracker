@@ -12,6 +12,8 @@ import { getActiveWorkSources, getWorkSourceCardSummaries, getSourceComparisonRo
 import { getLatestRatesMap, convertToBase } from "@/lib/data/wallet";
 import { getT } from "@/lib/i18n/server";
 import { Prisma, TransactionKind, TransactionStatus } from "@prisma/client";
+import { isCalendarPeriod, resolveAnyCalendarRange, periodShortLabel } from "@/lib/analytics/period";
+import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
 import { formatMoney } from "@/lib/format/money";
 import type { ExpectedRow } from "@/components/income/expected";
 import type { OtherIncomeRow } from "@/components/income/other-income";
@@ -80,12 +82,10 @@ export default async function IncomePage({
   searchParams: SearchParams;
 }) {
   const sp = await searchParams;
-  const [userId, t] = await Promise.all([getCurrentUserId(), getT()]);
+  const [userId, t, tz] = await Promise.all([getCurrentUserId(), getT(), getCurrentUserTz()]);
 
   // active tab: "sources" | "expected" | "other" (default: "sources")
   const activeTab = sp.tab ?? "sources";
-  const expectedWindowDays = parseExpectedWindow(sp.period);
-  const historyWindowDays = parseHistoryWindow(sp.period);
 
   const monthShort = MONTH_KEYS.map(k => t(`common.month.short.${k}` as Parameters<typeof t>[0]));
   const weekdayShort = WEEKDAY_KEYS.map(k => t(`common.weekday.short.${k}` as Parameters<typeof t>[0]));
@@ -105,11 +105,39 @@ export default async function IncomePage({
   }
 
   const now = new Date();
-  const windowEnd = new Date(now.getTime() + expectedWindowDays * 24 * 60 * 60 * 1000);
-  const historyStart = new Date(now.getTime() - historyWindowDays * 24 * 60 * 60 * 1000);
+  const rawPeriod = sp.period ?? "90d";
+  const calendarActive = isCalendarPeriod(rawPeriod);
 
-  const periodValue = (["30d", "90d", "1y", "all"].includes(sp.period ?? "") ? sp.period : "90d") as PeriodValue;
-  let kpiWindow = periodToWindow(periodValue, now);
+  // Rolling-only PeriodValue (used only on the rolling path)
+  const periodValue = (["30d", "90d", "1y", "all"].includes(rawPeriod) ? rawPeriod : "90d") as PeriodValue;
+
+  // Shared date bounds — set in both branches
+  let historyFrom: Date;
+  let historyTo: Date;
+  let kpiWindow: { from: Date; to: Date };
+  let windowEnd: Date; // look-ahead end for expected income (rolling path only)
+  let calendarRange: { from: Date; to: Date } | null = null;
+
+  if (calendarActive) {
+    calendarRange = resolveAnyCalendarRange(rawPeriod, tz) ?? {
+      from: new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000),
+      to: now,
+    };
+    kpiWindow = calendarRange;
+    historyFrom = calendarRange.from;
+    historyTo = calendarRange.to;
+    // Expected query on the calendar path reads calendarRange.to directly; windowEnd
+    // stays defined (used only on the rolling path) and tracks the period end.
+    windowEnd = calendarRange.to;
+  } else {
+    const expectedWindowDays = parseExpectedWindow(periodValue);
+    const historyWindowDays = parseHistoryWindow(periodValue);
+    windowEnd = new Date(now.getTime() + expectedWindowDays * 24 * 60 * 60 * 1000);
+    const historyStart = new Date(now.getTime() - historyWindowDays * 24 * 60 * 60 * 1000);
+    historyFrom = historyStart;
+    historyTo = now;
+    kpiWindow = periodToWindow(periodValue, now);
+  }
 
   const [workSources, workSourceSummaries, rates] = await Promise.all([
     getActiveWorkSources(userId),
@@ -117,9 +145,9 @@ export default async function IncomePage({
     getLatestRatesMap(),
   ]);
 
-  // For "all" period, find the earliest income transaction to avoid epoch-based window
-  // which would produce nonsense day counts like "20089 д · ср X / мес".
-  if (periodValue === "all") {
+  // For "all" period (rolling only), find the earliest income transaction to avoid
+  // epoch-based window which would produce nonsense day counts.
+  if (!calendarActive && periodValue === "all") {
     const earliest = await db.transaction.findFirst({
       where: { userId, deletedAt: null, kind: TransactionKind.INCOME },
       orderBy: { occurredAt: "asc" },
@@ -244,7 +272,9 @@ export default async function IncomePage({
   const sourceCount = workSources.length;
   const hasNoSources = workSources.length === 0;
 
-  const inflowLabel = t(`income.kpi.inflow_label.${periodValue}` as Parameters<typeof t>[0]);
+  const inflowLabel = calendarActive
+    ? periodShortLabel(rawPeriod, t)
+    : t(`income.kpi.inflow_label.${periodValue}` as Parameters<typeof t>[0]);
 
   const kpi = {
     sectionTitle: t("income.kpi.section_title"),
@@ -285,14 +315,19 @@ export default async function IncomePage({
     },
   };
 
-  // Expected income — PLANNED INCOME transactions in next N days
+  // Expected income — PLANNED INCOME transactions in the period ahead
+  const expectedFrom = calendarActive
+    ? (calendarRange!.to > now ? now : calendarRange!.from)
+    : now;
+  const expectedTo = calendarActive ? calendarRange!.to : windowEnd;
+
   const plannedRows = await db.transaction.findMany({
     where: {
       userId,
       deletedAt: null,
       kind: TransactionKind.INCOME,
       status: TransactionStatus.PLANNED,
-      occurredAt: { gte: now, lte: windowEnd },
+      occurredAt: { gte: expectedFrom, lte: expectedTo },
     },
     include: {
       account: { include: { institution: true } },
@@ -317,7 +352,7 @@ export default async function IncomePage({
     };
   });
 
-  // Other income — DONE INCOME transactions NOT linked to a work source, last N days
+  // Other income — DONE INCOME transactions NOT linked to a work source, within period
   const otherRows = await db.transaction.findMany({
     where: {
       userId,
@@ -325,7 +360,7 @@ export default async function IncomePage({
       kind: TransactionKind.INCOME,
       status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
       workSourceId: null,
-      occurredAt: { gte: historyStart, lte: now },
+      occurredAt: { gte: historyFrom, lte: historyTo },
     },
     include: { account: { include: { institution: true } } },
     orderBy: { occurredAt: "desc" },
