@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useTransition, useOptimistic } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useT } from "@/lib/i18n";
 import { Dialog } from "@/components/ui/dialog";
 import { ConfirmDialog } from "./confirm-dialog";
@@ -85,6 +85,8 @@ function DangerDialog({
 export function TxnRowActions({ txn, accounts, tz }: TxnRowActionsProps) {
   const t = useT();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
 
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -174,7 +176,12 @@ export function TxnRowActions({ txn, accounts, tz }: TxnRowActionsProps) {
         <button
           type="button"
           className="btn btn-xs"
-          onClick={() => router.push(`/transactions/${txn.id}/edit`)}
+          onClick={() => {
+            const params = new URLSearchParams(searchParams.toString());
+            params.delete("quick");
+            params.set("edit", `txn:${txn.id}`);
+            router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+          }}
           disabled={isInCompensationGroup}
           title={isInCompensationGroup ? t("transactions.compensation.error.edit_blocked") : undefined}
         >

@@ -2787,6 +2787,13 @@ input[type="checkbox"]:disabled {
   flex-shrink: 0;
 }
 
+.drawer-title {
+  flex: 1;
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--text);
+}
+
 .drawer-close {
   display: flex;
   align-items: center;

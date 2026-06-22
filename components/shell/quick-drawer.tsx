@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useEffect, useCallback, useRef } from "react";
+import React, { useCallback } from "react";
 import { useSearchParams, usePathname, useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n";
+import { Sheet } from "@/components/ui/sheet";
 import { TransactionForm } from "@/components/forms/transaction-form";
 import { TransferForm } from "@/components/forms/transfer-form";
 import { TransactionKind } from "@prisma/client";
@@ -35,7 +36,6 @@ export function QuickDrawer({ accounts, categories, currencies }: QuickDrawerPro
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
-  const drawerRef = useRef<HTMLDivElement>(null);
 
   const raw = searchParams.get("quick");
   const slot: QuickSlot | null = isQuickSlot(raw) ? raw : null;
@@ -48,109 +48,30 @@ export function QuickDrawer({ accounts, categories, currencies }: QuickDrawerPro
     router.replace(qs ? `${pathname}?${qs}` : pathname);
   }, [searchParams, pathname, router]);
 
-  // ESC key closes
-  useEffect(() => {
-    if (!isOpen) return;
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") close();
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [isOpen, close]);
-
-  // Focus trap: focus first focusable element when opened
-  useEffect(() => {
-    if (!isOpen || !drawerRef.current) return;
-    const el = drawerRef.current.querySelector<HTMLElement>(
-      "button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])",
-    );
-    el?.focus();
-  }, [isOpen, slot]);
-
-  // Inert the rest of the page when drawer is open
-  useEffect(() => {
-    const shell = document.querySelector<HTMLElement>(".shell");
-    if (!shell) return;
-    if (isOpen) {
-      shell.setAttribute("inert", "");
-    } else {
-      shell.removeAttribute("inert");
-    }
-    return () => shell.removeAttribute("inert");
-  }, [isOpen]);
-
   // Determine the kind for transaction forms
   let defaultKind: TransactionKind | undefined;
   if (slot === "income") defaultKind = TransactionKind.INCOME;
   else if (slot === "expense") defaultKind = TransactionKind.EXPENSE;
 
   return (
-    <div className="drawer-host" data-open={isOpen ? "true" : "false"} aria-hidden={!isOpen}>
-      {/* Backdrop */}
-      <div
-        className="drawer-backdrop"
-        onClick={close}
-        aria-hidden="true"
-        tabIndex={-1}
-      />
-
-      {/* Drawer panel */}
-      <div
-        ref={drawerRef}
-        className="drawer"
-        role="dialog"
-        aria-modal="true"
-        aria-label={slot ?? ""}
-        aria-hidden={!isOpen}
-      >
-        {/* Header */}
-        <div className="drawer-header">
-          <button
-            className="drawer-close"
-            onClick={close}
-            aria-label={t("drawer.close")}
-            type="button"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 16 16"
-              fill="none"
-              aria-hidden="true"
-            >
-              <path
-                d="M12 4L4 12M4 4l8 8"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
-        </div>
-
-        {/* Content */}
-        {isOpen && (
-          <div className="drawer-content">
-            {slot === "transfer" ? (
-              <TransferForm
-                variant="drawer"
-                accounts={accounts}
-                onSuccess={close}
-              />
-            ) : (slot === "income" || slot === "expense" || slot === "transaction") ? (
-              <TransactionForm
-                variant="drawer"
-                mode="create"
-                accounts={accounts}
-                categories={categories}
-                currencies={currencies}
-                defaultKind={defaultKind}
-                onSuccess={close}
-              />
-            ) : null}
-          </div>
-        )}
-      </div>
-    </div>
+    <Sheet open={isOpen} onClose={close} ariaLabel={slot ?? ""}>
+      {slot === "transfer" ? (
+        <TransferForm
+          variant="drawer"
+          accounts={accounts}
+          onSuccess={close}
+        />
+      ) : (slot === "income" || slot === "expense" || slot === "transaction") ? (
+        <TransactionForm
+          variant="drawer"
+          mode="create"
+          accounts={accounts}
+          categories={categories}
+          currencies={currencies}
+          defaultKind={defaultKind}
+          onSuccess={close}
+        />
+      ) : null}
+    </Sheet>
   );
 }

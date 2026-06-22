@@ -1613,6 +1613,10 @@ export const ruDict = {
         break_button: "Разъединить",
       },
     },
+    edit_sheet: {
+      title_txn: "Редактировать транзакцию",
+      title_transfer: "Редактировать перевод",
+    },
   },
 
   wallet: {

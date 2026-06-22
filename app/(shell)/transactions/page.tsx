@@ -1,3 +1,4 @@
+import React from "react";
 import { PeriodSummary } from "@/components/transactions/period-summary";
 import { PersonalDebts } from "@/components/transactions/personal-debts";
 import { TxnFeed } from "@/components/transactions/txn-feed";
@@ -11,6 +12,8 @@ import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
 import {
   getTransactionsGroupedByDay,
   getTransactionsPeriodSummary,
+  getTransactionById,
+  getTransferById,
 } from "@/lib/data/transactions";
 import { getPersonalDebtsWithProgress } from "@/lib/data/debts";
 import { getLatestRatesMap } from "@/lib/data/wallet";
@@ -26,6 +29,10 @@ import { formatMoney } from "@/lib/format/money";
 import { mapDefaultPeriod } from "@/lib/data/_period";
 import { isCalendarPeriod, resolveAnyCalendarRange } from "@/lib/analytics/period";
 import type { ListFilters } from "@/lib/data/transactions";
+import { getActiveWorkSources } from "@/lib/data/work-sources";
+import { listAllCurrencies } from "@/lib/data/currencies";
+import { dayKeyInTz } from "@/lib/format/date";
+import { EditSheetHost } from "@/components/transactions/edit-sheet-host";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +42,7 @@ type SearchParams = Promise<{
   q?: string;
   categoryId?: string;
   accountId?: string;
+  edit?: string;
 }>;
 
 // Maps rolling period code to a date range (from, to).
@@ -157,6 +165,87 @@ export default async function TransactionsPage({
   // First non-archived account as default for quick input
   const defaultAccount = accounts[0];
 
+  // Edit sheet: only fetch when ?edit param is present
+  let editSheetNode: React.ReactNode = null;
+  const editParam = sp.edit;
+  if (editParam) {
+    const colonIdx = editParam.indexOf(":");
+    const editKind = colonIdx > 0 ? editParam.slice(0, colonIdx) : null;
+    const editId = colonIdx > 0 ? editParam.slice(colonIdx + 1) : null;
+
+    if (editKind === "txn" && editId) {
+      const [tx, currencies, workSources] = await Promise.all([
+        getTransactionById(userId, editId),
+        listAllCurrencies(),
+        getActiveWorkSources(userId),
+      ]);
+      if (tx) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const initialValues: Record<string, any> = {
+          accountId: tx.accountId,
+          categoryId: tx.categoryId ?? undefined,
+          kind: tx.kind,
+          status: tx.status,
+          amount: tx.amount.toString(),
+          currencyCode: tx.currencyCode,
+          occurredAt: dayKeyInTz(tx.occurredAt, tz),
+          plannedAt: tx.plannedAt ? dayKeyInTz(tx.plannedAt, tz) : undefined,
+          name: tx.name,
+          note: tx.note ?? undefined,
+          scope: tx.scope,
+          loanId: tx.loanId ?? undefined,
+          subscriptionId: tx.subscriptionId ?? undefined,
+          longProjectId: tx.longProjectId ?? undefined,
+          fundId: tx.fundId ?? undefined,
+          workSourceId: tx.workSourceId ?? undefined,
+          personalDebtId: tx.personalDebtId ?? undefined,
+          plannedEventId: tx.plannedEventId ?? undefined,
+        };
+        editSheetNode = (
+          <EditSheetHost
+            kind="txn"
+            entityId={editId}
+            initialValues={initialValues}
+            accounts={accounts}
+            categories={categories.map((c) => ({ id: c.id, name: c.name, kind: c.kind }))}
+            currencies={currencies.map((c) => ({ code: c.code, symbol: c.symbol }))}
+            workSources={workSources.map((w) => ({ id: w.id, name: w.name }))}
+            tz={tz}
+          />
+        );
+      }
+    } else if (editKind === "transfer" && editId) {
+      const [transfer, currencies] = await Promise.all([
+        getTransferById(userId, editId),
+        listAllCurrencies(),
+      ]);
+      if (transfer) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const initialValues: Record<string, any> = {
+          fromAccountId: transfer.fromAccountId,
+          toAccountId: transfer.toAccountId,
+          fromAmount: transfer.fromAmount.toString(),
+          toAmount: transfer.toAmount.toString(),
+          rate: transfer.rate?.toString(),
+          fee: transfer.fee?.toString(),
+          occurredAt: dayKeyInTz(transfer.occurredAt, tz),
+          note: transfer.note ?? undefined,
+        };
+        editSheetNode = (
+          <EditSheetHost
+            kind="transfer"
+            entityId={editId}
+            initialValues={initialValues}
+            accounts={accounts}
+            categories={[]}
+            currencies={currencies.map((c) => ({ code: c.code, symbol: c.symbol }))}
+            tz={tz}
+          />
+        );
+      }
+    }
+  }
+
   return (
     <>
       <TxnStatusStrip />
@@ -176,6 +265,7 @@ export default async function TransactionsPage({
         <TxnFeed days={days} totalCount={summary.totalCount} accounts={accounts} tz={tz} />
       </TransactionsSelectionProvider>
       <PersonalDebts debts={debtViews} metaLine={debtMeta} tz={tz} />
+      {editSheetNode}
     </>
   );
 }

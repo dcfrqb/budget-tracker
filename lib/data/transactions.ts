@@ -160,6 +160,42 @@ export async function getTransactionById(
   });
 }
 
+export type TransferForEdit = {
+  id: string;
+  fromAccountId: string;
+  toAccountId: string;
+  fromAmount: import("@prisma/client").Prisma.Decimal;
+  toAmount: import("@prisma/client").Prisma.Decimal;
+  fromCcy: string;
+  toCcy: string;
+  rate: import("@prisma/client").Prisma.Decimal | null;
+  fee: import("@prisma/client").Prisma.Decimal | null;
+  occurredAt: Date;
+  note: string | null;
+};
+
+export async function getTransferById(
+  userId: string,
+  id: string,
+): Promise<TransferForEdit | null> {
+  return db.transfer.findFirst({
+    where: { id, userId },
+    select: {
+      id: true,
+      fromAccountId: true,
+      toAccountId: true,
+      fromAmount: true,
+      toAmount: true,
+      fromCcy: true,
+      toCcy: true,
+      rate: true,
+      fee: true,
+      occurredAt: true,
+      note: true,
+    },
+  });
+}
+
 export async function getTransactionsPeriodSummary(
   userId: string,
   { from, to, baseCcy }: { from?: Date; to?: Date; baseCcy: string },

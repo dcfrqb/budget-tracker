@@ -1605,6 +1605,10 @@ export const enDict: RuDictShape = {
         break_button: "Split",
       },
     },
+    edit_sheet: {
+      title_txn: "Edit transaction",
+      title_transfer: "Edit transfer",
+    },
   },
 
   wallet: {
