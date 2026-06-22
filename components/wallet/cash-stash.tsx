@@ -69,7 +69,7 @@ export function CashStashSection({ stash, meta, currencies, primaryCurrency }: P
       <div className="section-body flush">
         <div className="cash-grid">
           {stash.map((c) => (
-            <Link key={c.id} href={`/wallet/cash/${c.id}/edit`} className="cash-cell">
+            <Link key={c.id} href={`?edit=cash:${c.id}`} scroll={false} className="cash-cell">
               <div className="top">
                 <span className="sym mono">{c.sym}</span>
                 <span className="loc mono">{c.loc}</span>

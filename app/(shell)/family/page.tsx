@@ -1,5 +1,7 @@
+import React from "react";
 import { FamilyBalances } from "@/components/family/balances";
 import { FamilyStatusStrip } from "@/components/family/status-strip";
+import { FamilyFormHost } from "@/components/family/family-form-host";
 import { GroupHeader } from "@/components/family/group-header";
 import { InviteBanner } from "@/components/family/invite-banner";
 import { MembersManager } from "@/components/family/members-manager";
@@ -18,6 +20,7 @@ import { ruPluralForms } from "@/lib/i18n/locales/ru";
 import { enPluralForms } from "@/lib/i18n/locales/en";
 import { formatMoney } from "@/lib/format/money";
 import Link from "next/link";
+import { db } from "@/lib/db";
 import type { GroupHeaderData } from "@/components/family/group-header";
 import type { MemberCardView } from "@/components/family/members";
 import type { SpaceTab } from "@/components/family/space-tabs";
@@ -31,8 +34,14 @@ const MEMBER_COLORS = [
   "var(--chart-5)", "var(--chart-6)", "var(--chart-7)",
 ];
 
-export default async function FamilyPage() {
-  const [userId, t, locale] = await Promise.all([getCurrentUserId(), getT(), getLocale()]);
+type SearchParams = Promise<{ new?: string; edit?: string }>;
+
+export default async function FamilyPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const [userId, t, locale, sp] = await Promise.all([getCurrentUserId(), getT(), getLocale(), searchParams]);
 
   const monthShort = MONTH_KEYS.map(k => t(`common.month.short.${k}` as Parameters<typeof t>[0]));
 
@@ -77,6 +86,27 @@ export default async function FamilyPage() {
     };
   }
 
+  // Lazy-fetch family data for edit dialog only when ?edit=family:<id> is present
+  let familyEditInitialValues: Record<string, unknown> | undefined;
+  let familyEditId: string | undefined;
+  const editParam = sp.edit;
+  if (editParam) {
+    const colonIdx = editParam.indexOf(":");
+    const editKind = colonIdx > 0 ? editParam.slice(0, colonIdx) : null;
+    const editId = colonIdx > 0 ? editParam.slice(colonIdx + 1) : null;
+
+    if (editKind === "family" && editId) {
+      const familyData = await db.family.findFirst({
+        where: { id: editId, ownerId: userId },
+        select: { name: true, note: true },
+      });
+      if (familyData) {
+        familyEditId = editId;
+        familyEditInitialValues = { name: familyData.name, note: familyData.note ?? "" };
+      }
+    }
+  }
+
   // No family case — show setup component only
   if (!family) {
     return (
@@ -84,6 +114,7 @@ export default async function FamilyPage() {
         <FamilyStatusStrip hasGroup={false} />
         <GroupHeader group={undefined} />
         <FamilySetup />
+        <FamilyFormHost />
       </>
     );
   }
@@ -173,7 +204,8 @@ export default async function FamilyPage() {
       <GroupHeader group={groupData} />
       <div className="section-hd" style={{ padding: "8px 20px" }}>
         <Link
-          href={`/family/${family.id}/edit`}
+          href={`?edit=family:${family.id}`}
+          scroll={false}
           className="btn-ghost btn-xs"
         >
           {t("buttons.edit")}
@@ -186,6 +218,10 @@ export default async function FamilyPage() {
       <SharedLedger rows={[]} />
       <SharedFunds funds={sharedFundCards} labels={buildSharedFundsLabels(sharedFundsRaw.length)} />
       <SharedSubs rows={sharedSubRows} />
+      <FamilyFormHost
+        familyId={familyEditId}
+        initialValues={familyEditInitialValues}
+      />
     </>
   );
 }

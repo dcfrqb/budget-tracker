@@ -1,6 +1,8 @@
+import React from "react";
 import { AddAccountCta } from "@/components/wallet/add-cta";
 import { Archive } from "@/components/wallet/archive";
 import { CashStashSection } from "@/components/wallet/cash-stash";
+import { CashEditHost } from "@/components/wallet/cash-edit-host";
 import { FxRates } from "@/components/wallet/fx-rates";
 import { Institutions } from "@/components/wallet/institutions";
 import { WalletStatusStrip, type WalletGroup } from "@/components/wallet/status-strip";
@@ -20,6 +22,8 @@ import {
 } from "@/lib/data/wallet";
 import { listAllCurrencies } from "@/lib/data/currencies";
 import { getBudgetSettings } from "@/lib/data/settings";
+import { db } from "@/lib/db";
+import { AccountKind } from "@prisma/client";
 import {
   toArchivedView,
   toCashStashView,
@@ -105,7 +109,7 @@ function buildDayProgress(dayKey: string): string {
 export default async function WalletPage({
   searchParams,
 }: {
-  searchParams: Promise<{ group?: string; ccy?: string }>;
+  searchParams: Promise<{ group?: string; ccy?: string; edit?: string }>;
 }) {
   const [userId, t, locale, params] = await Promise.all([
     getCurrentUserId(),
@@ -209,6 +213,44 @@ export default async function WalletPage({
 
   const currencyOptions = currencies.map((c) => ({ code: c.code, symbol: c.symbol }));
 
+  // Lazy-fetch cash account only when ?edit=cash:<id> is present
+  let cashEditHostNode: React.ReactNode = null;
+  const editParam = params.edit;
+  if (editParam) {
+    const colonIdx = editParam.indexOf(":");
+    const editKind = colonIdx > 0 ? editParam.slice(0, colonIdx) : null;
+    const editId = colonIdx > 0 ? editParam.slice(colonIdx + 1) : null;
+
+    if (editKind === "cash" && editId) {
+      const [cashAccount, cashCurrencies] = await Promise.all([
+        db.account.findFirst({
+          where: { id: editId, userId, kind: AccountKind.CASH, deletedAt: null },
+          select: {
+            id: true,
+            location: true,
+            currencyCode: true,
+            balance: true,
+            includeInAnalytics: true,
+          },
+        }),
+        listAllCurrencies(),
+      ]);
+
+      if (cashAccount) {
+        cashEditHostNode = (
+          <CashEditHost
+            cashId={cashAccount.id}
+            initialLocation={cashAccount.location ?? ""}
+            initialCurrency={cashAccount.currencyCode}
+            initialBalance={cashAccount.balance.toString()}
+            initialIncludeInAnalytics={cashAccount.includeInAnalytics}
+            currencies={cashCurrencies.map((c) => ({ code: c.code, symbol: c.symbol }))}
+          />
+        );
+      }
+    }
+  }
+
   return (
     <>
       <WalletStatusStrip
@@ -234,6 +276,7 @@ export default async function WalletPage({
         />
       )}
       {showArchive && <Archive items={archivedView} />}
+      {cashEditHostNode}
     </>
   );
 }

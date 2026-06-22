@@ -15,6 +15,8 @@ interface Props {
   initialBalance: string;
   initialIncludeInAnalytics: boolean;
   currencies: CurrencyOption[];
+  embedded?: boolean;
+  onSuccess?: () => void;
 }
 
 export function CashEditForm({
@@ -24,6 +26,8 @@ export function CashEditForm({
   initialBalance,
   initialIncludeInAnalytics,
   currencies,
+  embedded,
+  onSuccess,
 }: Props) {
   const t = useT();
   const router = useRouter();
@@ -47,7 +51,8 @@ export function CashEditForm({
         includeInAnalytics,
       });
       if (result.ok) {
-        router.push("/wallet");
+        if (onSuccess) onSuccess();
+        else router.push("/wallet");
       } else {
         setError(t("forms.common.form_error.internal"));
       }
@@ -61,7 +66,8 @@ export function CashEditForm({
         setError(t("wallet.cash.edit.archive_failed"));
         return;
       }
-      router.push("/wallet");
+      if (onSuccess) onSuccess();
+      else router.push("/wallet");
     });
   }
 
@@ -69,7 +75,7 @@ export function CashEditForm({
 
   return (
     <div>
-      <h1 className="form-title">{t("wallet.cash.edit.title")}</h1>
+      {!embedded && <h1 className="form-title">{t("wallet.cash.edit.title")}</h1>}
       <form onSubmit={handleSubmit} className="form-grid">
         <div className="field">
           <label className="form-label" htmlFor="cash-location">
@@ -143,7 +149,7 @@ export function CashEditForm({
             <button
               type="button"
               className="btn-ghost"
-              onClick={() => router.back()}
+              onClick={() => { if (onSuccess) onSuccess(); else router.back(); }}
               disabled={isPending}
             >
               {t("wallet.cash.edit.cancel")}
