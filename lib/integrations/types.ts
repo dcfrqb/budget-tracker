@@ -17,6 +17,11 @@ export type AdapterScheduling = {
   autosyncEnabled: boolean;
   defaultIntervalMs: number;
   minIntervalMs: number;
+  /**
+   * Scheduled-path only. Return true for transient anti-bot trips worth one
+   * immediate retry. Return false (or omit) for auth/session/circuit failures.
+   */
+  isTransientRetryable?: (err: unknown) => boolean;
 };
 
 export type BankAdapterMeta = {

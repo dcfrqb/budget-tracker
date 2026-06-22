@@ -6,6 +6,7 @@ import {
   SCHEDULER_BOOT_DELAY_MS,
   LEASE_BUFFER_MULTIPLIER,
   LEASE_MAX_MS,
+  SCHEDULER_RETRY_DELAY_MS,
   jitterMs,
 } from "@/lib/integrations/scheduler-config";
 
@@ -114,10 +115,33 @@ async function tick(): Promise<void> {
 
     log.info(`tick: running sync for credentialId=${cred.id} adapterId=${cred.adapterId}`);
 
+    const tickAttemptStart = new Date();
     try {
       await syncCredential(cred.userId, cred.id);
-    } catch (err) {
-      log.warn(`tick: sync error credentialId=${cred.id}: ${err instanceof Error ? err.message : String(err)}`);
+    } catch (err1) {
+      if (adapter.scheduling.isTransientRetryable?.(err1) === true) {
+        log.warn(`tick: transient failure credentialId=${cred.id}, retrying in ${SCHEDULER_RETRY_DELAY_MS}ms: ${err1 instanceof Error ? err1.message : String(err1)}`);
+        await new Promise<void>((r) => setTimeout(r, SCHEDULER_RETRY_DELAY_MS));
+        try {
+          await syncCredential(cred.userId, cred.id);
+          // Soften attempt-1's ERROR row so it doesn't feed the breaker.
+          // Intentionally over-wide: retags any ERROR row for this credential since
+          // tickAttemptStart (normally just attempt-1's). Best-effort, .catch()-guarded.
+          await db.integrationSyncLog.updateMany({
+            where: {
+              credentialId: cred.id,
+              status: "ERROR",
+              startedAt: { gte: tickAttemptStart },
+            },
+            data: { errorClass: "transient_retried" },
+          }).catch(() => {});
+          log.info(`tick: retry succeeded credentialId=${cred.id}`);
+        } catch (err2) {
+          log.warn(`tick: retry also failed credentialId=${cred.id}: ${err2 instanceof Error ? err2.message : String(err2)}`);
+        }
+      } else {
+        log.warn(`tick: sync error credentialId=${cred.id}: ${err1 instanceof Error ? err1.message : String(err1)}`);
+      }
     }
 
     // Use global cadence from BudgetSettings (ignore per-credential scheduleIntervalMs)

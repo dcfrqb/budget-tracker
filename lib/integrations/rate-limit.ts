@@ -74,7 +74,7 @@ export async function checkRateLimit(
       status: { in: ["ERROR", "OK"] },
       OR: [
         { errorClass: null },
-        { errorClass: { notIn: ["circuit_open", "rate_limited"] } },
+        { errorClass: { notIn: ["circuit_open", "rate_limited", "transient_retried"] } },
       ],
     },
     orderBy: { startedAt: "desc" },

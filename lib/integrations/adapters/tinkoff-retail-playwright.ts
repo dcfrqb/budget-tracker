@@ -3,6 +3,7 @@
 
 import { rm } from "node:fs/promises";
 import type { BankAdapter, AdapterContext } from "@/lib/integrations/types";
+import { toSafeError } from "@/lib/integrations/safe-error";
 import type { ImportRow } from "@/lib/import/types";
 import { normalizeRuPhone } from "@/lib/format/phone";
 import { listAccountLinks } from "@/lib/data/_queries/integrations";
@@ -321,6 +322,23 @@ export const tinkoffRetailAdapter: BankAdapter = {
     autosyncEnabled: true,
     defaultIntervalMs: 24 * 3600_000,
     minIntervalMs: 5 * 60_000,
+    isTransientRetryable(err: unknown): boolean {
+      const safe = toSafeError(err);
+      const cls = safe.class;
+      const msg = err instanceof Error ? err.message : "";
+      if (cls.startsWith("circuit_open") || cls.startsWith("rate_limited")) return false;
+      if (
+        cls === "session_expired" ||
+        cls === "no_session" ||
+        cls.startsWith("invalid_") ||
+        cls === "decrypt_failure" ||
+        cls === "401" ||
+        cls === "403"
+      ) return false;
+      if (cls.startsWith("tinkoff:INSUFFICIENT_PRIVILEGES")) return true;
+      if (/accounts_light_ib HTTP (0|429|5\d\d)/i.test(msg)) return true;
+      return false;
+    },
   },
 
   async login(
