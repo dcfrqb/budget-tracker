@@ -18,6 +18,7 @@ import {
   getEconomyExitScenario,
 } from "@/lib/data/analytics-prescriptive";
 import { getDismissedSignals, computeSignals } from "@/lib/data/signals";
+import { getBudgetSettings } from "@/lib/data/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +36,7 @@ export default async function HomePage() {
     getT(),
   ]);
 
-  const [dashboard, categories, activeAccounts, shrinkable, discretionary, economyExit, dismissedSet] = await Promise.all([
+  const [dashboard, categories, activeAccounts, shrinkable, discretionary, economyExit, dismissedSet, budgetSettings] = await Promise.all([
     getHomeDashboard(userId, DEFAULT_CURRENCY),
     getCategories(userId),
     db.account.findMany({
@@ -47,6 +48,7 @@ export default async function HomePage() {
     getObligatoryDiscretionarySplit(userId, currentMonthRange, DEFAULT_CURRENCY),
     getEconomyExitScenario(userId, DEFAULT_CURRENCY, tz, now),
     getDismissedSignals(userId),
+    getBudgetSettings(userId),
   ]);
 
   const rawSignals = computeSignals({
@@ -71,7 +73,7 @@ export default async function HomePage() {
 
   return (
     <>
-      <StatusStrip />
+      <StatusStrip activeMode={budgetSettings?.activeMode ?? "NORMAL"} />
       <QuickActions
         defaultAccountId={defaultAccount?.id}
         defaultCurrency={defaultAccount?.currencyCode ?? DEFAULT_CURRENCY}

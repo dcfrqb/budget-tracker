@@ -67,7 +67,7 @@ export async function updateBudgetSettingsAction(
     if (!parsed.success) return { error: true };
 
     await updateBudgetSettings(userId, parsed.data);
-    revalidatePath("/settings");
+    revalidatePath("/", "layout");
   } catch {
     return { error: true };
   }

@@ -1,26 +1,48 @@
 "use client";
 
-import { useState } from "react";
+import { useOptimistic, useTransition } from "react";
 import { useT } from "@/lib/i18n";
 import { Segmented } from "@/components/segmented";
+import { updateBudgetSettingsAction } from "@/app/(shell)/settings/actions";
+import type { BudgetMode } from "@prisma/client";
 
 const now = new Date();
 const MONTH_DAY = now.getDate();
 const MONTH_DAYS = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
 
-type Mode = "econom" | "normal" | "free";
+type CosmeticId = "econom" | "normal" | "free";
 
-const MODE_IDS: Mode[] = ["econom", "normal", "free"];
+const COSMETIC_IDS: CosmeticId[] = ["econom", "normal", "free"];
 
-const MODE_COLOR: Record<Mode, string> = {
+const MODE_COLOR: Record<CosmeticId, string> = {
   econom: "var(--accent)",
   normal: "var(--pos)",
   free:   "var(--info)",
 };
 
-export function StatusStrip() {
+const TO_BUDGET_MODE: Record<CosmeticId, BudgetMode> = {
+  econom: "ECONOMY",
+  normal: "NORMAL",
+  free:   "FREE",
+};
+
+const FROM_BUDGET_MODE: Record<BudgetMode, CosmeticId> = {
+  ECONOMY: "econom",
+  NORMAL:  "normal",
+  FREE:    "free",
+};
+
+type Props = {
+  activeMode: BudgetMode;
+};
+
+export function StatusStrip({ activeMode }: Props) {
   const t = useT();
-  const [mode, setMode] = useState<Mode>("normal");
+  const [optimisticMode, setOptimisticMode] = useOptimistic<BudgetMode, BudgetMode>(
+    activeMode,
+    (_state, m) => m,
+  );
+  const [, startTransition] = useTransition();
 
   const MONTH_KEYS = [
     "common.month.short.1",
@@ -39,15 +61,32 @@ export function StatusStrip() {
 
   const monthLabel = `${t(MONTH_KEYS[now.getMonth()])} ${now.getFullYear()}`;
 
-  const MODES = MODE_IDS.map((id) => ({
+  const MODES = COSMETIC_IDS.map((id) => ({
     id,
     label: t(`home.status_strip.modes.${id}` as Parameters<typeof t>[0]),
   }));
 
+  const cosmeticId = FROM_BUDGET_MODE[optimisticMode];
+
+  function handleChange(id: CosmeticId) {
+    const bm = TO_BUDGET_MODE[id];
+    startTransition(async () => {
+      setOptimisticMode(bm);
+      const fd = new FormData();
+      fd.set("activeMode", bm);
+      await updateBudgetSettingsAction(fd);
+    });
+  }
+
   return (
     <div className="status-strip fade-in" style={{ animationDelay: "0ms" }}>
       <span className="lbl">{t("home.status_strip.mode_label")}</span>
-      <Segmented options={MODES} value={mode} onChange={setMode} markerColor={MODE_COLOR[mode]} />
+      <Segmented
+        options={MODES}
+        value={cosmeticId}
+        onChange={handleChange}
+        markerColor={MODE_COLOR[cosmeticId]}
+      />
 
       <div className="clock-right">
         <span>
