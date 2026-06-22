@@ -238,10 +238,11 @@ async function pairCrossCurrency(
   let ambiguousSkipped = 0;
 
   // Only consider unclaimed rows with different currencies.
-  // bybit-p2p incomes are owned by pairP2p (exact/±5% order-amount match) — keep
-  // them out of this fuzzy 10%-FX pass so an unmatched P2P leg stays a plain
-  // INCOME instead of being loosely paired to the wrong expense.
-  const unclaimedExpenses = expenses.filter((e) => !claimed.has(e.id));
+  // bybit-p2p rows (both INCOME BUY legs and EXPENSE SELL legs) are owned by
+  // pairP2p (exact/±2% order-amount match) — keep them out of this fuzzy
+  // 10%-FX pass so an unmatched P2P leg stays plain instead of being loosely
+  // paired to the wrong counterpart.
+  const unclaimedExpenses = expenses.filter((e) => !claimed.has(e.id) && e.source !== "bybit-p2p");
   const unclaimedIncomes = incomes.filter((i) => !claimed.has(i.id) && i.source !== "bybit-p2p");
 
   if (unclaimedExpenses.length === 0 || unclaimedIncomes.length === 0) {
@@ -383,10 +384,16 @@ const P2P_MATCH_WINDOW_MS = 60 * 60 * 1000; // 60 minutes
 const P2P_MATCH_AMOUNT_TOLERANCE = 0.02;
 
 /**
- * P2P-specific pairing: matches bybit-p2p INCOME rows against T-bank RUB EXPENSE rows.
- * Uses exact fiat-amount from the order's note JSON rather than FX-rate tolerance.
- * Skips the isTransferName name filter (P2P seller names never match it).
- * Runs before generic cross-ccy to claim P2P pairs first.
+ * P2P-specific pairing: matches both legs of Bybit P2P orders against T-bank fiat rows.
+ *
+ * BUY pass (side=0): bybit-p2p INCOME (USDT received) ↔ T-bank RUB EXPENSE (RUB sent).
+ *   Transfer: from=RUB expense → to=USDT income. rate = USDT / fiatAmount (USDT per RUB).
+ *
+ * SELL pass (side=1): bybit-p2p EXPENSE (USDT sent) ↔ T-bank RUB INCOME (RUB received).
+ *   Transfer: from=USDT expense → to=RUB income. rate = RUB income / fiatAmount (RUB per USDT).
+ *
+ * Both passes share the same `claimed` set. Uses exact fiat-amount from note JSON (±2%
+ * tolerance). Skips isTransferName filter. Runs before generic cross-ccy to claim first.
  */
 async function pairP2p(
   userId: string,
@@ -397,10 +404,6 @@ async function pairP2p(
   let p2pPaired = 0;
   let ambiguousSkipped = 0;
 
-  // Only consider unclaimed bybit-p2p income rows
-  const p2pIncomes = incomes.filter((i) => !claimed.has(i.id) && i.source === "bybit-p2p");
-  if (p2pIncomes.length === 0) return { p2pPaired: 0, ambiguousSkipped: 0 };
-
   type P2pCandidate = {
     income: CandidateTxn;
     expense: CandidateTxn;
@@ -410,7 +413,11 @@ async function pairP2p(
     amountDelta: Prisma.Decimal;
   };
 
-  const candidates: P2pCandidate[] = [];
+  // ── BUY pass: bybit-p2p INCOME rows ↔ RUB EXPENSE rows ──────────────────────
+
+  const p2pIncomes = incomes.filter((i) => !claimed.has(i.id) && i.source === "bybit-p2p");
+
+  const buyCandidates: P2pCandidate[] = [];
 
   for (const inc of p2pIncomes) {
     let fiatAmount: Prisma.Decimal;
@@ -428,6 +435,7 @@ async function pairP2p(
 
     for (const exp of expenses) {
       if (claimed.has(exp.id)) continue;
+      if (exp.source === "bybit-p2p") continue;
       if (exp.accountId === inc.accountId) continue;
       if (exp.currencyCode !== fiatCcy) continue;
 
@@ -438,35 +446,31 @@ async function pairP2p(
       const deltaMs = Math.abs(exp.occurredAt.getTime() - inc.occurredAt.getTime());
       if (deltaMs > P2P_MATCH_WINDOW_MS) continue;
 
-      candidates.push({ income: inc, expense: exp, fiatAmount, fiatCcy, deltaMs, amountDelta });
+      buyCandidates.push({ income: inc, expense: exp, fiatAmount, fiatCcy, deltaMs, amountDelta });
     }
   }
 
-  // Closest amount first (exact beats a ±5% near-match), then closest in time.
-  candidates.sort((a, b) => {
+  buyCandidates.sort((a, b) => {
     const ad = a.amountDelta.comparedTo(b.amountDelta);
     if (ad !== 0) return ad;
     return a.deltaMs - b.deltaMs;
   });
 
-  const toPersist: Array<P2pCandidate> = [];
+  const buyToPersist: Array<P2pCandidate> = [];
 
-  for (const pc of candidates) {
+  for (const pc of buyCandidates) {
     if (claimed.has(pc.income.id) || claimed.has(pc.expense.id)) continue;
 
-    // Ambiguous only when another unclaimed candidate is EQUALLY close on amount
-    // (same delta) — an exact match is never blocked by a looser ±5% near-match,
-    // since exact candidates sort first and claim the row before the near one.
-    const incTies = candidates.filter(
+    const incTies = buyCandidates.filter(
       (x) => x.income.id === pc.income.id && !claimed.has(x.expense.id) && x.amountDelta.equals(pc.amountDelta)
     ).length;
-    const expTies = candidates.filter(
+    const expTies = buyCandidates.filter(
       (x) => x.expense.id === pc.expense.id && !claimed.has(x.income.id) && x.amountDelta.equals(pc.amountDelta)
     ).length;
 
     if (incTies > 1 || expTies > 1) {
       console.warn(
-        `[transfer-pairing] ambiguous p2p match income=${pc.income.id} (${incTies} equally-close expense candidates) expense=${pc.expense.id} (${expTies} equally-close income candidates) — skipping`
+        `[transfer-pairing] ambiguous p2p-buy match income=${pc.income.id} (${incTies} equally-close expense candidates) expense=${pc.expense.id} (${expTies} equally-close income candidates) — skipping`
       );
       ambiguousSkipped++;
       continue;
@@ -474,13 +478,13 @@ async function pairP2p(
 
     claimed.add(pc.income.id);
     claimed.add(pc.expense.id);
-    toPersist.push(pc);
+    buyToPersist.push(pc);
   }
 
-  for (const pc of toPersist) {
+  for (const pc of buyToPersist) {
     const { income, expense, fiatAmount } = pc;
 
-    // rate = USDT received / RUB spent (toCcy per fromCcy, matching pairCrossCurrency convention)
+    // rate = USDT received / RUB spent (toCcy per fromCcy)
     const rate = !fiatAmount.isZero()
       ? income.amount.div(fiatAmount)
       : new Prisma.Decimal(0);
@@ -512,7 +516,116 @@ async function pairP2p(
       p2pPaired++;
     } catch (err) {
       console.error(
-        `[transfer-pairing] failed to persist p2p pair income=${income.id} expense=${expense.id}:`,
+        `[transfer-pairing] failed to persist p2p-buy pair income=${income.id} expense=${expense.id}:`,
+        err
+      );
+    }
+  }
+
+  // ── SELL pass: bybit-p2p EXPENSE rows ↔ RUB INCOME rows ────────────────────
+
+  const p2pExpenses = expenses.filter((e) => !claimed.has(e.id) && e.source === "bybit-p2p");
+
+  const sellCandidates: P2pCandidate[] = [];
+
+  for (const exp of p2pExpenses) {
+    let fiatAmount: Prisma.Decimal;
+    let fiatCcy: string;
+
+    try {
+      const noteObj = JSON.parse(exp.note ?? "{}") as Record<string, unknown>;
+      const rawFiatAmount = typeof noteObj.fiatAmount === "string" ? noteObj.fiatAmount : "";
+      fiatCcy = typeof noteObj.fiatCcy === "string" ? noteObj.fiatCcy : "";
+      if (!rawFiatAmount || !fiatCcy) continue;
+      fiatAmount = new Prisma.Decimal(rawFiatAmount);
+    } catch {
+      continue;
+    }
+
+    for (const inc of incomes) {
+      if (claimed.has(inc.id)) continue;
+      if (inc.source === "bybit-p2p") continue;
+      if (inc.accountId === exp.accountId) continue;
+      if (inc.currencyCode !== fiatCcy) continue;
+
+      const incAmount = new Prisma.Decimal(inc.amount);
+      const amountDelta = incAmount.minus(fiatAmount).abs();
+      if (amountDelta.gt(fiatAmount.mul(P2P_MATCH_AMOUNT_TOLERANCE))) continue;
+
+      const deltaMs = Math.abs(inc.occurredAt.getTime() - exp.occurredAt.getTime());
+      if (deltaMs > P2P_MATCH_WINDOW_MS) continue;
+
+      sellCandidates.push({ income: inc, expense: exp, fiatAmount, fiatCcy, deltaMs, amountDelta });
+    }
+  }
+
+  sellCandidates.sort((a, b) => {
+    const ad = a.amountDelta.comparedTo(b.amountDelta);
+    if (ad !== 0) return ad;
+    return a.deltaMs - b.deltaMs;
+  });
+
+  const sellToPersist: Array<P2pCandidate> = [];
+
+  for (const pc of sellCandidates) {
+    if (claimed.has(pc.income.id) || claimed.has(pc.expense.id)) continue;
+
+    const expTies = sellCandidates.filter(
+      (x) => x.expense.id === pc.expense.id && !claimed.has(x.income.id) && x.amountDelta.equals(pc.amountDelta)
+    ).length;
+    const incTies = sellCandidates.filter(
+      (x) => x.income.id === pc.income.id && !claimed.has(x.expense.id) && x.amountDelta.equals(pc.amountDelta)
+    ).length;
+
+    if (expTies > 1 || incTies > 1) {
+      console.warn(
+        `[transfer-pairing] ambiguous p2p-sell match expense=${pc.expense.id} (${expTies} equally-close income candidates) income=${pc.income.id} (${incTies} equally-close expense candidates) — skipping`
+      );
+      ambiguousSkipped++;
+      continue;
+    }
+
+    claimed.add(pc.expense.id);
+    claimed.add(pc.income.id);
+    sellToPersist.push(pc);
+  }
+
+  for (const pc of sellToPersist) {
+    const { income, expense } = pc;
+
+    // rate = RUB received / USDT sold (toCcy per fromCcy = RUB per USDT)
+    const rate = !expense.amount.isZero()
+      ? income.amount.div(expense.amount)
+      : new Prisma.Decimal(0);
+
+    try {
+      await db.$transaction(async (tx) => {
+        const created = await tx.transfer.create({
+          data: {
+            userId,
+            fromAccountId: expense.accountId,
+            toAccountId: income.accountId,
+            fromAmount: expense.amount,
+            toAmount: income.amount,
+            fromCcy: expense.currencyCode,
+            toCcy: income.currencyCode,
+            rate,
+            occurredAt:
+              expense.occurredAt < income.occurredAt
+                ? expense.occurredAt
+                : income.occurredAt,
+            note: "auto-paired:p2p",
+          },
+        });
+        await tx.transaction.updateMany({
+          where: { id: { in: [expense.id, income.id] } },
+          data: { kind: TransactionKind.TRANSFER, transferId: created.id },
+        });
+      });
+      p2pPaired++;
+    } catch (err) {
+      console.error(
+        `[transfer-pairing] failed to persist p2p-sell pair expense=${expense.id} income=${income.id}:`,
         err
       );
     }

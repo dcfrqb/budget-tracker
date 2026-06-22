@@ -8,9 +8,8 @@ const P2P_ORDER_LIST_PATH = "/v5/p2p/order/simplifyList";
 // 2026-06-15: size 10/20/30 return data, 40/50 return empty.
 const PAGE_SIZE = 30;
 
-// P2P completed buy order status
+// P2P completed order status
 const P2P_ORDER_COMPLETED_STATUS = 50;
-const P2P_ORDER_SIDE_BUY = 0;
 
 type ListP2pOrdersInput = {
   apiKey: string;
@@ -72,10 +71,9 @@ export async function listP2pOrders(input: ListP2pOrdersInput): Promise<ListP2pO
         break;
       }
 
-      // Keep only completed BUY orders within the requested window
+      // Keep completed orders (both sides) within the requested window
       if (
         item.status === P2P_ORDER_COMPLETED_STATUS &&
-        item.side === P2P_ORDER_SIDE_BUY &&
         !isNaN(createMs) &&
         createMs >= startTime &&
         createMs <= endTime

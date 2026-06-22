@@ -418,7 +418,12 @@ export const bybitCardAdapter: BankAdapter = {
       }
 
       const occurredAt = new Date(Number(order.createDate)).toISOString();
-      const counterparty = order.sellerRealName || order.targetNickName;
+      // BUY (side=0): owner is buyer, counterparty is the seller.
+      // SELL (side=1): owner is seller, counterparty is the buyer.
+      const counterparty =
+        order.side === 1
+          ? (order.targetNickName || order.sellerRealName)
+          : (order.sellerRealName || order.targetNickName);
       const note = JSON.stringify({
         fiatAmount: order.amount,
         fiatCcy: order.currencyId,
@@ -427,14 +432,15 @@ export const bybitCardAdapter: BankAdapter = {
         orderId: order.id,
       });
 
+      const isSell = order.side === 1;
       const p2pRow: ImportRow = {
         externalId: `p2p:${order.id}`,
         occurredAt,
         amount: order.notifyTokenQuantity,
         currencyCode: order.notifyTokenId || "USDT",
-        kind: "INCOME",
-        direction: "in",
-        description: "Bybit P2P buy",
+        kind: isSell ? "EXPENSE" : "INCOME",
+        direction: isSell ? "out" : "in",
+        description: isSell ? "Bybit P2P sell" : "Bybit P2P buy",
         source: "bybit-p2p",
         note,
         accountId: firstLinkedAccountId,
