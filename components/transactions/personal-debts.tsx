@@ -63,7 +63,8 @@ export function PersonalDebts({ debts, metaLine, accounts = [], showClosed = fal
         <div className="meta mono">
           <span style={{ marginRight: 8 }}>{metaLine}</span>
           <Link
-            href="/transactions/personal-debts/new"
+            href="?new=debt"
+            scroll={false}
             className="btn primary btn-xs"
           >
             {t("buttons.add_debt")}
@@ -104,7 +105,8 @@ export function PersonalDebts({ debts, metaLine, accounts = [], showClosed = fal
                   {t("buttons.record_return")}
                 </button>
                 <Link
-                  href={`/transactions/personal-debts/${d.id}/edit`}
+                  href={`?edit=debt:${d.id}`}
+                  scroll={false}
                   className="btn-ghost btn-xs"
                 >
                   {t("buttons.edit")}

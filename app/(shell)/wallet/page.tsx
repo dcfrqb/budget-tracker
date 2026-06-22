@@ -3,6 +3,7 @@ import { AddAccountCta } from "@/components/wallet/add-cta";
 import { Archive } from "@/components/wallet/archive";
 import { CashStashSection } from "@/components/wallet/cash-stash";
 import { CashEditHost } from "@/components/wallet/cash-edit-host";
+import { AccountSheetHost } from "@/components/wallet/account-sheet-host";
 import { FxRates } from "@/components/wallet/fx-rates";
 import { Institutions } from "@/components/wallet/institutions";
 import { WalletStatusStrip, type WalletGroup } from "@/components/wallet/status-strip";
@@ -109,7 +110,7 @@ function buildDayProgress(dayKey: string): string {
 export default async function WalletPage({
   searchParams,
 }: {
-  searchParams: Promise<{ group?: string; ccy?: string; edit?: string }>;
+  searchParams: Promise<{ group?: string; ccy?: string; edit?: string; new?: string }>;
 }) {
   const [userId, t, locale, params] = await Promise.all([
     getCurrentUserId(),
@@ -251,6 +252,92 @@ export default async function WalletPage({
     }
   }
 
+  // Lazy-fetch account only when ?new=account or ?edit=account:<id> is present
+  let accountSheetNode: React.ReactNode = null;
+  const newParam = params.new;
+  const isAccountCreate = newParam === "account";
+  const isAccountEdit = typeof editParam === "string" && editParam.startsWith("account:");
+
+  if (isAccountCreate || isAccountEdit) {
+    const editAccountId = isAccountEdit ? editParam.slice("account:".length) : null;
+    const [acctCurrencies, acctInstitutions, editAccount] = await Promise.all([
+      listAllCurrencies(),
+      db.institution.findMany({
+        where: { userId },
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+        select: { id: true, name: true, kind: true },
+      }),
+      editAccountId
+        ? db.account.findFirst({
+            where: { id: editAccountId, userId, deletedAt: null },
+            select: {
+              id: true,
+              institutionId: true,
+              kind: true,
+              name: true,
+              currencyCode: true,
+              balance: true,
+              sub: true,
+              sortOrder: true,
+              includeInAnalytics: true,
+              creditRatePct: true,
+              creditLimit: true,
+              gracePeriodDays: true,
+              statementDay: true,
+              minPaymentPercent: true,
+              minPaymentFixed: true,
+              annualRatePct: true,
+              savingsCapitalization: true,
+              withdrawalLimit: true,
+              cardLast4: true,
+              accountNumber: true,
+              bic: true,
+              bankName: true,
+            },
+          })
+        : Promise.resolve(null),
+    ]);
+
+    const acctInitialValues = editAccount
+      ? {
+          institutionId: editAccount.institutionId ?? undefined,
+          kind: editAccount.kind,
+          name: editAccount.name,
+          currencyCode: editAccount.currencyCode,
+          balance:
+            editAccount.kind === "CREDIT" && editAccount.creditLimit != null
+              ? editAccount.creditLimit.plus(editAccount.balance).toString()
+              : editAccount.balance.toString(),
+          sub: editAccount.sub ?? undefined,
+          sortOrder: editAccount.sortOrder,
+          includeInAnalytics: editAccount.includeInAnalytics,
+          creditRatePct: editAccount.creditRatePct?.toString() ?? undefined,
+          creditLimit: editAccount.creditLimit?.toString() ?? undefined,
+          gracePeriodDays: editAccount.gracePeriodDays ?? undefined,
+          statementDay: editAccount.statementDay ?? undefined,
+          minPaymentPercent: editAccount.minPaymentPercent?.toString() ?? undefined,
+          minPaymentFixed: editAccount.minPaymentFixed?.toString() ?? undefined,
+          annualRatePct: editAccount.annualRatePct?.toString() ?? undefined,
+          savingsCapitalization: editAccount.savingsCapitalization ?? undefined,
+          withdrawalLimit: editAccount.withdrawalLimit?.toString() ?? undefined,
+          cardLast4: editAccount.cardLast4 ?? [],
+          accountNumber: editAccount.accountNumber ?? "",
+          bic: editAccount.bic ?? "",
+          bankName: editAccount.bankName ?? "",
+        }
+      : undefined;
+
+    accountSheetNode = (
+      <AccountSheetHost
+        currencies={acctCurrencies.map((c) => ({ code: c.code, symbol: c.symbol }))}
+        institutions={acctInstitutions.map((i) => ({ id: i.id, name: i.name, kind: i.kind }))}
+        primaryCurrency={primaryCurrency}
+        accountId={editAccountId ?? undefined}
+        initialValues={acctInitialValues}
+      />
+    );
+  }
+
   return (
     <>
       <WalletStatusStrip
@@ -277,6 +364,7 @@ export default async function WalletPage({
       )}
       {showArchive && <Archive items={archivedView} />}
       {cashEditHostNode}
+      {accountSheetNode}
     </>
   );
 }

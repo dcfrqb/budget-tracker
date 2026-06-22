@@ -58,7 +58,7 @@ function CalendarEventRow({ event }: { event: CalendarEvent }) {
       )}
       <div className={`tl-amt ${event.amountTone ?? ""}`}>{event.amount}</div>
       <div style={{ display: "flex", gap: 4, marginLeft: 8 }}>
-        <Link href={`/planning/events/${event.id}/edit`} className="btn btn-xs">
+        <Link href={`?edit=event:${event.id}`} scroll={false} className="btn btn-xs">
           {t("buttons.edit")}
         </Link>
         <button type="button" className="btn btn-xs" onClick={() => setDeleteOpen(true)}>
@@ -98,7 +98,8 @@ export function PlanningCalendar({ months }: { months: CalendarMonth[] }) {
         <div className="ttl mono"><b>{t("planning.calendar.section_title")}</b> <span className="dim">· {t("planning.kpi.next_event")}</span></div>
         <div className="meta mono">
           <Link
-            href="/planning/events/new"
+            href="?new=event"
+            scroll={false}
             className="btn primary btn-xs"
           >
             {t("buttons.add_event")}

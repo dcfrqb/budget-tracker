@@ -44,7 +44,7 @@ export function LongProjects({ projects }: { projects: LongProjectView[] }) {
           <b>{t("expenses.kpi.projects")}</b>
         </div>
         <div className="meta mono">
-          <Link href="/expenses/long-projects/new" className="btn primary btn-xs">
+          <Link href="?new=project" scroll={false} className="btn primary btn-xs">
             {t("buttons.add_project")}
           </Link>
         </div>
@@ -85,7 +85,8 @@ export function LongProjects({ projects }: { projects: LongProjectView[] }) {
               </div>
               <div className="proj-actions" style={{ display: "flex", gap: 4, marginLeft: 8 }}>
                 <Link
-                  href={`/expenses/long-projects/${p.id}/edit`}
+                  href={`?edit=project:${p.id}`}
+                  scroll={false}
                   className="btn-ghost btn-xs"
                 >
                   {t("buttons.edit")}

@@ -1,13 +1,19 @@
+import React from "react";
 import { ExpenseCategories } from "@/components/expenses/categories";
 import { ExpensesKpiRow } from "@/components/expenses/kpi-row";
 import { ExpensesStatusStrip } from "@/components/expenses/status-strip";
 import { LongProjects } from "@/components/expenses/long-projects";
+import { LongProjectSheetHost } from "@/components/expenses/long-project-sheet-host";
 import { Loans } from "@/components/expenses/loans";
 import { CreditCards } from "@/components/expenses/credit-cards";
 import { Subscriptions } from "@/components/expenses/subscriptions";
 import { Taxes } from "@/components/expenses/taxes";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import { getCurrentUserId } from "@/lib/api/auth";
+import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
+import { listAllCurrencies } from "@/lib/data/currencies";
+import { getActiveExpenseCategoriesFull } from "@/lib/data/_shared/category-refs";
+import { dayKeyInTz } from "@/lib/format/date";
 import { getLoans } from "@/lib/data/loans";
 import { getCreditCardObligations } from "@/lib/data/credit-cards";
 import { getSubscriptionsGrouped } from "@/lib/data/subscriptions";
@@ -30,6 +36,8 @@ export const dynamic = "force-dynamic";
 type SearchParams = Promise<{
   section?: string;
   period?: string;
+  new?: string;
+  edit?: string;
 }>;
 
 type SectionId = "all" | "loans" | "subs" | "projects" | "taxes";
@@ -61,7 +69,7 @@ export default async function ExpensesPage({
   searchParams: SearchParams;
 }) {
   const sp = await searchParams;
-  const [userId, t, locale] = await Promise.all([getCurrentUserId(), getT(), getLocale()]);
+  const [userId, t, locale, tz] = await Promise.all([getCurrentUserId(), getT(), getLocale(), getCurrentUserTz()]);
 
   const activeSection = (sp.section ?? "all") as SectionId;
 
@@ -299,6 +307,46 @@ export default async function ExpensesPage({
     };
   });
 
+  // ── Long-project sheet host (lazy-fetched only when param is present) ────
+  const newParam = sp.new;
+  const editParam = sp.edit;
+
+  let projectSheetNode: React.ReactNode = null;
+
+  const isProjectCreate = newParam === "project";
+  const isProjectEdit = typeof editParam === "string" && editParam.startsWith("project:");
+
+  if (isProjectCreate || isProjectEdit) {
+    const editProjectId = isProjectEdit ? editParam.slice("project:".length) : null;
+    const [sheetCurrencies, sheetCategories, editProject] = await Promise.all([
+      listAllCurrencies(),
+      getActiveExpenseCategoriesFull(userId),
+      editProjectId ? db.longProject.findFirst({ where: { id: editProjectId, userId } }) : Promise.resolve(null),
+    ]);
+    const currencyOptions = sheetCurrencies.map((c) => ({ code: c.code, symbol: c.symbol }));
+    const categoryOptions = sheetCategories.map((c) => ({ id: c.id, name: c.name, kind: c.kind }));
+    const projectInitialValues = editProject
+      ? {
+          name: editProject.name,
+          budget: String(editProject.budget),
+          currencyCode: editProject.currencyCode,
+          categoryId: editProject.categoryId ?? undefined,
+          startDate: dayKeyInTz(editProject.startDate, tz),
+          endDate: editProject.endDate ? dayKeyInTz(editProject.endDate, tz) : undefined,
+          note: editProject.note ?? undefined,
+        }
+      : undefined;
+    projectSheetNode = (
+      <LongProjectSheetHost
+        currencies={currencyOptions}
+        categories={categoryOptions}
+        tz={tz}
+        projectId={editProjectId ?? undefined}
+        initialValues={projectInitialValues}
+      />
+    );
+  }
+
   return (
     <>
       <ExpensesStatusStrip />
@@ -315,6 +363,7 @@ export default async function ExpensesPage({
       {activeSection === "all" && (
         <ExpenseCategories categories={expenseCategoryViews} />
       )}
+      {projectSheetNode}
     </>
   );
 }

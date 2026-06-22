@@ -8,7 +8,7 @@ export function AddAccountCta() {
   return (
     <div className="section fade-in" style={{ animationDelay: "380ms" }}>
       <div className="add-cta">
-        <Link href="/wallet/accounts/new" className="l" style={{ textDecoration: "none", color: "inherit" }}>
+        <Link href="?new=account" scroll={false} className="l" style={{ textDecoration: "none", color: "inherit" }}>
           <div className="ico mono">+</div>
           <div>
             <div className="t">{t("wallet.add_account.title")}</div>
@@ -16,7 +16,7 @@ export function AddAccountCta() {
           </div>
         </Link>
         <div className="r">
-          <Link href="/wallet/accounts/new" className="btn primary">{t("wallet.add_account.btn_manual")}</Link>
+          <Link href="?new=account" scroll={false} className="btn primary">{t("wallet.add_account.btn_manual")}</Link>
           <Link href="/wallet/integrations" className="btn">{t("wallet.add_account.btn_integration")}</Link>
         </div>
       </div>

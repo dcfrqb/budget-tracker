@@ -1,6 +1,9 @@
+import React from "react";
 import Link from "next/link";
 import { BigPurchases } from "@/components/planning/big-purchases";
 import { FundsSection } from "@/components/planning/funds";
+import { FundSheetHost } from "@/components/planning/fund-sheet-host";
+import { PlannedEventSheetHost } from "@/components/planning/planned-event-sheet-host";
 import { HoursCalculator } from "@/components/planning/hours-calc";
 import { PlanningCalendar } from "@/components/planning/calendar";
 import { PlanningKpiRow } from "@/components/planning/kpi-row";
@@ -12,12 +15,14 @@ import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
 import { getFundsWithProgress } from "@/lib/data/funds";
 import { getPlannedEvents } from "@/lib/data/planned-events";
 import { getPrimaryWorkSource } from "@/lib/data/work-sources";
+import { listAllCurrencies } from "@/lib/data/currencies";
 import { getLocale, getT } from "@/lib/i18n/server";
 import { pluralRu, pluralEn } from "@/lib/i18n/plural";
 import { ruPluralForms } from "@/lib/i18n/locales/ru";
 import { enPluralForms } from "@/lib/i18n/locales/en";
 import { Prisma } from "@prisma/client";
 import { formatMoney } from "@/lib/format/money";
+import { dayKeyInTz } from "@/lib/format/date";
 import { db } from "@/lib/db";
 import type { FundCardView } from "@/components/planning/funds";
 import type { BigPurchaseView } from "@/components/planning/big-purchases";
@@ -36,7 +41,7 @@ type EventKind = "BIRTHDAY" | "HOLIDAY" | "TRIP" | "PURCHASE" | "OTHER";
 export default async function PlanningPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; horizon?: string }>;
+  searchParams: Promise<{ view?: string; horizon?: string; new?: string; edit?: string }>;
 }) {
   const sp = await searchParams;
   const _view = sp.view ?? "all";
@@ -298,6 +303,77 @@ export default async function PlanningPage({
     empty: t("planning.upcoming_dates.empty"),
   };
 
+  // ── Sheet hosts (lazy-fetched only when param is present) ────────────────
+  const newParam = sp.new;
+  const editParam = sp.edit;
+
+  let fundSheetNode: React.ReactNode = null;
+  let eventSheetNode: React.ReactNode = null;
+
+  const isFundCreate = newParam === "fund";
+  const isFundEdit = typeof editParam === "string" && editParam.startsWith("fund:");
+  const isEventCreate = newParam === "event";
+  const isEventEdit = typeof editParam === "string" && editParam.startsWith("event:");
+
+  if (isFundCreate || isFundEdit) {
+    const editFundId = isFundEdit ? editParam.slice("fund:".length) : null;
+    const [sheetCurrencies, editFund] = await Promise.all([
+      listAllCurrencies(),
+      editFundId ? db.fund.findFirst({ where: { id: editFundId, userId } }) : Promise.resolve(null),
+    ]);
+    const currencyOptions = sheetCurrencies.map((c) => ({ code: c.code, symbol: c.symbol }));
+    const fundInitialValues = editFund
+      ? {
+          kind: editFund.kind,
+          name: editFund.name,
+          note: editFund.note ?? undefined,
+          goalAmount: String(editFund.goalAmount),
+          currentAmount: String(editFund.currentAmount),
+          monthlyContribution: editFund.monthlyContribution != null ? String(editFund.monthlyContribution) : undefined,
+          targetDate: editFund.targetDate ? dayKeyInTz(editFund.targetDate, tz) : undefined,
+          currencyCode: editFund.currencyCode,
+        }
+      : undefined;
+    fundSheetNode = (
+      <FundSheetHost
+        currencies={currencyOptions}
+        fundId={editFundId ?? undefined}
+        initialValues={fundInitialValues}
+      />
+    );
+  }
+
+  if (isEventCreate || isEventEdit) {
+    const editEventId = isEventEdit ? editParam.slice("event:".length) : null;
+    const [sheetCurrencies, editEvent, fundOptions] = await Promise.all([
+      listAllCurrencies(),
+      editEventId ? db.plannedEvent.findFirst({ where: { id: editEventId, userId } }) : Promise.resolve(null),
+      db.fund.findMany({ where: { userId }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    ]);
+    const currencyOptions = sheetCurrencies.map((c) => ({ code: c.code, symbol: c.symbol }));
+    const eventInitialValues = editEvent
+      ? {
+          kind: editEvent.kind,
+          name: editEvent.name,
+          note: editEvent.note ?? undefined,
+          eventDate: dayKeyInTz(editEvent.eventDate, tz),
+          repeatsYearly: editEvent.repeatsYearly,
+          fundId: editEvent.fundId ?? undefined,
+          expectedAmount: editEvent.expectedAmount != null ? String(editEvent.expectedAmount) : undefined,
+          currencyCode: editEvent.currencyCode ?? undefined,
+        }
+      : undefined;
+    eventSheetNode = (
+      <PlannedEventSheetHost
+        currencies={currencyOptions}
+        funds={fundOptions}
+        tz={tz}
+        eventId={editEventId ?? undefined}
+        initialValues={eventInitialValues}
+      />
+    );
+  }
+
   return (
     <>
       <PlanningStatusStrip monthLabel={monthLabel} dayLabel={dayLabel} />
@@ -323,6 +399,8 @@ export default async function PlanningPage({
         </Link>
       </div>
       <UpcomingDates items={upcomingItems} labels={upcomingDatesLabels} />
+      {fundSheetNode}
+      {eventSheetNode}
     </>
   );
 }

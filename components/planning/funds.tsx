@@ -92,7 +92,7 @@ function FundCard({ fund, accounts, tz }: FundCardProps) {
           onContributed={() => router.refresh()}
           tz={tz}
         />
-        <Link href={`/planning/funds/${fund.id}/edit`} className="btn">
+        <Link href={`?edit=fund:${fund.id}`} scroll={false} className="btn">
           {t("buttons.edit")}
         </Link>
         <button type="button" className="btn" onClick={() => setDeleteOpen(true)}>
@@ -150,7 +150,8 @@ export function FundsSection({
         </div>
         <div className="meta mono">
           <Link
-            href="/planning/funds/new"
+            href="?new=fund"
+            scroll={false}
             className="btn primary btn-xs"
           >
             {addLabel ?? t("buttons.add_fund")}

@@ -23,7 +23,7 @@ export function Institutions({ institutions }: Props) {
               </div>
             </div>
             {inst.accounts.map((a) => (
-              <Link key={a.id} href={`/wallet/accounts/${a.id}/edit`} className="acc-row">
+              <Link key={a.id} href={`?edit=account:${a.id}`} scroll={false} className="acc-row">
                 <div className={`acc-ico ${a.kind} mono`}>{a.icon}</div>
                 <div className="acc-main">
                   <div className="n">{a.name}</div>

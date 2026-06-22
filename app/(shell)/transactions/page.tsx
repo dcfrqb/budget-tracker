@@ -33,6 +33,7 @@ import { getActiveWorkSources } from "@/lib/data/work-sources";
 import { listAllCurrencies } from "@/lib/data/currencies";
 import { dayKeyInTz } from "@/lib/format/date";
 import { EditSheetHost } from "@/components/transactions/edit-sheet-host";
+import { PersonalDebtSheetHost } from "@/components/transactions/personal-debt-sheet-host";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +44,7 @@ type SearchParams = Promise<{
   categoryId?: string;
   accountId?: string;
   edit?: string;
+  new?: string;
 }>;
 
 // Maps rolling period code to a date range (from, to).
@@ -246,6 +248,39 @@ export default async function TransactionsPage({
     }
   }
 
+  // Debt sheet: only fetch when ?new=debt or ?edit=debt:<id> is present
+  let debtSheetNode: React.ReactNode = null;
+  const newParam = sp.new;
+  const isDebtCreate = newParam === "debt";
+  const isDebtEdit = typeof editParam === "string" && editParam.startsWith("debt:");
+
+  if (isDebtCreate || isDebtEdit) {
+    const editDebtId = isDebtEdit ? editParam.slice("debt:".length) : null;
+    const [debtCurrencies, editDebt] = await Promise.all([
+      listAllCurrencies(),
+      editDebtId ? db.personalDebt.findFirst({ where: { id: editDebtId, userId } }) : Promise.resolve(null),
+    ]);
+    const debtInitialValues = editDebt
+      ? {
+          counterparty: editDebt.counterparty,
+          principal: String(editDebt.principal),
+          currencyCode: editDebt.currencyCode,
+          openedAt: dayKeyInTz(editDebt.openedAt, tz),
+          dueAt: editDebt.dueAt ? dayKeyInTz(editDebt.dueAt, tz) : undefined,
+          note: editDebt.note ?? undefined,
+        }
+      : undefined;
+    debtSheetNode = (
+      <PersonalDebtSheetHost
+        currencies={debtCurrencies.map((c) => ({ code: c.code, symbol: c.symbol }))}
+        accounts={accounts}
+        tz={tz}
+        debtId={editDebtId ?? undefined}
+        initialValues={debtInitialValues}
+      />
+    );
+  }
+
   return (
     <>
       <TxnStatusStrip />
@@ -266,6 +301,7 @@ export default async function TransactionsPage({
       </TransactionsSelectionProvider>
       <PersonalDebts debts={debtViews} metaLine={debtMeta} tz={tz} />
       {editSheetNode}
+      {debtSheetNode}
     </>
   );
 }
