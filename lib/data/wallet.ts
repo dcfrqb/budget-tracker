@@ -288,6 +288,7 @@ export type WalletTotals = {
   liquid: { valueBase: Prisma.Decimal; accountsCount: number };
   savings: { valueBase: Prisma.Decimal; accountsCount: number };
   cash: { valueBase: Prisma.Decimal; accountsCount: number };
+  holdingsByCurrency: Array<{ ccy: string; value: Prisma.Decimal; accountsCount: number }>;
 };
 
 // 4 агрегата. Архивные не учитываются. LOAN-счёт исключён из net и sub-агрегатов.
@@ -311,13 +312,18 @@ export async function getWalletTotals(
     liquid: { valueBase: zero, accountsCount: 0 },
     savings: { valueBase: zero, accountsCount: 0 },
     cash: { valueBase: zero, accountsCount: 0 },
+    holdingsByCurrency: [],
   };
+
+  // Per-currency accumulator for non-LOAN, non-CREDIT accounts.
+  const byCcy = new Map<string, { value: Prisma.Decimal; accountsCount: number }>();
 
   for (const a of accounts) {
     // LOAN accounts represent liabilities — excluded from all money aggregates.
     if (a.kind === "LOAN") continue;
 
     // CREDIT accounts: subtract debt from net worth; add available to liquid bucket.
+    // Credit card debt/limit stays on the wallet page; excluded from per-currency holdings.
     if (a.kind === "CREDIT") {
       const state = resolveCreditState(a);
       if (state.source === "legacy") {
@@ -336,6 +342,17 @@ export async function getWalletTotals(
         totals.liquid.accountsCount += 1;
       }
       continue;
+    }
+
+    // Accumulate native balance for per-currency holdings (CASH/CARD/SAVINGS/CRYPTO).
+    // Done before the base-rate guard below so a held currency with no rate to base
+    // still appears in its own row (it only loses its base-converted sort key).
+    const existing = byCcy.get(a.currencyCode);
+    if (existing) {
+      existing.value = existing.value.plus(a.balance);
+      existing.accountsCount += 1;
+    } else {
+      byCcy.set(a.currencyCode, { value: new Prisma.Decimal(a.balance), accountsCount: 1 });
     }
 
     const inBase = convertToBase(a.balance, a.currencyCode, baseCcy, rates);
@@ -359,6 +376,17 @@ export async function getWalletTotals(
       totals.cash.accountsCount += 1;
     }
   }
+
+  // Sort by base-converted value DESC; currencies with no rate go last.
+  totals.holdingsByCurrency = Array.from(byCcy.entries())
+    .map(([ccy, data]) => ({
+      ccy,
+      value: data.value,
+      accountsCount: data.accountsCount,
+      _sortKey: convertToBase(data.value, ccy, baseCcy, rates) ?? new Prisma.Decimal(-Infinity),
+    }))
+    .sort((a, b) => (b._sortKey.greaterThan(a._sortKey) ? 1 : b._sortKey.lessThan(a._sortKey) ? -1 : 0))
+    .map(({ ccy, value, accountsCount }) => ({ ccy, value, accountsCount }));
 
   return totals;
 }
