@@ -30,6 +30,11 @@ services:
       dockerfile: Dockerfile
     container_name: budget-tracker-app
     restart: unless-stopped
+    # PID 1 is `npm run start` (node), which does not reap orphaned children.
+    # Playwright's Chrome + crashpad helpers reparent to PID 1 on close and pile
+    # up as <defunct> zombies (~80/day). init: true injects tini as PID 1 to reap
+    # them. Context lifecycle itself is fine (context.close() in finally).
+    init: true
     logging: *default-logging
     depends_on:
       db:
