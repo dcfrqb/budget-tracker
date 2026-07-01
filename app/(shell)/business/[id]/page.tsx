@@ -8,6 +8,7 @@ import {
   getBusinessPnL,
   getBusinessRevenueByStream,
   getBusinessRevenueByTariff,
+  getBusinessForecast,
 } from "@/lib/data/businesses";
 import { getTransactionById } from "@/lib/data/transactions";
 import { listAllCurrencies } from "@/lib/data/currencies";
@@ -16,6 +17,10 @@ import { BusinessKpiRow } from "@/components/business/business-kpi-row";
 import { PnLMatrix } from "@/components/business/pnl-matrix";
 import { StreamMatrix } from "@/components/business/stream-matrix";
 import { TariffBreakdown } from "@/components/business/tariff-breakdown";
+import { StreamChart } from "@/components/business/stream-chart";
+import { PnLChart } from "@/components/business/pnl-chart";
+import { TariffChart } from "@/components/business/tariff-chart";
+import { ForecastChart } from "@/components/business/forecast-chart";
 import { BusinessAllocationSheetHost } from "@/components/business/business-allocation-sheet-host";
 import type { SplitTxnData } from "@/components/business/business-allocation-sheet-host";
 import { SplitEntryControl } from "@/components/business/split-entry-control";
@@ -40,10 +45,11 @@ export default async function BusinessDetailPage({ params, searchParams }: Props
   const periodValue = (PERIOD_CODES.includes(sp.period as PeriodCode) ? sp.period : "6m") as PeriodCode;
   const bounds = periodBounds(periodValue, tz);
 
-  const [pnl, streamMatrix, tariffRows, currencies, splitTxnRow] = await Promise.all([
+  const [pnl, streamMatrix, tariffRows, forecast, currencies, splitTxnRow] = await Promise.all([
     getBusinessPnL(userId, id, bounds, detail.business.currencyCode),
     getBusinessRevenueByStream(userId, id, bounds, detail.business.currencyCode),
     getBusinessRevenueByTariff(userId, id, bounds, detail.business.currencyCode),
+    getBusinessForecast(userId, id, bounds, detail.business.currencyCode),
     listAllCurrencies(),
     sp.split ? getTransactionById(userId, sp.split) : Promise.resolve(null),
   ]);
@@ -105,6 +111,14 @@ export default async function BusinessDetailPage({ params, searchParams }: Props
         cumulativeProfit={cumulativeProfit}
         currencyCode={detail.business.currencyCode}
       />
+
+      <StreamChart matrix={streamMatrix} currencyCode={detail.business.currencyCode} />
+
+      <PnLChart rows={pnl.rows} />
+
+      <TariffChart rows={tariffRows} currencyCode={detail.business.currencyCode} />
+
+      <ForecastChart forecast={forecast} />
 
       <PnLMatrix rows={pnl.rows} currencyCode={detail.business.currencyCode} />
 

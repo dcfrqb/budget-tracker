@@ -991,6 +991,31 @@ export const enDict: RuDictShape = {
           count: "entries",
         },
       },
+      charts: {
+        stream: {
+          title: "Revenue by stream",
+          empty: "No stream data for this period",
+        },
+        pnl: {
+          title: "Monthly revenue / expenses",
+          legend_revenue: "revenue",
+          legend_expenses: "expenses",
+          legend_cumulative: "cumulative profit",
+        },
+        tariff: {
+          title: "Tariffs",
+          empty: "No tariff data for this period",
+        },
+        forecast: {
+          title: "6-month forecast",
+          legend_history: "actual",
+          legend_expenses: "expenses",
+          scenario_base: "base",
+          scenario_optimist: "optimistic",
+          scenario_pessimist: "pessimistic",
+          empty: "Not enough history to forecast — at least 2 months of data required",
+        },
+      },
     },
     allocation: {
       field: {

@@ -513,3 +513,95 @@ export const getBusinessRevenueByTariff = cache(
       .sort((a, b) => b.total.comparedTo(a.total));
   },
 );
+
+// ─────────────────────────────────────────────────────────────
+// Forecast — 6-month forward projection from trailing history
+// ─────────────────────────────────────────────────────────────
+
+export type BusinessForecastHistoryPoint = {
+  monthKey: string;
+  revenue: number;
+  expenses: number;
+};
+
+export type BusinessForecastProjectionPoint = {
+  monthKey: string;
+  base: number;
+  optimist: number;
+  pessimist: number;
+  expenses: number;
+};
+
+export type BusinessForecast = {
+  history: BusinessForecastHistoryPoint[];
+  projection: BusinessForecastProjectionPoint[];
+};
+
+const FORECAST_HORIZON_MONTHS = 6;
+const FORECAST_TRAILING_MONTHS = 3;
+
+/** Advances a "YYYY-MM" monthKey forward by n months (n may be negative). */
+function shiftMonthKey(monthKey: string, n: number): string {
+  const [yearStr, monthStr] = monthKey.split("-");
+  const year = Number(yearStr);
+  const month = Number(monthStr); // 1-based
+  let m0 = (month - 1) + n;
+  const yCarry = Math.floor(m0 / 12);
+  m0 = ((m0 % 12) + 12) % 12;
+  const y = year + yCarry;
+  return `${y}-${String(m0 + 1).padStart(2, "0")}`;
+}
+
+export const getBusinessForecast = cache(
+  async (
+    userId: string,
+    businessId: string,
+    bounds: { from: Date; to: Date },
+    baseCcy: string,
+  ): Promise<BusinessForecast> => {
+    const pnl = await getBusinessPnL(userId, businessId, bounds, baseCcy);
+
+    const history: BusinessForecastHistoryPoint[] = pnl.rows.map((row) => ({
+      monthKey: row.monthKey,
+      revenue: Number(row.revenue),
+      expenses: Number(row.expenses),
+    }));
+
+    const nonZeroMonths = history.filter((h) => h.revenue !== 0 || h.expenses !== 0);
+    if (nonZeroMonths.length < 2 || history.length === 0) {
+      return { history, projection: [] };
+    }
+
+    const trailing = history.slice(-FORECAST_TRAILING_MONTHS);
+    const avgRev = trailing.reduce((s, h) => s + h.revenue, 0) / trailing.length;
+    const avgExp = trailing.reduce((s, h) => s + h.expenses, 0) / trailing.length;
+
+    // Least-squares slope of revenue over trailing months (index → revenue)
+    const n = trailing.length;
+    const xs = trailing.map((_, i) => i);
+    const ys = trailing.map((h) => h.revenue);
+    const xMean = xs.reduce((s, x) => s + x, 0) / n;
+    const yMean = ys.reduce((s, y) => s + y, 0) / n;
+    let num = 0;
+    let den = 0;
+    for (let i = 0; i < n; i++) {
+      num += (xs[i] - xMean) * (ys[i] - yMean);
+      den += (xs[i] - xMean) ** 2;
+    }
+    const g = den === 0 ? 0 : num / den;
+
+    const lastMonthKey = history[history.length - 1].monthKey;
+    const projection: BusinessForecastProjectionPoint[] = [];
+    for (let m = 1; m <= FORECAST_HORIZON_MONTHS; m++) {
+      projection.push({
+        monthKey: shiftMonthKey(lastMonthKey, m),
+        base: avgRev,
+        optimist: avgRev + Math.max(g, 0) * m,
+        pessimist: avgRev * Math.pow(0.85, m),
+        expenses: avgExp,
+      });
+    }
+
+    return { history, projection };
+  },
+);

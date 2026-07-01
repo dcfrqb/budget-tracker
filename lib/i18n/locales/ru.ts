@@ -999,6 +999,31 @@ export const ruDict = {
           count: "записей",
         },
       },
+      charts: {
+        stream: {
+          title: "Выручка по потокам",
+          empty: "Нет данных по потокам за период",
+        },
+        pnl: {
+          title: "Доходы / расходы по месяцам",
+          legend_revenue: "выручка",
+          legend_expenses: "расходы",
+          legend_cumulative: "накопл. прибыль",
+        },
+        tariff: {
+          title: "Тарифы",
+          empty: "Нет данных по тарифам за период",
+        },
+        forecast: {
+          title: "Прогноз на 6 месяцев",
+          legend_history: "факт",
+          legend_expenses: "расходы",
+          scenario_base: "база",
+          scenario_optimist: "оптимист",
+          scenario_pessimist: "пессимист",
+          empty: "Недостаточно истории для прогноза — нужно минимум 2 месяца с данными",
+        },
+      },
     },
     allocation: {
       field: {
