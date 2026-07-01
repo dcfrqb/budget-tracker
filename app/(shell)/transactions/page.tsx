@@ -30,6 +30,7 @@ import { mapDefaultPeriod } from "@/lib/data/_period";
 import { isCalendarPeriod, resolveAnyCalendarRange } from "@/lib/analytics/period";
 import type { ListFilters } from "@/lib/data/transactions";
 import { getActiveWorkSources } from "@/lib/data/work-sources";
+import { getActiveBusinesses } from "@/lib/data/businesses";
 import { listAllCurrencies } from "@/lib/data/currencies";
 import { dayKeyInTz } from "@/lib/format/date";
 import { EditSheetHost } from "@/components/transactions/edit-sheet-host";
@@ -176,10 +177,11 @@ export default async function TransactionsPage({
     const editId = colonIdx > 0 ? editParam.slice(colonIdx + 1) : null;
 
     if (editKind === "txn" && editId) {
-      const [tx, currencies, workSources] = await Promise.all([
+      const [tx, currencies, workSources, businesses] = await Promise.all([
         getTransactionById(userId, editId),
         listAllCurrencies(),
         getActiveWorkSources(userId),
+        getActiveBusinesses(userId),
       ]);
       if (tx) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -202,6 +204,8 @@ export default async function TransactionsPage({
           workSourceId: tx.workSourceId ?? undefined,
           personalDebtId: tx.personalDebtId ?? undefined,
           plannedEventId: tx.plannedEventId ?? undefined,
+          businessId: tx.businessId ?? undefined,
+          businessEntryType: tx.businessEntryType ?? undefined,
         };
         editSheetNode = (
           <EditSheetHost
@@ -212,6 +216,7 @@ export default async function TransactionsPage({
             categories={categories.map((c) => ({ id: c.id, name: c.name, kind: c.kind }))}
             currencies={currencies.map((c) => ({ code: c.code, symbol: c.symbol }))}
             workSources={workSources.map((w) => ({ id: w.id, name: w.name }))}
+            businesses={businesses.map((b) => ({ id: b.id, name: b.name }))}
             tz={tz}
           />
         );

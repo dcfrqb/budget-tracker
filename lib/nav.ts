@@ -13,6 +13,7 @@ export const NAV_TABS: NavTab[] = [
   { id: "txn",  href: "/transactions", icon: "↕", codeKey: "shell.nav.codes.txn",  labelKey: "shell.nav.tabs.txn"  },
   { id: "inc",  href: "/income",       icon: "↑", codeKey: "shell.nav.codes.inc",  labelKey: "shell.nav.tabs.inc"  },
   { id: "exp",  href: "/expenses",     icon: "↓", codeKey: "shell.nav.codes.exp",  labelKey: "shell.nav.tabs.exp"  },
+  { id: "biz",  href: "/business",     icon: "▣", codeKey: "shell.nav.codes.biz",  labelKey: "shell.nav.tabs.biz"  },
   { id: "plan", href: "/planning",     icon: "◈", codeKey: "shell.nav.codes.plan", labelKey: "shell.nav.tabs.plan" },
   { id: "anl",  href: "/analytics",   icon: "∿", codeKey: "shell.nav.codes.anl",  labelKey: "shell.nav.tabs.anl"  },
   { id: "wal",  href: "/wallet",       icon: "◎", codeKey: "shell.nav.codes.wal",  labelKey: "shell.nav.tabs.wal"  },

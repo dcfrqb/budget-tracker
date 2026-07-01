@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Scope, TransactionKind, TransactionStatus } from "@prisma/client";
+import { Scope, TransactionKind, TransactionStatus, BusinessEntryType } from "@prisma/client";
 import { zCuid, zCurrencyCode, zIsoDate, zMoney } from "./shared";
 
 const transactionCreateBaseSchema = z.object({
@@ -25,6 +25,8 @@ const transactionCreateBaseSchema = z.object({
   workSourceId: zCuid.nullish(),
   personalDebtId: zCuid.nullish(),
   plannedEventId: zCuid.nullish(),
+  businessId: zCuid.nullish(),
+  businessEntryType: z.nativeEnum(BusinessEntryType).nullish(),
 });
 
 export const transactionCreateSchema = transactionCreateBaseSchema.superRefine((data, ctx) => {

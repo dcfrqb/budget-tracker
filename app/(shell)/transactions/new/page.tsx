@@ -2,6 +2,7 @@ import { TransactionKind, TransactionStatus } from "@prisma/client";
 import { getCurrentUserId } from "@/lib/api/auth";
 import { getCategories } from "@/lib/data/categories";
 import { getActiveWorkSources } from "@/lib/data/work-sources";
+import { getActiveBusinesses } from "@/lib/data/businesses";
 import { db } from "@/lib/db";
 import { TransactionForm } from "@/components/forms/transaction-form";
 import { getT } from "@/lib/i18n/server";
@@ -19,6 +20,7 @@ interface Props {
     category?: string;
     accountId?: string;
     date?: string;
+    businessId?: string;
   }>;
 }
 
@@ -30,7 +32,7 @@ export default async function NewTransactionPage({ searchParams }: Props) {
   const userId = await getCurrentUserId();
   const sp = await searchParams;
 
-  const [accounts, categories, currencies, workSources] = await Promise.all([
+  const [accounts, categories, currencies, workSources, businesses] = await Promise.all([
     db.account.findMany({
       where: { userId, deletedAt: null, isArchived: false },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
@@ -39,6 +41,7 @@ export default async function NewTransactionPage({ searchParams }: Props) {
     getCategories(userId),
     listAllCurrencies(),
     getActiveWorkSources(userId),
+    getActiveBusinesses(userId),
   ]);
 
   if (accounts.length === 0) {
@@ -98,6 +101,11 @@ export default async function NewTransactionPage({ searchParams }: Props) {
   const prefillDate =
     sp.date && RE_ISO_DATE.test(sp.date) ? sp.date : undefined;
 
+  // businessId — must exist in DB and belong to this user
+  const businessIds = new Set(businesses.map((b) => b.id));
+  const prefillBusinessId =
+    sp.businessId && businessIds.has(sp.businessId) ? sp.businessId : undefined;
+
   // Build initialValues only for fields that have valid prefill values
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const initialValues: Record<string, any> = {};
@@ -109,6 +117,7 @@ export default async function NewTransactionPage({ searchParams }: Props) {
   if (prefillCategoryId) initialValues.categoryId = prefillCategoryId;
   if (prefillAccountId) initialValues.accountId = prefillAccountId;
   if (prefillDate) initialValues.occurredAt = prefillDate;
+  if (prefillBusinessId) initialValues.businessId = prefillBusinessId;
 
   return (
     <div className="page-content">
@@ -119,6 +128,7 @@ export default async function NewTransactionPage({ searchParams }: Props) {
         categories={categories.map((c) => ({ id: c.id, name: c.name, kind: c.kind }))}
         currencies={currencies.map((c) => ({ code: c.code, symbol: c.symbol }))}
         workSources={workSources.map((w) => ({ id: w.id, name: w.name }))}
+        businesses={businesses.map((b) => ({ id: b.id, name: b.name }))}
         defaultKind={kind}
         defaultStatus={status}
         defaultName={prefillDescription}

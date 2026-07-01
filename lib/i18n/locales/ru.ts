@@ -476,6 +476,12 @@ export const ruDict = {
       group_key: "группа",
       group_none: "нет",
     },
+    business: {
+      label: "бизнес · этот мес",
+      count_key: "активных",
+      revenue_key: "выручка",
+      profit_key: "прибыль",
+    },
   },
 
   expenses: {
@@ -928,6 +934,56 @@ export const ruDict = {
       period_1y: "1г",
       period_all: "всё",
       day_of_month_hint: "день месяца / дней в месяце",
+    },
+  },
+
+  business: {
+    index: {
+      title: "Бизнес",
+      section_title: "Проекты",
+      add: "+ бизнес",
+      empty: "Нет бизнесов — добавь первый, чтобы вести P&L отдельно от личных финансов",
+    },
+    card: {
+      inactive: "неактивен",
+      period_revenue: "выручка/мес",
+      period_profit: "прибыль/мес",
+      txn_count: "{n} транзакций",
+    },
+    detail: {
+      add_entry: "+ запись",
+      edit: "изменить",
+      empty_txns: "Пока нет транзакций, привязанных к этому бизнесу. Привяжи существующую транзакцию или добавь новую запись.",
+      period: {
+        "1m": "1мес",
+        "3m": "3мес",
+        "6m": "6мес",
+        "12m": "12мес",
+        all: "всё",
+      },
+      kpi: {
+        section_title: "P&L",
+        revenue: "выручка",
+        revenue_sub: "доход бизнеса, без транзитных сумм",
+        expenses: "расходы",
+        expenses_sub: "все расходы, привязанные к бизнесу",
+        profit: "прибыль",
+        profit_sub: "выручка минус расходы",
+        cumulative: "накопленная прибыль",
+        cumulative_sub: "нарастающим итогом за период",
+        pass_through_note: "В выручку не включены транзитные поступления (получено и передано дальше) — они показаны отдельной колонкой в таблице ниже",
+      },
+      matrix: {
+        title: "P&L по месяцам",
+        column: {
+          month: "месяц",
+          revenue: "выручка",
+          pass_through: "транзит",
+          expenses: "расходы",
+          profit: "прибыль",
+          cumulative: "накопл.",
+        },
+      },
     },
   },
 
@@ -1853,6 +1909,8 @@ export const ruDict = {
         work_source_required: "Источник дохода *",
         planned_event: "Событие",
         personal_debt: "Долг",
+        business: "Бизнес",
+        business_entry_type: "Тип поступления",
       },
       placeholder: {
         name: "Название транзакции",
@@ -1870,6 +1928,13 @@ export const ruDict = {
         empty_cta_title: "Сначала добавьте источник дохода",
         empty_cta_body: "Каждое поступление должно быть привязано к источнику. Создайте хотя бы один.",
         empty_cta_button: "Добавить источник",
+      },
+      business_entry_type: {
+        revenue: "Выручка",
+        pass_through: "Транзит",
+      },
+      hint: {
+        business_entry_type: "Транзит — деньги получены и будут переданы дальше (не входят в выручку и прибыль бизнеса)",
       },
     },
     transfer: {
@@ -2139,6 +2204,28 @@ export const ruDict = {
         tax_rate: "Только подсказка — налоги ведёте вручную",
         currency_default: "Если не выбрана — подставится основная валюта",
         pay_details_reference: "Справочные поля — не влияют на реальный доход, рассчитываемый из транзакций",
+      },
+    },
+    business: {
+      title_create: "Новый бизнес",
+      title_edit: "Редактировать бизнес",
+      delete: "Удалить бизнес",
+      delete_confirm: "Удалить этот бизнес?",
+      delete_failed: "Не удалось удалить",
+      currency_locked: "Валюту нельзя сменить — есть привязанные транзакции",
+      field: {
+        name: "Название",
+        currency: "Валюта",
+        started_at: "Дата начала",
+        is_active: "Активен",
+        note: "Заметка",
+      },
+      placeholder: {
+        name: "Название бизнеса",
+        note: "Заметка (опционально)",
+      },
+      hint: {
+        currency_default: "Если не выбрана — подставится основная валюта",
       },
     },
     tx_confirm: {
@@ -2677,6 +2764,7 @@ export const ruDict = {
       anl:  "погода",
       wal:  "счета",
       fam:  "группа",
+      biz:  "P&L",
       // === wave-2 parser+wallet+breadcrumbs ===
       settings: "профиль и бюджет",
       settings_sub: {
@@ -2696,6 +2784,7 @@ export const ruDict = {
         anl:      "Аналитика",
         wal:      "Кошелёк",
         fam:      "Семья",
+        biz:      "Бизнес",
         settings: "Настройки",
       },
       codes: {
@@ -2707,6 +2796,7 @@ export const ruDict = {
         anl:      "АНЛ",
         wal:      "КШЛ",
         fam:      "СЕМ",
+        biz:      "БИЗ",
         settings: "НАС",
       },
       aria: "Основная навигация",

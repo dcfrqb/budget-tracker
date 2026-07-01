@@ -2,7 +2,7 @@
 
 import React, { useTransition, useState } from "react";
 import { useRouter } from "next/navigation";
-import { TransactionKind, TransactionStatus, Scope } from "@prisma/client";
+import { TransactionKind, TransactionStatus, Scope, BusinessEntryType } from "@prisma/client";
 import { useServerActionForm } from "./use-server-action-form";
 import { transactionCreateSchema } from "@/lib/validation/transaction";
 import type { TransactionCreateInput } from "@/lib/validation/transaction";
@@ -55,6 +55,7 @@ export interface TransactionFormProps {
   funds?: SimpleOption[];
   longProjects?: SimpleOption[];
   workSources?: SimpleOption[];
+  businesses?: SimpleOption[];
   personalDebts?: SimpleOption[];
   plannedEvents?: SimpleOption[];
   defaultKind?: TransactionKind;
@@ -82,6 +83,7 @@ export function TransactionForm({
   funds,
   longProjects,
   workSources,
+  businesses,
   plannedEvents,
   defaultKind,
   defaultStatus,
@@ -125,11 +127,14 @@ export function TransactionForm({
   const {
     register,
     watch,
+    setValue,
     formState: { errors },
   } = form;
 
   const watchedAccountId = watch("accountId");
   const watchedKind = watch("kind") as TransactionKind;
+  const watchedBusinessId = watch("businessId") as string | null | undefined;
+  const watchedBusinessEntryType = watch("businessEntryType") as BusinessEntryType | null | undefined;
 
   // Derive currency from selected account
   const selectedAccount = accounts.find((a) => a.id === watchedAccountId);
@@ -546,6 +551,50 @@ export function TransactionForm({
           ]}
           error={errMsg(errors.plannedEventId)}
         />
+      )}
+
+      {businesses && businesses.length > 0 && (
+        <SelectField
+          register={register("businessId", {
+            setValueAs: (v) => (v === "" || v == null ? null : v),
+            onChange: (e) => {
+              if (!e.target.value) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (setValue as any)("businessEntryType", null);
+              }
+            },
+          })}
+          label={t("forms.tx.field.business")}
+          options={[
+            { value: "", label: "—" },
+            ...businesses.map((b) => ({ value: b.id, label: b.name })),
+          ]}
+          error={errMsg(errors.businessId)}
+        />
+      )}
+
+      {watchedKind === TransactionKind.INCOME && watchedBusinessId && (
+        <div className="field">
+          <div className="form-label">{t("forms.tx.field.business_entry_type")}</div>
+          <div role="radiogroup" style={{ display: "flex", gap: "var(--sp-2)" }}>
+            {([BusinessEntryType.REVENUE, BusinessEntryType.PASS_THROUGH] as const).map((entryType) => (
+              <button
+                key={entryType}
+                type="button"
+                role="radio"
+                aria-checked={(watchedBusinessEntryType ?? BusinessEntryType.REVENUE) === entryType}
+                className={`seg-btn${(watchedBusinessEntryType ?? BusinessEntryType.REVENUE) === entryType ? " active" : ""}`}
+                onClick={() => {
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  (setValue as any)("businessEntryType", entryType);
+                }}
+              >
+                {t(`forms.tx.business_entry_type.${entryType.toLowerCase()}` as Parameters<typeof t>[0])}
+              </button>
+            ))}
+          </div>
+          <p className="field-hint">{t("forms.tx.hint.business_entry_type")}</p>
+        </div>
       )}
 
       {(() => {

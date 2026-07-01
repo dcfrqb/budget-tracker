@@ -39,8 +39,11 @@ export async function createTransaction(
     if (!cat) throw Object.assign(new Error("category not found"), { code: "NOT_FOUND" });
   }
 
+  // businessEntryType only applies to INCOME legs — force null on EXPENSE.
+  const businessEntryType = input.kind === TransactionKind.EXPENSE ? null : input.businessEntryType;
+
   return db.transaction.create({
-    data: { ...input, userId },
+    data: { ...input, businessEntryType, userId },
   });
 }
 
@@ -69,7 +72,12 @@ export async function updateTransaction(
     );
   }
 
-  return db.transaction.update({ where: { id }, data: input });
+  // businessEntryType only applies to INCOME legs — force null on EXPENSE.
+  const data = existing.kind === TransactionKind.EXPENSE
+    ? { ...input, businessEntryType: null }
+    : input;
+
+  return db.transaction.update({ where: { id }, data });
 }
 
 export async function deleteTransaction(userId: string, id: string) {

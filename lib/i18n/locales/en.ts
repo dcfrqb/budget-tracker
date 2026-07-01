@@ -468,6 +468,12 @@ export const enDict: RuDictShape = {
       group_key: "group",
       group_none: "none",
     },
+    business: {
+      label: "business · this mo",
+      count_key: "active",
+      revenue_key: "revenue",
+      profit_key: "profit",
+    },
   },
 
   expenses: {
@@ -920,6 +926,56 @@ export const enDict: RuDictShape = {
       period_1y: "1y",
       period_all: "all",
       day_of_month_hint: "day of month / days in month",
+    },
+  },
+
+  business: {
+    index: {
+      title: "Business",
+      section_title: "Ventures",
+      add: "+ Business",
+      empty: "No businesses yet — add the first one to track P&L separately from personal finances",
+    },
+    card: {
+      inactive: "inactive",
+      period_revenue: "revenue/mo",
+      period_profit: "profit/mo",
+      txn_count: "{n} transactions",
+    },
+    detail: {
+      add_entry: "+ entry",
+      edit: "edit",
+      empty_txns: "No transactions linked to this business yet. Attribute an existing transaction or add a new entry.",
+      period: {
+        "1m": "1m",
+        "3m": "3m",
+        "6m": "6m",
+        "12m": "12m",
+        all: "all",
+      },
+      kpi: {
+        section_title: "P&L",
+        revenue: "revenue",
+        revenue_sub: "business income, excluding pass-through amounts",
+        expenses: "expenses",
+        expenses_sub: "all expenses linked to this business",
+        profit: "profit",
+        profit_sub: "revenue minus expenses",
+        cumulative: "cumulative profit",
+        cumulative_sub: "running total over the period",
+        pass_through_note: "Pass-through income (received and forwarded on) is excluded from revenue — shown in a separate column in the table below",
+      },
+      matrix: {
+        title: "Monthly P&L",
+        column: {
+          month: "month",
+          revenue: "revenue",
+          pass_through: "pass-through",
+          expenses: "expenses",
+          profit: "profit",
+          cumulative: "cumulative",
+        },
+      },
     },
   },
 
@@ -1845,6 +1901,8 @@ export const enDict: RuDictShape = {
         work_source_required: "Income source *",
         planned_event: "Event",
         personal_debt: "Debt",
+        business: "Business",
+        business_entry_type: "Entry type",
       },
       placeholder: {
         name: "Transaction name",
@@ -1862,6 +1920,13 @@ export const enDict: RuDictShape = {
         empty_cta_title: "Add an income source first",
         empty_cta_body: "Every income must be tied to a source. Create at least one.",
         empty_cta_button: "Add source",
+      },
+      business_entry_type: {
+        revenue: "Revenue",
+        pass_through: "Pass-through",
+      },
+      hint: {
+        business_entry_type: "Pass-through — money received to be forwarded on (excluded from business revenue and profit)",
       },
     },
     transfer: {
@@ -2131,6 +2196,28 @@ export const enDict: RuDictShape = {
         tax_rate: "Hint only — manage taxes manually",
         currency_default: "If not set, defaults to your main currency",
         pay_details_reference: "Reference only — actual income is calculated from linked transactions",
+      },
+    },
+    business: {
+      title_create: "New business",
+      title_edit: "Edit business",
+      delete: "Delete business",
+      delete_confirm: "Delete this business?",
+      delete_failed: "Failed to delete",
+      currency_locked: "Currency can't be changed — linked transactions exist",
+      field: {
+        name: "Name",
+        currency: "Currency",
+        started_at: "Start date",
+        is_active: "Active",
+        note: "Note",
+      },
+      placeholder: {
+        name: "Business name",
+        note: "Note (optional)",
+      },
+      hint: {
+        currency_default: "If not set, defaults to your main currency",
       },
     },
     tx_confirm: {
@@ -2668,6 +2755,7 @@ export const enDict: RuDictShape = {
       anl:  "weather",
       wal:  "accounts",
       fam:  "group",
+      biz:  "P&L",
       // === wave-2 parser+wallet+breadcrumbs ===
       settings: "profile & budget",
       settings_sub: {
@@ -2687,6 +2775,7 @@ export const enDict: RuDictShape = {
         anl:      "Analytics",
         wal:      "Wallet",
         fam:      "Family",
+        biz:      "Business",
         settings: "Settings",
       },
       codes: {
@@ -2698,6 +2787,7 @@ export const enDict: RuDictShape = {
         anl:      "ANL",
         wal:      "WAL",
         fam:      "FAM",
+        biz:      "BIZ",
         settings: "SET",
       },
       aria: "Primary navigation",

@@ -54,6 +54,7 @@ model User {
   ownedFamilies                   Family[]                         @relation("FamilyOwner")
   integrationCredentials          IntegrationCredential[]
   trips                           Trip[]
+  businesses                      Business[]
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -83,6 +84,7 @@ model Currency {
   transfersTo          Transfer[]            @relation("TransferToCcy")
   trips                Trip[]
   tripBookings         TripBooking[]
+  businesses           Business[]
 }
 
 model ExchangeRate {
@@ -328,6 +330,11 @@ enum GroupKind {
   MERGE
 }
 
+enum BusinessEntryType {
+  REVENUE
+  PASS_THROUGH
+}
+
 model Transaction {
   id           String            @id @default(cuid())
   userId       String
@@ -369,6 +376,10 @@ model Transaction {
   // Trip Planner: optional link to a trip
   tripId String?
 
+  // Business domain: optional link to a business
+  businessId        String?
+  businessEntryType BusinessEntryType?
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
@@ -391,6 +402,7 @@ model Transaction {
   compensationGroup  CompensationGroup? @relation("CompensationMembers", fields: [compensationGroupId], references: [id], onDelete: SetNull)
   mainOfCompensation CompensationGroup? @relation("CompensationMain")
   trip               Trip?              @relation(fields: [tripId], references: [id], onDelete: SetNull)
+  business           Business?          @relation(fields: [businessId], references: [id], onDelete: SetNull)
 
   facts               TransactionFact[]
   tripBooking         TripBooking?
@@ -404,6 +416,7 @@ model Transaction {
   @@index([compensationGroupId])
   @@index([freelanceOrderId])
   @@index([tripId])
+  @@index([businessId])
 }
 
 // Факты частичного подтверждения (когда транзакция PARTIAL и деньги приходят траншами).
@@ -872,6 +885,29 @@ model PlannedEvent {
   transactions Transaction[]
 
   @@index([userId, eventDate])
+}
+
+// ─────────────────────────────────────────────────────────────
+// BUSINESS DOMAIN
+// ─────────────────────────────────────────────────────────────
+
+model Business {
+  id           String    @id @default(cuid())
+  userId       String
+  name         String
+  note         String?
+  currencyCode String
+  startedAt    DateTime?
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currency     Currency      @relation(fields: [currencyCode], references: [code])
+  transactions Transaction[]
+
+  @@index([userId])
+  @@index([userId, isActive])
 }
 
 // ─────────────────────────────────────────────────────────────

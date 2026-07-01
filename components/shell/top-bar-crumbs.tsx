@@ -18,6 +18,7 @@ export function TopBarCrumbs() {
     anl:  t("shell.crumbs.anl"),
     wal:  t("shell.crumbs.wal"),
     fam:  t("shell.crumbs.fam"),
+    biz:  t("shell.crumbs.biz"),
     settings: t("shell.crumbs.settings"),
   };
 

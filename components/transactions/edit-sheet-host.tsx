@@ -19,6 +19,7 @@ export interface EditSheetHostProps {
   categories: CategoryOption[];
   currencies: CurrencyOption[];
   workSources?: { id: string; name: string }[];
+  businesses?: { id: string; name: string }[];
   tz?: string;
 }
 
@@ -30,6 +31,7 @@ export function EditSheetHost({
   categories,
   currencies,
   workSources,
+  businesses,
   tz,
 }: EditSheetHostProps) {
   const t = useT();
@@ -62,6 +64,7 @@ export function EditSheetHost({
           categories={categories}
           currencies={currencies}
           workSources={workSources}
+          businesses={businesses}
           initialValues={initialValues}
           tz={tz}
           onSuccess={close}
