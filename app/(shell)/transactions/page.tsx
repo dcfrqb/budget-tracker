@@ -20,14 +20,12 @@ import { getLatestRatesMap } from "@/lib/data/wallet";
 import { getCompensationProjection } from "@/lib/data/_shared/compensation-projection";
 import { getCategories } from "@/lib/data/categories";
 import { getConnectedCredentials } from "@/lib/data/_queries/integrations";
-import { getBudgetSettings } from "@/lib/data/settings";
 import { db } from "@/lib/db";
 import { toPeriodSummaryView, toTxnDayView } from "@/lib/view/transactions";
 import { toDebtView } from "@/lib/view/debts";
 import { Prisma, TransactionKind } from "@prisma/client";
 import { formatMoney } from "@/lib/format/money";
-import { mapDefaultPeriod } from "@/lib/data/_period";
-import { isCalendarPeriod, resolveAnyCalendarRange } from "@/lib/analytics/period";
+import { isCalendarPeriod, resolveAnyCalendarRange, periodShortLabel } from "@/lib/analytics/period";
 import type { ListFilters } from "@/lib/data/transactions";
 import { getActiveWorkSources } from "@/lib/data/work-sources";
 import { getActiveBusinesses } from "@/lib/data/businesses";
@@ -95,18 +93,32 @@ export default async function TransactionsPage({
   const sp = await searchParams;
   const locale = await getLocale();
   const userId = await getCurrentUserId();
-  const [t, tz, settings] = await Promise.all([
+  const [t, tz] = await Promise.all([
     getT(locale),
     getCurrentUserTz(),
-    getBudgetSettings(userId),
   ]);
 
-  const defaultPeriodCode = mapDefaultPeriod(settings?.defaultPeriod ?? "3m", "txn");
-  const period = sp.period ?? defaultPeriodCode;
+  // Лента транзакций стартует с 30-дневного окна — совпадает с правой рельсой
+  // (getPeriodFlow, тоже 30д) и подсветкой сегмента в тулбаре. Другой период —
+  // только по явному ?period= (rolling 7d/90d/1y или календарный код).
+  const period = sp.period ?? "30d";
 
   const { from, to } = isCalendarPeriod(period)
-    ? (resolveAnyCalendarRange(period, tz) ?? parseRollingPeriod(defaultPeriodCode))
+    ? (resolveAnyCalendarRange(period, tz) ?? parseRollingPeriod("30d"))
     : parseRollingPeriod(period);
+
+  // Подпись периода в шапке «СВОДКА ПЕРИОДА» — динамическая, отражает реальное
+  // окно (а не захардкоженные «30д»). Rolling — через filter-лейблы, календарь —
+  // через periodShortLabel.
+  const ROLLING_LABEL_KEY = {
+    "7d": "transactions.filter.period_7d",
+    "30d": "transactions.filter.period_30d",
+    "90d": "transactions.filter.period_90d",
+    "1y": "transactions.filter.period_1y",
+  } as const;
+  const periodLabel = isCalendarPeriod(period)
+    ? periodShortLabel(period, t)
+    : t(ROLLING_LABEL_KEY[period as keyof typeof ROLLING_LABEL_KEY] ?? "transactions.filter.period_30d");
 
   const kindFilter = parseKindFilter(sp.type);
 
@@ -300,7 +312,7 @@ export default async function TransactionsPage({
         accountName={defaultAccount?.name}
         syncCredentials={syncCredentials}
       />
-      <PeriodSummary summary={summaryView} />
+      <PeriodSummary summary={summaryView} periodLabel={periodLabel} />
       <TransactionsSelectionProvider>
         <TxnFeed days={days} totalCount={summary.totalCount} accounts={accounts} tz={tz} />
       </TransactionsSelectionProvider>

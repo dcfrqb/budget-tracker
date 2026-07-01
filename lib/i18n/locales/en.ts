@@ -1631,7 +1631,7 @@ export const enDict: RuDictShape = {
     },
     period: {
       title: "period summary",
-      range: "· 30d",
+      range: "· {period}",
       txn_short: "txn.",
       avg: "avg",
       net_forecast: "forecast {amount}",

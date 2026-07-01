@@ -4,9 +4,9 @@ import { CountUp } from "@/components/count-up";
 import { useT } from "@/lib/i18n";
 import type { PeriodSummaryView } from "@/lib/view/transactions";
 
-type Props = { summary: PeriodSummaryView };
+type Props = { summary: PeriodSummaryView; periodLabel: string };
 
-export function PeriodSummary({ summary }: Props) {
+export function PeriodSummary({ summary, periodLabel }: Props) {
   const t = useT();
   const { inflow, outflow, transfers, net, totalCount, plannedCount, partialCount } = summary;
 
@@ -30,7 +30,7 @@ export function PeriodSummary({ summary }: Props) {
       <div className="section-hd">
         <div className="ttl mono">
           <b>{t("transactions.period.title")}</b>{" "}
-          <span className="dim">{t("transactions.period.range")}</span>
+          <span className="dim">{t("transactions.period.range", { vars: { period: periodLabel } })}</span>
         </div>
         <div className="meta mono">{metaLine}</div>
       </div>

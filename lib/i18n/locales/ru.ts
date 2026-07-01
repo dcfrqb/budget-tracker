@@ -1639,7 +1639,7 @@ export const ruDict = {
     },
     period: {
       title: "сводка периода",
-      range: "· 30д",
+      range: "· {period}",
       txn_short: "транз.",
       avg: "ср",
       net_forecast: "прогноз {amount}",
