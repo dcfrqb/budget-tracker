@@ -1,49 +1,92 @@
 // Bybit V5 Card API — TypeScript types
-// Field names mirror the live API response for /v5/card/reward/points/records.
+// Field names mirror the live API response for /v5/card/transaction/query-asset-records.
 // All numeric fields are strings per Bybit API convention.
 
-export type BybitPointRecord = {
+export type BybitCardAssetRecord = {
   /** Last 4 digits of the card PAN. */
   pan4: string;
-  /** Cashback / reward points earned on this transaction. */
-  point: number;
-  /** Direction: e.g. "debit", "credit". */
+  /** First 6 digits of the card PAN (BIN). */
+  pan6: string;
+  /** Trade status string. */
+  tradeStatus: string;
+  /** Direction: "1" = debit/spend. */
   side: string;
-  /** Record type (e.g. "consume"). */
-  type: string;
-  /** Record sub-type. */
-  subType: string;
-  /** Record creation timestamp, ms epoch (string). */
-  createTime: string;
-  /** Record update timestamp, ms epoch (string). */
-  updateTime: string;
-  /** Bybit business ID. */
-  bizId: string;
-  /** Bybit business transaction ID. */
-  bizTxnId: string;
-  /** Transaction date, ms epoch (string). Empty string if unavailable. */
-  transactionDate: string;
-  /** Bybit transaction ID. Empty string if not a card spend. */
-  transactionId: string;
-  /** Transaction amount in basicCurrency (string-encoded decimal). */
-  transactionAmount: string;
-  /** Settlement / base currency code (e.g. "USD"). */
+  /** Charged amount in basicCurrency including fees (string-encoded decimal). Load-bearing for import. */
+  basicAmount: string;
+  /** Settlement currency code (e.g. "USD"). */
   basicCurrency: string;
-  /** Human-readable merchant category description. */
-  merchCategoryDesc: string;
-  /** Merchant name. Empty string for non-spend rows. */
-  merchName: string;
-  /** Merchant country code. */
+  /** Transaction amount in transactionCurrency (string-encoded decimal). */
+  transactionAmount: string;
+  /** Transaction currency code. */
+  transactionCurrency: string;
+  /** Transaction creation timestamp, ms epoch (STRING). */
+  txnCreate: string;
+  /** Merchant country code (e.g. "HKG"). */
   merchCountry: string;
   /** Merchant city. */
   merchCity: string;
-  /** Amount paid in local/fiat currency. */
-  payFiatAmount: string;
-  /** Amount in the transaction's local currency. */
-  transactionCurrencyAmount: string;
-  /** External order ID. */
-  outOrderId: string;
+  /** Merchant name. */
+  merchName: string;
+  /** Unique transaction ID. Used as externalId. */
+  txnId: string;
+  /** Decline reason code: "0" = not declined. */
+  declinedReason: string;
+  /** Total fees charged (string-encoded decimal). */
+  totalFees: string;
+  /** Foreign transaction fee (string-encoded decimal). */
+  foreignTransactionFee: string;
+  /** Bill amount (string-encoded decimal). */
+  billAmount: string;
+  /** Paid amount (string-encoded decimal). */
+  paidAmount: string;
+  /** Paid currency code. */
+  paidCurrency: string;
+  /** Status: "0"=Pending, "1"=Cleared, "2"=Declined. */
+  status: string;
+  /** Internal order number. */
+  orderNo: string;
+  /** MCC category code. */
+  mccCode: string;
+  /** Human-readable merchant category description (may equal mccCode). */
+  merchCategoryDesc: string;
   /** Allow extra fields from passthrough. */
+  [key: string]: unknown;
+};
+
+/** Narrowed variant: guaranteed to represent a real cleared card spend. */
+export type BybitCardAssetRecordFiltered = BybitCardAssetRecord & {
+  txnId: string;
+  merchName: string;
+  basicAmount: string;
+  txnCreate: string;
+};
+
+// ── Legacy point-record types (kept for probe-bybit-card.ts compatibility) ───
+// These types are no longer used by the sync adapter — the live endpoint
+// switched from /v5/card/reward/points/records to /v5/card/transaction/query-asset-records.
+// Remove when probe-bybit-card.ts is updated to the new record shape.
+
+export type BybitPointRecord = {
+  pan4: string;
+  point: number;
+  side: string;
+  type: string;
+  subType: string;
+  createTime: string;
+  updateTime: string;
+  bizId: string;
+  bizTxnId: string;
+  transactionDate: string;
+  transactionId: string;
+  transactionAmount: string;
+  basicCurrency: string;
+  merchCategoryDesc: string;
+  merchName: string;
+  merchCountry: string;
+  merchCity: string;
+  payFiatAmount: string;
+  transactionCurrencyAmount: string;
+  outOrderId: string;
   [key: string]: unknown;
 };
 
@@ -188,7 +231,7 @@ export type BybitP2pOrderRecord = {
   [key: string]: unknown;
 };
 
-/** Narrowed variant: guaranteed to represent a real card spend (non-empty transactionId, merchName, transactionAmount, transactionDate). */
+/** @deprecated Use BybitCardAssetRecordFiltered. Narrowed variant of the old points-records feed. */
 export type BybitPointRecordFiltered = BybitPointRecord & {
   transactionId: string;
   merchName: string;

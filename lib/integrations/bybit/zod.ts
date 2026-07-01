@@ -95,6 +95,54 @@ export const bybitPointsRecordsEnvelopeSchema = makeEnvelopeSchema(
   bybitPointRecordsPageSchema,
 );
 
+// ── Card asset record schema ─────────────────────────────────────────────────
+//
+// Schema for /v5/card/transaction/query-asset-records rows.
+// This is the live replacement for the defunct /v5/card/reward/points/records.
+// status: "0"=Pending, "1"=Cleared, "2"=Declined.
+// txnCreate is a ms-epoch STRING (not a number).
+
+export const bybitCardAssetRecordSchema = z
+  .object({
+    pan4: z.string().optional().default(""),
+    pan6: z.string().optional().default(""),
+    tradeStatus: z.string().optional().default(""),
+    side: z.string().optional().default(""),
+    basicAmount: z.string().optional().default(""),
+    basicCurrency: z.string().optional().default(""),
+    transactionAmount: z.string().optional().default(""),
+    transactionCurrency: z.string().optional().default(""),
+    txnCreate: z.union([z.string(), z.number()]).transform(String).optional().default(""),
+    merchCountry: z.string().optional().default(""),
+    merchCity: z.string().optional().default(""),
+    merchName: z.string().optional().default(""),
+    txnId: z.string().optional().default(""),
+    declinedReason: z.string().optional().default(""),
+    totalFees: z.string().optional().default(""),
+    foreignTransactionFee: z.string().optional().default(""),
+    billAmount: z.string().optional().default(""),
+    paidAmount: z.string().optional().default(""),
+    paidCurrency: z.string().optional().default(""),
+    status: z.string().optional().default(""),
+    orderNo: z.string().optional().default(""),
+    mccCode: z.string().optional().default(""),
+    merchCategoryDesc: z.string().optional().default(""),
+  })
+  .passthrough();
+
+const bybitCardAssetRecordsPageSchema = z
+  .object({
+    data: z.array(bybitCardAssetRecordSchema).optional().default([]),
+    totalCount: coercedNumber.optional().default(0),
+    pageSize: coercedNumber.optional().default(0),
+    pageNo: coercedNumber.optional().default(0),
+  })
+  .strip();
+
+export const bybitCardAssetRecordsEnvelopeSchema = makeEnvelopeSchema(
+  bybitCardAssetRecordsPageSchema,
+);
+
 // ── Wallet balance (UTA) schema ──────────────────────────────────────────────
 //
 // Schema for /v5/account/wallet-balance?accountType=UNIFIED.

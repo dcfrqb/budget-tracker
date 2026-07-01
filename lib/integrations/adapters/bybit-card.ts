@@ -64,12 +64,9 @@ function bybitExpenseCategory(merchName: string): string {
 function composeNote(opts: {
   city: string;
   country: string;
-  points: number;
 }): string | undefined {
   const location = [opts.city, opts.country].filter(Boolean).join(", ");
-  const pointsStr = opts.points > 0 ? `+${opts.points} pts` : "";
-  const parts = [location, pointsStr].filter(Boolean);
-  return parts.length > 0 ? parts.join(" · ") : undefined;
+  return location || undefined;
 }
 
 export const bybitCardAdapter: BankAdapter = {
@@ -147,8 +144,12 @@ export const bybitCardAdapter: BankAdapter = {
         apiSecret,
         startTime: from,
         endTime: now,
-        pageSize: 50,
+        pageSize: 100,
         maxPages: 50,
+        // applyCutover=false: card discovery must see all historical activity,
+        // not just post-cutover records, so we can detect cards even if their
+        // only recent activity predates the migration boundary.
+        applyCutover: false,
       });
     } catch (err) {
       const errClass = classifyBybitError(err);
@@ -253,20 +254,21 @@ export const bybitCardAdapter: BankAdapter = {
         pan4List.push(record.pan4);
       }
 
-      const occurredAt = new Date(Number(record.transactionDate)).toISOString();
+      const occurredAt = new Date(Number(record.txnCreate)).toISOString();
 
       const note = composeNote({
         city: record.merchCity,
         country: record.merchCountry,
-        points: record.point,
       });
 
-      const description = record.merchName || record.merchCategoryDesc || "Bybit Card";
+      const description = record.merchName || "Bybit Card";
 
       const row: ImportRow = {
-        externalId: record.transactionId,
+        externalId: record.txnId,
         occurredAt,
-        amount: record.transactionAmount,
+        // basicAmount = real charged amount incl. crypto-conversion fee;
+        // matches historical stored amounts from the old points feed.
+        amount: record.basicAmount,
         currencyCode: record.basicCurrency || "USD",
         kind: "EXPENSE",
         direction: "out",
@@ -277,10 +279,9 @@ export const bybitCardAdapter: BankAdapter = {
         note,
         accountId: accountIdByPan4.get(record.pan4) ?? undefined,
         raw: {
-          transactionId: record.transactionId,
-          outOrderId: record.outOrderId,
-          bizId: record.bizId,
-          point: String(record.point),
+          txnId: record.txnId,
+          orderNo: record.orderNo,
+          mccCode: record.mccCode,
         },
       };
 

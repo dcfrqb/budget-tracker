@@ -1,34 +1,38 @@
 /**
  * Bybit Card integration smoke test.
  *
- * Run on prod (IP-allowlisted to 45.39.33.7):
+ * Run on prod (IP-allowlisted):
  *   BYBIT_API_KEY=xxx BYBIT_API_SECRET=yyy npx tsx scripts/probe-bybit-card.ts
  *
  * Or with .env file:
  *   npx tsx scripts/probe-bybit-card.ts
  *
- * Fetches the last 90 days of card transactions via /v5/card/reward/points/records,
+ * Fetches the last 90 days of card transactions via /v5/card/transaction/query-asset-records,
  * prints the first 3 records with pan4 masked to **XXXX. Exits 0 on success, 1 on error.
  */
 import "dotenv/config";
 import { listCardTransactions } from "@/lib/integrations/bybit/card-records";
 import { fetchCardSpendingPower } from "@/lib/integrations/bybit/balance";
-import type { BybitPointRecordFiltered } from "@/lib/integrations/bybit/types";
+import type { BybitCardAssetRecordFiltered } from "@/lib/integrations/bybit/types";
 
 function maskPan4(pan4: string): string {
   return `**${pan4.slice(-4)}`;
 }
 
-function summarizeRecord(record: BybitPointRecordFiltered): Record<string, unknown> {
+function summarizeRecord(record: BybitCardAssetRecordFiltered): Record<string, unknown> {
   return {
-    transactionId: record.transactionId,
+    txnId: record.txnId,
     pan4: maskPan4(record.pan4),
-    txnDate: new Date(Number(record.transactionDate)).toISOString(),
-    amount: record.transactionAmount,
-    currency: record.basicCurrency,
+    txnDate: new Date(Number(record.txnCreate)).toISOString(),
+    basicAmount: record.basicAmount,
+    basicCurrency: record.basicCurrency,
+    transactionAmount: record.transactionAmount,
+    transactionCurrency: record.transactionCurrency,
     merchant: record.merchName,
     location: `${record.merchCity || "?"}, ${record.merchCountry || "?"}`,
-    points: record.point,
+    status: record.status,
+    mccCode: record.mccCode,
+    orderNo: record.orderNo,
   };
 }
 
@@ -46,7 +50,7 @@ async function main(): Promise<void> {
   const now = Date.now();
   const ninetyDaysAgo = now - 90 * 24 * 60 * 60 * 1000;
 
-  console.log(`Probing Bybit Card API (/v5/card/reward/points/records)...`);
+  console.log(`Probing Bybit Card API (/v5/card/transaction/query-asset-records)...`);
   console.log(
     `Range: ${new Date(ninetyDaysAgo).toISOString()} → ${new Date(now).toISOString()}`,
   );
@@ -58,8 +62,9 @@ async function main(): Promise<void> {
       apiSecret,
       startTime: ninetyDaysAgo,
       endTime: now,
-      pageSize: 50,
+      pageSize: 100,
       maxPages: 5,
+      applyCutover: false, // probe: show all records, no migration filter
     });
   } catch (e) {
     console.error("ERROR: Request failed.");
