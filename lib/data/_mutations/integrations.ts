@@ -19,6 +19,17 @@ const POST_OTP_STATUS_POLL_MS = 45_000;
 // Max transactions per DB transaction to avoid Prisma 5s default timeout on large syncs.
 const PERSIST_CHUNK_SIZE = 200;
 
+// Tinkoff rotates an operation's externalId when it moves from authorization to
+// settled, and the operationTime can shift by a few seconds in the process. The
+// fingerprint dedupe matches such a rotated row against its pre-existing twin, so
+// occurredAt must be compared within a tolerance window rather than for exact
+// equality (observed shifts: 1–55s; window kept generous for safety). Widening the
+// window is only safe because the fingerprint match additionally requires the
+// candidate's externalId to have VANISHED from the current feed (see
+// incomingExternalIds) — that excludes genuine concurrent same-amount ops, which
+// keep both ids live and would otherwise be wrongly collapsed.
+const FINGERPRINT_TIME_TOLERANCE_MS = 120_000;
+
 type DbOrTx = typeof db | Prisma.TransactionClient;
 
 async function ensureTbankInstitution(client: DbOrTx, userId: string): Promise<string> {
@@ -518,6 +529,15 @@ export async function syncCredential(
           const rowSource = groupRows[0]?.source ?? cred.adapterId;
           const countBefore = await db.transaction.count({ where: { userId, accountId, source: rowSource } });
 
+          // External ids present in THIS sync's payload for this account. A fingerprint
+          // candidate whose externalId is still in this set is a genuine concurrent op
+          // (both ids live in the feed), NOT a rotation ghost — so it must be excluded
+          // from the fingerprint match to avoid collapsing real same-amount duplicates.
+          const incomingExternalIds = new Set(
+            groupRows.map((r) => r.externalId).filter((x): x is string => !!x),
+          );
+          const incomingExternalIdsArr = [...incomingExternalIds];
+
           for (let chunkStart = 0; chunkStart < groupRows.length; chunkStart += PERSIST_CHUNK_SIZE) {
             const chunk = groupRows.slice(chunkStart, chunkStart + PERSIST_CHUNK_SIZE);
             try {
@@ -539,16 +559,22 @@ export async function syncCredential(
                     // but a DIFFERENT externalId — that's the same physical op under a new id.
                     // name is intentionally excluded: update path preserves manual renames, so
                     // requiring name equality here would miss any user-renamed row and create a duplicate.
+                    const rowTimeA = new Date(row.occurredAt).getTime();
                     const existingByFingerprint = await tx.transaction.findFirst({
                       where: {
                         accountId,
                         source,
-                        occurredAt: new Date(row.occurredAt),
+                        occurredAt: {
+                          gte: new Date(rowTimeA - FINGERPRINT_TIME_TOLERANCE_MS),
+                          lte: new Date(rowTimeA + FINGERPRINT_TIME_TOLERANCE_MS),
+                        },
                         amount: row.amount,
                         currencyCode: row.currencyCode,
                         kind,
                         deletedAt: null,
-                        externalId: { not: row.externalId },
+                        // Only match a row whose externalId has vanished from the current
+                        // feed (rotation ghost). notIn subsumes `not: row.externalId`.
+                        externalId: { notIn: incomingExternalIdsArr },
                       },
                       select: { id: true, externalId: true },
                     });
@@ -736,6 +762,13 @@ export async function syncCredential(
 
         const countBeforeB = await db.transaction.count({ where: { userId, accountId } });
 
+        // See bucket-A incomingExternalIds: rotation ghosts vanish from the feed;
+        // concurrent same-amount ops keep both ids live and must not be collapsed.
+        const incomingExternalIdsB = new Set(
+          rowsWithoutAccountId.map((r) => r.externalId).filter((x): x is string => !!x),
+        );
+        const incomingExternalIdsArrB = [...incomingExternalIdsB];
+
         for (let chunkStart = 0; chunkStart < rowsWithoutAccountId.length; chunkStart += PERSIST_CHUNK_SIZE) {
           const chunk = rowsWithoutAccountId.slice(chunkStart, chunkStart + PERSIST_CHUNK_SIZE);
           try {
@@ -752,16 +785,21 @@ export async function syncCredential(
                 if (row.externalId) {
                   // Fingerprint check: Tinkoff rotates externalId when auth→settled.
                   // name excluded — see bucket=A comment above.
+                  const rowTimeB = new Date(row.occurredAt).getTime();
                   const existingByFingerprintB = await tx.transaction.findFirst({
                     where: {
                       accountId,
                       source: bucketBSource,
-                      occurredAt: new Date(row.occurredAt),
+                      occurredAt: {
+                        gte: new Date(rowTimeB - FINGERPRINT_TIME_TOLERANCE_MS),
+                        lte: new Date(rowTimeB + FINGERPRINT_TIME_TOLERANCE_MS),
+                      },
                       amount: row.amount,
                       currencyCode: row.currencyCode,
                       kind,
                       deletedAt: null,
-                      externalId: { not: row.externalId },
+                      // Only match a vanished (rotation ghost) externalId; see bucket A.
+                      externalId: { notIn: incomingExternalIdsArrB },
                     },
                     select: { id: true, externalId: true },
                   });
