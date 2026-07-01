@@ -28,20 +28,33 @@ export const getBusinessWithCounts = cache(
     const business = await db.business.findFirst({ where: { id, userId } });
     if (!business) return null;
 
-    const [txnCount, lastTxn] = await Promise.all([
+    const [txnCount, lastTxn, allocationCount, lastAllocation] = await Promise.all([
       db.transaction.count({ where: { businessId: id, deletedAt: null } }),
       db.transaction.findFirst({
         where: { businessId: id, deletedAt: null },
         orderBy: { occurredAt: "desc" },
         select: { occurredAt: true },
       }),
+      db.businessAllocation.count({ where: { businessId: id, transactionId: null } }),
+      db.businessAllocation.findFirst({
+        where: { businessId: id, transactionId: null },
+        orderBy: { occurredAt: "desc" },
+        select: { occurredAt: true },
+      }),
     ]);
+
+    const lastTxnAt =
+      lastTxn?.occurredAt && lastAllocation?.occurredAt
+        ? lastTxn.occurredAt > lastAllocation.occurredAt
+          ? lastTxn.occurredAt
+          : lastAllocation.occurredAt
+        : (lastTxn?.occurredAt ?? lastAllocation?.occurredAt ?? null);
 
     return {
       business,
       txnCount,
-      lastTxnAt: lastTxn?.occurredAt ?? null,
-      hasLinkedTxns: txnCount > 0,
+      lastTxnAt,
+      hasLinkedTxns: txnCount > 0 || allocationCount > 0,
     };
   },
 );
@@ -82,6 +95,13 @@ function effectiveTxnAmount(txn: {
   return txn.facts.reduce((s, f) => s.plus(f.amount), new Prisma.Decimal(0));
 }
 
+function tzMonthKey(fmt: Intl.DateTimeFormat, d: Date): string {
+  const parts = fmt.formatToParts(d);
+  const yr = parts.find((p) => p.type === "year")!.value;
+  const mo = parts.find((p) => p.type === "month")!.value;
+  return `${yr}-${mo}`;
+}
+
 export const getBusinessPnL = cache(
   async (
     userId: string,
@@ -91,24 +111,45 @@ export const getBusinessPnL = cache(
   ): Promise<BusinessPnL> => {
     const [tz, rates] = await Promise.all([getCurrentUserTz(), getLatestRatesMap()]);
 
-    const txns = await db.transaction.findMany({
-      where: {
-        userId,
-        businessId,
-        deletedAt: null,
-        status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
-        occurredAt: { gte: bounds.from, lte: bounds.to },
-      },
-      select: {
-        occurredAt: true,
-        kind: true,
-        amount: true,
-        currencyCode: true,
-        status: true,
-        businessEntryType: true,
-        facts: { select: { amount: true } },
-      },
-    });
+    const [txns, allocations] = await Promise.all([
+      db.transaction.findMany({
+        where: {
+          userId,
+          businessId,
+          deletedAt: null,
+          status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
+          occurredAt: { gte: bounds.from, lte: bounds.to },
+        },
+        select: {
+          id: true,
+          occurredAt: true,
+          kind: true,
+          amount: true,
+          currencyCode: true,
+          status: true,
+          businessEntryType: true,
+          facts: { select: { amount: true } },
+        },
+      }),
+      db.businessAllocation.findMany({
+        where: {
+          userId,
+          businessId,
+          occurredAt: { gte: bounds.from, lte: bounds.to },
+        },
+        select: {
+          amount: true,
+          currencyCode: true,
+          entryType: true,
+          occurredAt: true,
+          transactionId: true,
+        },
+      }),
+    ]);
+
+    const allocatedTxnIds = new Set(
+      allocations.filter((a) => a.transactionId != null).map((a) => a.transactionId as string),
+    );
 
     const tzMonthFmt = new Intl.DateTimeFormat("en-US", {
       timeZone: tz,
@@ -126,20 +167,25 @@ export const getBusinessPnL = cache(
       profit: new Prisma.Decimal(0),
     };
 
-    for (const txn of txns) {
-      const parts = tzMonthFmt.formatToParts(txn.occurredAt);
-      const yr = parts.find((p) => p.type === "year")!.value;
-      const mo = parts.find((p) => p.type === "month")!.value;
-      const key = `${yr}-${mo}`;
-
-      const native = effectiveTxnAmount(txn);
-      const inBase = convertToBase(native, txn.currencyCode, baseCcy, rates) ?? new Prisma.Decimal(0);
-
+    function getBucket(key: string): Bucket {
       const bucket = bucketMap.get(key) ?? {
         revenue: new Prisma.Decimal(0),
         passThrough: new Prisma.Decimal(0),
         expenses: new Prisma.Decimal(0),
       };
+      bucketMap.set(key, bucket);
+      return bucket;
+    }
+
+    for (const txn of txns) {
+      // Allocation-managed transactions skip the whole-txn contribution —
+      // their allocations are counted below instead (the double-count guard).
+      if (allocatedTxnIds.has(txn.id)) continue;
+
+      const key = tzMonthKey(tzMonthFmt, txn.occurredAt);
+      const native = effectiveTxnAmount(txn);
+      const inBase = convertToBase(native, txn.currencyCode, baseCcy, rates) ?? new Prisma.Decimal(0);
+      const bucket = getBucket(key);
 
       if (txn.kind === TransactionKind.INCOME) {
         if (txn.businessEntryType === BusinessEntryType.PASS_THROUGH) {
@@ -153,8 +199,24 @@ export const getBusinessPnL = cache(
         bucket.expenses = bucket.expenses.plus(inBase);
         totals.expenses = totals.expenses.plus(inBase);
       }
+    }
 
-      bucketMap.set(key, bucket);
+    for (const alloc of allocations) {
+      const key = tzMonthKey(tzMonthFmt, alloc.occurredAt);
+      const inBase =
+        convertToBase(alloc.amount, alloc.currencyCode, baseCcy, rates) ?? new Prisma.Decimal(0);
+      const bucket = getBucket(key);
+
+      if (alloc.entryType === BusinessEntryType.REVENUE) {
+        bucket.revenue = bucket.revenue.plus(inBase);
+        totals.revenue = totals.revenue.plus(inBase);
+      } else if (alloc.entryType === BusinessEntryType.PASS_THROUGH) {
+        bucket.passThrough = bucket.passThrough.plus(inBase);
+        totals.passThrough = totals.passThrough.plus(inBase);
+      } else if (alloc.entryType === BusinessEntryType.EXPENSE) {
+        bucket.expenses = bucket.expenses.plus(inBase);
+        totals.expenses = totals.expenses.plus(inBase);
+      }
     }
 
     totals.profit = totals.revenue.minus(totals.expenses);
@@ -165,10 +227,7 @@ export const getBusinessPnL = cache(
     const end = bounds.to;
 
     while (cursor <= end) {
-      const parts = tzMonthFmt.formatToParts(cursor);
-      const yr = parts.find((p) => p.type === "year")!.value;
-      const mo = parts.find((p) => p.type === "month")!.value;
-      const key = `${yr}-${mo}`;
+      const key = tzMonthKey(tzMonthFmt, cursor);
       const bucket = bucketMap.get(key) ?? {
         revenue: new Prisma.Decimal(0),
         passThrough: new Prisma.Decimal(0),
@@ -228,30 +287,52 @@ export const getBusinessCardSummaries = cache(
 
     const businessIds = businesses.map((b) => b.id);
 
-    const txns = await db.transaction.findMany({
-      where: {
-        userId,
-        businessId: { in: businessIds },
-        deletedAt: null,
-        status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
-        occurredAt: { gte: periodStart, lte: now },
-      },
-      select: {
-        businessId: true,
-        kind: true,
-        amount: true,
-        status: true,
-        businessEntryType: true,
-        facts: { select: { amount: true } },
-      },
-    });
+    const [txns, allocations, allTxnCounts] = await Promise.all([
+      db.transaction.findMany({
+        where: {
+          userId,
+          businessId: { in: businessIds },
+          deletedAt: null,
+          status: { in: [TransactionStatus.DONE, TransactionStatus.PARTIAL] },
+          occurredAt: { gte: periodStart, lte: now },
+        },
+        select: {
+          id: true,
+          businessId: true,
+          kind: true,
+          amount: true,
+          currencyCode: true,
+          status: true,
+          businessEntryType: true,
+          facts: { select: { amount: true } },
+        },
+      }),
+      db.businessAllocation.findMany({
+        where: {
+          userId,
+          businessId: { in: businessIds },
+          occurredAt: { gte: periodStart, lte: now },
+        },
+        select: {
+          businessId: true,
+          amount: true,
+          currencyCode: true,
+          entryType: true,
+          transactionId: true,
+        },
+      }),
+      db.transaction.groupBy({
+        by: ["businessId"],
+        where: { userId, businessId: { in: businessIds }, deletedAt: null },
+        _count: { _all: true },
+      }),
+    ]);
 
-    const allTxnCounts = await db.transaction.groupBy({
-      by: ["businessId"],
-      where: { userId, businessId: { in: businessIds }, deletedAt: null },
-      _count: { _all: true },
-    });
     const countByBusiness = new Map(allTxnCounts.map((r) => [r.businessId as string, r._count._all]));
+
+    const allocatedTxnIds = new Set(
+      allocations.filter((a) => a.transactionId != null).map((a) => a.transactionId as string),
+    );
 
     type Agg = { revenue: Prisma.Decimal; expenses: Prisma.Decimal };
     const aggByBusiness = new Map<string, Agg>();
@@ -261,6 +342,7 @@ export const getBusinessCardSummaries = cache(
 
     for (const txn of txns) {
       if (!txn.businessId) continue;
+      if (allocatedTxnIds.has(txn.id)) continue; // double-count guard
       const agg = aggByBusiness.get(txn.businessId);
       if (!agg) continue;
       const amount = effectiveTxnAmount(txn);
@@ -271,6 +353,19 @@ export const getBusinessCardSummaries = cache(
       } else if (txn.kind === TransactionKind.EXPENSE) {
         agg.expenses = agg.expenses.plus(amount);
       }
+    }
+
+    for (const alloc of allocations) {
+      const agg = aggByBusiness.get(alloc.businessId);
+      if (!agg) continue;
+      // Matches the pre-existing whole-txn behaviour: card summaries sum native
+      // amounts without currency conversion (same simplification as before).
+      if (alloc.entryType === BusinessEntryType.REVENUE) {
+        agg.revenue = agg.revenue.plus(alloc.amount);
+      } else if (alloc.entryType === BusinessEntryType.EXPENSE) {
+        agg.expenses = agg.expenses.plus(alloc.amount);
+      }
+      // PASS_THROUGH excluded from card revenue, matching whole-txn behaviour.
     }
 
     return businesses.map((b) => {
@@ -288,5 +383,133 @@ export const getBusinessCardSummaries = cache(
         periodProfit: agg.revenue.minus(agg.expenses),
       };
     });
+  },
+);
+
+// ─────────────────────────────────────────────────────────────
+// Revenue by stream — month × streamKey matrix
+// ─────────────────────────────────────────────────────────────
+
+export type BusinessStreamMatrix = {
+  streams: string[];
+  months: string[];
+  cells: Record<string, Record<string, Prisma.Decimal>>; // cells[streamKey][monthKey]
+  streamTotals: Record<string, Prisma.Decimal>;
+  monthTotals: Record<string, Prisma.Decimal>;
+  grandTotal: Prisma.Decimal;
+};
+
+const OTHER_STREAM = "other";
+
+export const getBusinessRevenueByStream = cache(
+  async (
+    userId: string,
+    businessId: string,
+    bounds: { from: Date; to: Date },
+    baseCcy: string,
+  ): Promise<BusinessStreamMatrix> => {
+    const [tz, rates] = await Promise.all([getCurrentUserTz(), getLatestRatesMap()]);
+
+    const allocations = await db.businessAllocation.findMany({
+      where: {
+        userId,
+        businessId,
+        entryType: BusinessEntryType.REVENUE,
+        occurredAt: { gte: bounds.from, lte: bounds.to },
+      },
+      select: { amount: true, currencyCode: true, streamKey: true, occurredAt: true },
+    });
+
+    const tzMonthFmt = new Intl.DateTimeFormat("en-US", {
+      timeZone: tz,
+      year: "numeric",
+      month: "2-digit",
+    });
+
+    const months: string[] = [];
+    const cursor = startOfMonthUtcInTz(tz, bounds.from);
+    while (cursor <= bounds.to) {
+      months.push(tzMonthKey(tzMonthFmt, cursor));
+      cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+    }
+
+    const cells: Record<string, Record<string, Prisma.Decimal>> = {};
+    const streamTotals: Record<string, Prisma.Decimal> = {};
+    const monthTotals: Record<string, Prisma.Decimal> = {};
+    for (const m of months) monthTotals[m] = new Prisma.Decimal(0);
+    let grandTotal = new Prisma.Decimal(0);
+
+    const streamOrder: string[] = [];
+
+    for (const alloc of allocations) {
+      const stream = alloc.streamKey ?? OTHER_STREAM;
+      const monthKey = tzMonthKey(tzMonthFmt, alloc.occurredAt);
+      const inBase =
+        convertToBase(alloc.amount, alloc.currencyCode, baseCcy, rates) ?? new Prisma.Decimal(0);
+
+      if (!cells[stream]) {
+        cells[stream] = {};
+        for (const m of months) cells[stream][m] = new Prisma.Decimal(0);
+        streamTotals[stream] = new Prisma.Decimal(0);
+        streamOrder.push(stream);
+      }
+
+      if (cells[stream][monthKey] === undefined) continue; // outside zero-filled range guard
+
+      cells[stream][monthKey] = cells[stream][monthKey].plus(inBase);
+      streamTotals[stream] = streamTotals[stream].plus(inBase);
+      monthTotals[monthKey] = monthTotals[monthKey].plus(inBase);
+      grandTotal = grandTotal.plus(inBase);
+    }
+
+    return { streams: streamOrder, months, cells, streamTotals, monthTotals, grandTotal };
+  },
+);
+
+// ─────────────────────────────────────────────────────────────
+// Revenue by tariff — totals + count
+// ─────────────────────────────────────────────────────────────
+
+export type BusinessTariffBreakdownRow = {
+  tariff: string;
+  total: Prisma.Decimal;
+  count: number;
+};
+
+export const getBusinessRevenueByTariff = cache(
+  async (
+    userId: string,
+    businessId: string,
+    bounds: { from: Date; to: Date },
+    baseCcy: string,
+  ): Promise<BusinessTariffBreakdownRow[]> => {
+    const rates = await getLatestRatesMap();
+
+    const allocations = await db.businessAllocation.findMany({
+      where: {
+        userId,
+        businessId,
+        entryType: BusinessEntryType.REVENUE,
+        occurredAt: { gte: bounds.from, lte: bounds.to },
+      },
+      select: { amount: true, currencyCode: true, tariff: true },
+    });
+
+    const OTHER_TARIFF = "other";
+    const map = new Map<string, { total: Prisma.Decimal; count: number }>();
+
+    for (const alloc of allocations) {
+      const tariff = alloc.tariff ?? OTHER_TARIFF;
+      const inBase =
+        convertToBase(alloc.amount, alloc.currencyCode, baseCcy, rates) ?? new Prisma.Decimal(0);
+      const row = map.get(tariff) ?? { total: new Prisma.Decimal(0), count: 0 };
+      row.total = row.total.plus(inBase);
+      row.count += 1;
+      map.set(tariff, row);
+    }
+
+    return Array.from(map.entries())
+      .map(([tariff, row]) => ({ tariff, total: row.total, count: row.count }))
+      .sort((a, b) => b.total.comparedTo(a.total));
   },
 );

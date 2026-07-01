@@ -984,6 +984,72 @@ export const ruDict = {
           cumulative: "накопл.",
         },
       },
+      stream_matrix: {
+        title: "Выручка по потокам",
+        column: {
+          stream: "поток",
+          total: "итого",
+        },
+      },
+      tariff_breakdown: {
+        title: "Выручка по тарифам",
+        column: {
+          tariff: "тариф",
+          total: "итого",
+          count: "записей",
+        },
+      },
+    },
+    allocation: {
+      field: {
+        entry_type: "тип записи",
+        amount: "сумма",
+        currency: "валюта",
+        occurred_at: "дата",
+        stream_key: "поток",
+        tariff: "тариф",
+        note: "заметка",
+      },
+      entry_type: {
+        revenue: "выручка",
+        pass_through: "транзит",
+        expense: "расход",
+      },
+      stream_key_hint: "например: bot, arcadia, zakhar — свободный текст",
+      error: {
+        over_allocated: "Сумма записей превышает сумму транзакции",
+      },
+      offapp: {
+        title: "Внеприложенческая выручка",
+        entry_cta: "+ внеприлож. доход",
+        hint: "Запись не связана с транзакцией — не влияет на личный баланс, только на P&L бизнеса",
+      },
+      split: {
+        title: "Разбить транзакцию",
+        txn_amount_hint: "Сумма транзакции: {amount}",
+        remainder: "Остаётся личным: {amount}",
+        add_row: "+ строка",
+        remove_row: "убрать",
+        empty_error: "Добавь хотя бы одну сумму",
+        entry_placeholder: "ID транзакции",
+        entry_cta: "разбить",
+      },
+    },
+    stream: {
+      bot: "бот",
+      arcadia: "Arcadia",
+      zakhar: "Захар",
+      manual: "вручную",
+      esp: "ESP",
+      evo: "EVO",
+      other: "прочее",
+    },
+    tariff: {
+      lite: "лайт",
+      standard: "стандарт",
+      pro: "про",
+      premium: "премиум",
+      other: "прочее",
     },
   },
 

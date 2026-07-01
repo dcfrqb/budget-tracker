@@ -55,6 +55,7 @@ model User {
   integrationCredentials          IntegrationCredential[]
   trips                           Trip[]
   businesses                      Business[]
+  businessAllocations             BusinessAllocation[]
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -85,6 +86,7 @@ model Currency {
   trips                Trip[]
   tripBookings         TripBooking[]
   businesses           Business[]
+  businessAllocations  BusinessAllocation[]
 }
 
 model ExchangeRate {
@@ -333,6 +335,7 @@ enum GroupKind {
 enum BusinessEntryType {
   REVENUE
   PASS_THROUGH
+  EXPENSE
 }
 
 model Transaction {
@@ -407,6 +410,7 @@ model Transaction {
   facts               TransactionFact[]
   tripBooking         TripBooking?
   freelanceOrderStage FreelanceOrderStage? @relation("StageTransaction")
+  allocations         BusinessAllocation[]
 
   @@unique([accountId, source, externalId], name: "importDedupe")
   @@index([userId, occurredAt])
@@ -902,12 +906,38 @@ model Business {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  currency     Currency      @relation(fields: [currencyCode], references: [code])
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currency     Currency             @relation(fields: [currencyCode], references: [code])
   transactions Transaction[]
+  allocations  BusinessAllocation[]
 
   @@index([userId])
   @@index([userId, isActive])
+}
+
+model BusinessAllocation {
+  id            String            @id @default(cuid())
+  userId        String
+  businessId    String
+  transactionId String?
+  amount        Decimal           @db.Decimal(28, 10)
+  currencyCode  String
+  entryType     BusinessEntryType
+  streamKey     String?
+  tariff        String?
+  occurredAt    DateTime
+  note          String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  business    Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  transaction Transaction? @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  currency    Currency     @relation(fields: [currencyCode], references: [code])
+
+  @@index([businessId])
+  @@index([businessId, occurredAt])
+  @@index([transactionId])
 }
 
 // ─────────────────────────────────────────────────────────────

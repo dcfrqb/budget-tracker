@@ -976,6 +976,72 @@ export const enDict: RuDictShape = {
           cumulative: "cumulative",
         },
       },
+      stream_matrix: {
+        title: "Revenue by stream",
+        column: {
+          stream: "stream",
+          total: "total",
+        },
+      },
+      tariff_breakdown: {
+        title: "Revenue by tariff",
+        column: {
+          tariff: "tariff",
+          total: "total",
+          count: "entries",
+        },
+      },
+    },
+    allocation: {
+      field: {
+        entry_type: "entry type",
+        amount: "amount",
+        currency: "currency",
+        occurred_at: "date",
+        stream_key: "stream",
+        tariff: "tariff",
+        note: "note",
+      },
+      entry_type: {
+        revenue: "revenue",
+        pass_through: "pass-through",
+        expense: "expense",
+      },
+      stream_key_hint: "e.g. bot, arcadia, zakhar — free text",
+      error: {
+        over_allocated: "Allocation total exceeds the transaction amount",
+      },
+      offapp: {
+        title: "Off-app revenue",
+        entry_cta: "+ off-app revenue",
+        hint: "Not linked to a transaction — doesn't affect personal balance, only business P&L",
+      },
+      split: {
+        title: "Split transaction",
+        txn_amount_hint: "Transaction amount: {amount}",
+        remainder: "Stays personal: {amount}",
+        add_row: "+ row",
+        remove_row: "remove",
+        empty_error: "Add at least one amount",
+        entry_placeholder: "Transaction ID",
+        entry_cta: "split",
+      },
+    },
+    stream: {
+      bot: "bot",
+      arcadia: "Arcadia",
+      zakhar: "Zakhar",
+      manual: "manual",
+      esp: "ESP",
+      evo: "EVO",
+      other: "other",
+    },
+    tariff: {
+      lite: "lite",
+      standard: "standard",
+      pro: "pro",
+      premium: "premium",
+      other: "other",
     },
   },
 

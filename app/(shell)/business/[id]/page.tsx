@@ -3,16 +3,28 @@ import { notFound } from "next/navigation";
 import { getCurrentUserId } from "@/lib/api/auth";
 import { getT } from "@/lib/i18n/server";
 import { getCurrentUserTz } from "@/lib/data/_users/get-user-tz";
-import { getBusinessWithCounts, getBusinessPnL } from "@/lib/data/businesses";
+import {
+  getBusinessWithCounts,
+  getBusinessPnL,
+  getBusinessRevenueByStream,
+  getBusinessRevenueByTariff,
+} from "@/lib/data/businesses";
+import { getTransactionById } from "@/lib/data/transactions";
+import { listAllCurrencies } from "@/lib/data/currencies";
 import { periodBounds, type PeriodCode } from "@/lib/data/_period";
 import { BusinessKpiRow } from "@/components/business/business-kpi-row";
 import { PnLMatrix } from "@/components/business/pnl-matrix";
+import { StreamMatrix } from "@/components/business/stream-matrix";
+import { TariffBreakdown } from "@/components/business/tariff-breakdown";
+import { BusinessAllocationSheetHost } from "@/components/business/business-allocation-sheet-host";
+import type { SplitTxnData } from "@/components/business/business-allocation-sheet-host";
+import { SplitEntryControl } from "@/components/business/split-entry-control";
 
 export const dynamic = "force-dynamic";
 
 interface Props {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{ period?: string; split?: string }>;
 }
 
 const PERIOD_CODES: PeriodCode[] = ["1m", "3m", "6m", "12m", "all"];
@@ -28,10 +40,25 @@ export default async function BusinessDetailPage({ params, searchParams }: Props
   const periodValue = (PERIOD_CODES.includes(sp.period as PeriodCode) ? sp.period : "6m") as PeriodCode;
   const bounds = periodBounds(periodValue, tz);
 
-  const pnl = await getBusinessPnL(userId, id, bounds, detail.business.currencyCode);
+  const [pnl, streamMatrix, tariffRows, currencies, splitTxnRow] = await Promise.all([
+    getBusinessPnL(userId, id, bounds, detail.business.currencyCode),
+    getBusinessRevenueByStream(userId, id, bounds, detail.business.currencyCode),
+    getBusinessRevenueByTariff(userId, id, bounds, detail.business.currencyCode),
+    listAllCurrencies(),
+    sp.split ? getTransactionById(userId, sp.split) : Promise.resolve(null),
+  ]);
+
   const cumulativeProfit = pnl.rows.length > 0
     ? pnl.rows[pnl.rows.length - 1].cumulativeProfit
     : pnl.totals.profit;
+
+  const splitTxn: SplitTxnData | undefined = splitTxnRow
+    ? {
+        id: splitTxnRow.id,
+        amount: splitTxnRow.amount.toString(),
+        currencyCode: splitTxnRow.currencyCode,
+      }
+    : undefined;
 
   return (
     <>
@@ -47,6 +74,10 @@ export default async function BusinessDetailPage({ params, searchParams }: Props
             <Link href={`/transactions/new?businessId=${id}`} className="btn btn-xs">
               {t("business.detail.add_entry")}
             </Link>
+            <Link href="?new=offapp" scroll={false} className="btn btn-xs">
+              {t("business.allocation.offapp.entry_cta")}
+            </Link>
+            <SplitEntryControl />
             <Link href={`/business/${id}/edit`} className="btn btn-xs">
               {t("business.detail.edit")}
             </Link>
@@ -77,6 +108,10 @@ export default async function BusinessDetailPage({ params, searchParams }: Props
 
       <PnLMatrix rows={pnl.rows} currencyCode={detail.business.currencyCode} />
 
+      <StreamMatrix matrix={streamMatrix} currencyCode={detail.business.currencyCode} />
+
+      <TariffBreakdown rows={tariffRows} currencyCode={detail.business.currencyCode} />
+
       {detail.txnCount === 0 && (
         <div className="section fade-in">
           <div className="section-body">
@@ -84,6 +119,13 @@ export default async function BusinessDetailPage({ params, searchParams }: Props
           </div>
         </div>
       )}
+
+      <BusinessAllocationSheetHost
+        businessId={id}
+        businessCurrencyCode={detail.business.currencyCode}
+        currencies={currencies.map((c) => ({ code: c.code, symbol: c.symbol }))}
+        splitTxn={splitTxn}
+      />
     </>
   );
 }
